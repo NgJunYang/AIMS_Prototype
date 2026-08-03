@@ -1,0 +1,31 @@
+{
+  "criteria": [
+    {
+      "criterion_id": "C1",
+      "proposed": 0,
+      "justification": "At step 2 both sides were divided by x rather than rearranged so that one side is zero, so this criterion is not met.",
+      "evidence_step": 2
+    },
+    {
+      "criterion_id": "C2",
+      "proposed": 1,
+      "justification": "Symbolic checking shows step 2 lost the solution x = 0, so the method did not preserve the solution set. Partial credit for correctly reducing to x = 5.",
+      "evidence_step": 2
+    },
+    {
+      "criterion_id": "C3",
+      "proposed": 2,
+      "justification": "The arithmetic that was carried out is correct: dividing 5x by x does give 5.",
+      "evidence_step": 2
+    },
+    {
+      "criterion_id": "C4",
+      "proposed": 0,
+      "justification": "Only x = 5 is stated. The expected solutions are 0 and 5, so not all solutions were given.",
+      "evidence_step": 2
+    }
+  ],
+  "misconceptions": [
+    "divided_by_variable_lost_root"
+  ]
+}

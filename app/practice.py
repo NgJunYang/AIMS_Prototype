@@ -130,19 +130,45 @@ def generate_practice(
     base = seed if seed is not None else random.randint(0, 10_000)
 
     questions: list[PracticeQuestion] = []
-    for i in range(count):
-        template = matching[i % len(matching)]
-        generated = template.generate(base + i)
-        tag = next(
-            (t for t in misconception_tags if t in template.misconception_tags),
-            template.misconception_tags[0],
-        )
+    seen_prompts: set[str] = set()
+
+    # Consecutive seeds can draw the same small parameters, so asking for three
+    # questions can hand a student the same one twice. Keep advancing the seed
+    # until we have `count` distinct prompts. The attempt budget is a safety net
+    # only - a template with fewer than `count` distinct outputs would otherwise
+    # spin forever - and on exhaustion we return duplicates rather than fewer
+    # questions than asked for.
+    attempt = 0
+    while len(questions) < count and attempt < count * 20:
+        template = matching[len(questions) % len(matching)]
+        generated = template.generate(base + attempt)
+        attempt += 1
+        if generated.prompt_latex in seen_prompts:
+            continue
+        seen_prompts.add(generated.prompt_latex)
+        questions.append(_to_question(generated, template, misconception_tags))
+
+    while len(questions) < count:
+        template = matching[len(questions) % len(matching)]
         questions.append(
-            PracticeQuestion(
-                prompt_latex=generated.prompt_latex,
-                answer_latex=generated.answer_latex,
-                misconception_tag=tag,
-                template_id=template.id,
+            _to_question(
+                template.generate(base + len(questions)), template, misconception_tags
             )
         )
+
     return questions
+
+
+def _to_question(
+    generated: Generated, template: Template, misconception_tags: list[str]
+) -> PracticeQuestion:
+    tag = next(
+        (t for t in misconception_tags if t in template.misconception_tags),
+        template.misconception_tags[0],
+    )
+    return PracticeQuestion(
+        prompt_latex=generated.prompt_latex,
+        answer_latex=generated.answer_latex,
+        misconception_tag=tag,
+        template_id=template.id,
+    )
