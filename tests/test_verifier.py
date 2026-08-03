@@ -93,6 +93,41 @@ def test_empty_input_produces_an_empty_report():
     assert report.final_answer_correct is False
 
 
+def test_bug1_connective_before_the_answer_invents_no_misconception():
+    # '\therefore x = 2, x = 3' used to parse as Eq(therefore*x, 2), giving
+    # divergence='different_roots' and a fabricated 'sign_error' against a
+    # completely correct script.
+    assert solution_set(r"\therefore x = 2, x = 3", "x") is None
+    report = verify(
+        steps("x^2 - 5x + 6 = 0", r"\therefore x = 2, x = 3"),
+        model_solution_steps=["x^2 - 5x + 6 = 0", "x = 2, x = 3"],
+        variable="x",
+    )
+    assert report.candidate_misconceptions == []
+    assert report.first_divergence_index is None
+    assert report.steps[1].lost_roots == []
+    assert report.steps[1].gained_roots == []
+
+
+def test_bug2_prose_never_produces_a_solution_set():
+    # {'0'} was the worst possible wrong answer here: classify()'s flagship
+    # check is `"0" in lost_roots`, so prose could fabricate the headline
+    # 'divided_by_variable_lost_root' misconception.
+    for prose in [
+        "expand",
+        "factorise the expression",
+        r"\textbf{expand}",
+        r"\text{expand \frac{1}{2}}",
+    ]:
+        assert solution_set(prose, "x") is None, prose
+
+
+def test_bug2_genuinely_unsatisfiable_equation_is_still_an_empty_set():
+    # The distinction that matters most: set() means 'parsed, no solutions',
+    # None means 'could not be read as mathematics'.
+    assert solution_set("x + 1 = x + 2", "x") == set()
+
+
 REALISTIC_LINES = [
     "x^2 - 5x + 6 = 0",
     r"x^{2} - 5x + 6 = 0",

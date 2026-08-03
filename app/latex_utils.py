@@ -146,8 +146,15 @@ def _parse_single(part: str, variable: str) -> sympy.Eq | None:
         except Exception:
             return None
 
-    if symbol not in (lhs.free_symbols | rhs.free_symbols):
-        # A line with no unknown in it (e.g. an arithmetic aside) is not a step
-        # we can verify as part of the solution chain.
+    if (lhs.free_symbols | rhs.free_symbols) != {symbol}:
+        # The unknown must be the *only* free symbol. Anything else means this
+        # is not a step in this variable's solution chain: prose (which
+        # parse_latex reads as a product of single-letter symbols), a
+        # connective such as '\therefore' or '\Rightarrow' (which parse_latex
+        # maps to a symbol and multiplies into the equation), or an
+        # un-substituted general formula. Also rejects a line with no unknown
+        # at all, e.g. an arithmetic aside.
+        # Placed after the 'i' -> sympy.I substitution, so complex answers
+        # still pass: sympy.I contributes no free symbols.
         return None
     return sympy.Eq(lhs, rhs)
