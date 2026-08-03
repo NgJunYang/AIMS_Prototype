@@ -55,7 +55,9 @@ def complete_json(
     """Call Claude and return a JSON object matching `schema`.
 
     Uses a forced tool call so the response is structured JSON rather than
-    prose that has to be parsed. Temperature is 0 for reproducibility.
+    prose that has to be parsed. No `temperature` is set: the model family
+    used here rejects that parameter outright (400 invalid_request_error)
+    rather than ignoring it, so passing one at all breaks every call.
     """
     key = cache_key(model, prompt, image_b64)
 
@@ -87,7 +89,6 @@ def complete_json(
     response = client.messages.create(
         model=model,
         max_tokens=max_tokens,
-        temperature=0,
         tools=[
             {
                 "name": "respond",
