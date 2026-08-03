@@ -60,14 +60,34 @@ def test_wide_gap_separates_two_answers():
     assert parse_equation_line(r"x = 2 \quad x = 3", "x") != []
 
 
-def test_bug1_stray_connective_does_not_multiply_into_the_equation():
+def test_bug1_connective_is_stripped_not_multiplied_into_the_equation():
     # parse_latex maps any unrecognised \command to a Symbol, so
     # '\therefore x = 2' used to parse as Eq(therefore*x, 2) and corrupt the
-    # solution set. A line carrying a connective is not verifiable maths.
-    assert parse_equation_line(r"\therefore x = 2", "x") == []
-    assert parse_equation_line(r"\therefore x = 2, x = 3", "x") == []
-    for connective in [r"\Rightarrow", r"\implies", r"\to"]:
-        assert parse_equation_line(f"{connective} x = 2", "x") == [], connective
+    # solution set. A connective is punctuation: it is removed, and the
+    # equation it introduces is verified normally.
+    assert normalise_latex(r"\therefore x = 2") == "x = 2"
+    equations = parse_equation_line(r"\therefore x = 2", "x")
+    assert len(equations) == 1
+    assert equations[0] == sympy.Eq(sympy.Symbol("x"), 2)
+    for connective in [
+        r"\therefore",
+        r"\because",
+        r"\Rightarrow",
+        r"\Longrightarrow",
+        r"\Leftrightarrow",
+        r"\Leftarrow",
+        r"\implies",
+        r"\iff",
+        r"\to",
+    ]:
+        assert len(parse_equation_line(f"{connective} x = 2, x = 3", "x")) == 2, connective
+
+
+def test_a_connective_strip_does_not_eat_a_longer_command_name():
+    # '\to' must not match the start of '\top', which is a real symbol and so
+    # is still caught by the free-symbol guard.
+    assert normalise_latex(r"\top x = 2") == r"\top x = 2"
+    assert parse_equation_line(r"\top x = 2", "x") == []
 
 
 def test_bug2_unwrapped_and_unstripped_prose_is_rejected():
@@ -86,7 +106,11 @@ def test_bug2_unwrapped_and_unstripped_prose_is_rejected():
 def test_bug1_general_formula_degrades_rather_than_inventing_roots():
     # The un-substituted quadratic formula has free symbols other than x, so
     # it is honestly reported as unparseable instead of yielding bogus roots.
+    # Stripping discourse connectives is NOT a licence to loosen this guard:
+    # a connective carries no mathematics, whereas b, a and c do.
     assert parse_equation_line(r"x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}", "x") == []
+    assert parse_equation_line(r"x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}", "x") == []
+    assert parse_equation_line(r"\therefore x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}", "x") == []
 
 
 def test_complex_answers_still_parse_after_the_free_symbol_guard():

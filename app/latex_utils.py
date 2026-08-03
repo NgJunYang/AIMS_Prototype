@@ -18,6 +18,21 @@ _REWRITES: list[tuple[str, str]] = [
     # single-letter symbols that looks like a real (wrong) equation.
     (r"\\(?:text|textrm|mbox)\s*\{[^{}]*\bor\b[^{}]*\}", " or "),
     (r"\\(?:text|textrm|mbox)\s*\{[^{}]*\}", " "),
+    # Discourse connectives are punctuation, not mathematics: they assert a
+    # relationship *between* lines, which this pipeline establishes itself by
+    # comparing solution sets. Stripping them therefore loses nothing, whereas
+    # leaving them in corrupts the equation - parse_latex maps an unrecognised
+    # command to a Symbol, so '\therefore x = 2' becomes Eq(therefore*x, 2).
+    # Note this is the opposite treatment to prose, which is dropped along with
+    # the whole line it appears on: prose says something the verifier cannot
+    # check, so a line containing it is not a verifiable step. A connective
+    # says only 'and so', which is exactly what the comparison already tests.
+    # The trailing lookahead keeps '\to' from matching the start of '\top'.
+    (
+        r"\\(?:therefore|because|Longrightarrow|Leftrightarrow|Rightarrow"
+        r"|Leftarrow|implies|iff|to)(?![A-Za-z])",
+        " ",
+    ),
     (r"\\left|\\right", ""),             # sizing commands SymPy dislikes
     (r"\\dfrac|\\tfrac", r"\\frac"),     # fraction variants
     (r"\\times|\\cdot", "*"),            # explicit multiplication

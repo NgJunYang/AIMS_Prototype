@@ -96,8 +96,9 @@ def test_empty_input_produces_an_empty_report():
 def test_bug1_connective_before_the_answer_invents_no_misconception():
     # '\therefore x = 2, x = 3' used to parse as Eq(therefore*x, 2), giving
     # divergence='different_roots' and a fabricated 'sign_error' against a
-    # completely correct script.
-    assert solution_set(r"\therefore x = 2, x = 3", "x") is None
+    # completely correct script. A connective is punctuation, so it is stripped
+    # and the answer stays verifiable: the answer mark is genuinely earnable.
+    assert solution_set(r"\therefore x = 2, x = 3", "x") == {"2", "3"}
     report = verify(
         steps("x^2 - 5x + 6 = 0", r"\therefore x = 2, x = 3"),
         model_solution_steps=["x^2 - 5x + 6 = 0", "x = 2, x = 3"],
@@ -107,13 +108,17 @@ def test_bug1_connective_before_the_answer_invents_no_misconception():
     assert report.first_divergence_index is None
     assert report.steps[1].lost_roots == []
     assert report.steps[1].gained_roots == []
-    # The line the answer was written on is now unparseable, so the answer is
-    # not established rather than wrong: final_answer_verified says which.
-    # (Bug 5's rule and this script pull in opposite directions - see the
-    # accompanying report. Nothing is asserted as an error against the
-    # student, which is the point of bug 1.)
-    assert report.final_answer_correct is False
-    assert report.final_answer_verified is False
+    assert report.steps[1].parsed is True
+    assert report.steps[1].equivalent_to_previous is True
+    assert report.final_answer_correct is True
+    assert report.final_answer_verified is True
+
+
+def test_a_general_formula_line_still_degrades_to_unparseable():
+    # Pins the boundary of the connective strip: symbols that carry actual
+    # mathematics are still rejected, with or without a connective in front.
+    assert solution_set(r"x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}", "x") is None
+    assert solution_set(r"\therefore x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}", "x") is None
 
 
 def test_bug2_prose_never_produces_a_solution_set():
