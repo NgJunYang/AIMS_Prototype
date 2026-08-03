@@ -150,6 +150,64 @@ def test_bug3_identity_line_is_not_read_as_losing_every_root():
     assert report.all_steps_parsed is True
 
 
+def test_bug4_roots_written_on_consecutive_lines_are_one_answer():
+    # Writing each root on its own line is a very common layout. Compared
+    # line-by-line it looked like losing root 3 and then swapping 2 for 3,
+    # giving 'lost_solution' and 'sign_error' against a correct script.
+    report = verify(
+        steps("(x - 2)(x - 3) = 0", "x = 2", "x = 3"),
+        model_solution_steps=["x^2 - 5x + 6 = 0", "x = 2, x = 3"],
+        variable="x",
+    )
+    assert report.candidate_misconceptions == []
+    assert report.first_divergence_index is None
+    assert report.final_answer_correct is True
+    # Every step is still in the report, with its own index, so the UI can
+    # highlight individual lines.
+    assert [s.index for s in report.steps] == [1, 2, 3]
+    assert report.steps[1].parsed is True
+    assert report.steps[1].equivalent_to_previous is None
+    assert report.steps[1].divergence is None
+    assert report.steps[1].solutions == ["2"]
+    assert report.steps[1].note != ""
+    # The verdict for the whole run lands on its last line, against the union.
+    assert report.steps[2].equivalent_to_previous is True
+    assert report.steps[2].solutions == ["2", "3"]
+
+
+def test_bug4_a_run_of_one_still_detects_a_lost_root():
+    # The coalescing must not blunt the two lost-root cases: in both of these
+    # the run has length 1, so behaviour is unchanged.
+    report = verify(
+        steps("x^2 = 5x", "x = 5"),
+        model_solution_steps=["x^2 = 5x", "x(x - 5) = 0", "x = 0, x = 5"],
+        variable="x",
+    )
+    assert report.steps[1].divergence == "lost_roots"
+    assert report.steps[1].lost_roots == ["0"]
+    assert report.candidate_misconceptions == ["divided_by_variable_lost_root"]
+    assert report.final_answer_correct is False
+
+    report = verify(
+        steps("x^2 = 9", "x = 3"),
+        model_solution_steps=["x^2 = 9", "x = 3, x = -3"],
+        variable="x",
+    )
+    assert report.steps[1].divergence == "lost_roots"
+    assert "dropped_plus_minus" in report.candidate_misconceptions
+
+
+def test_bug4_both_square_roots_on_separate_lines_is_correct():
+    report = verify(
+        steps("x^2 = 9", "x = 3", "x = -3"),
+        model_solution_steps=["x^2 = 9", "x = 3, x = -3"],
+        variable="x",
+    )
+    assert report.candidate_misconceptions == []
+    assert report.first_divergence_index is None
+    assert report.final_answer_correct is True
+
+
 REALISTIC_LINES = [
     "x^2 - 5x + 6 = 0",
     r"x^{2} - 5x + 6 = 0",

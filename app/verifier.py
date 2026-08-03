@@ -103,11 +103,16 @@ def verify(
     """Verify a chain of student steps against the model solution."""
     expected = _model_solution_set(model_solution_steps, variable)
 
+    outcomes = [solution_set(step.latex, variable) for step in student_steps]
+    # A student may write one root per line. Those lines are one logical answer,
+    # so they are read together rather than each being compared to the last.
+    runs = _answer_runs(outcomes)
+
     verifications: list[StepVerification] = []
     previous: set[str] | None = None
 
-    for step in student_steps:
-        current = solution_set(step.latex, variable)
+    for position, step in enumerate(student_steps):
+        current = outcomes[position]
 
         if current is None:
             verifications.append(
@@ -136,6 +141,30 @@ def verify(
             # An identity is a valid step that says nothing about the solution
             # set, so `previous` must survive it untouched.
             continue
+
+        run = runs.get(position)
+        if run is not None and position != run[-1]:
+            # An earlier line of a multi-line answer. Report it so the frontend
+            # can still index by step number, but pass no verdict on it and
+            # leave `previous` alone: the verdict lands on the last line of the
+            # run, against the union of the whole run.
+            verifications.append(
+                StepVerification(
+                    index=step.index,
+                    parsed=True,
+                    solutions=sorted(current),
+                    equivalent_to_previous=None,
+                    divergence=None,
+                    note=(
+                        "Part of a multi-line answer; read together with the "
+                        "following line(s)."
+                    ),
+                )
+            )
+            continue
+
+        if run is not None:
+            current = set().union(*(outcomes[index] for index in run))
 
         verification = StepVerification(
             index=step.index,
@@ -168,6 +197,46 @@ def verify(
         model_solutions=sorted(expected) if expected else [],
         candidate_misconceptions=classify(verifications, student_steps),
     )
+
+
+def _states_a_single_root(outcome: set[str] | None | object) -> bool:
+    """True when a line says exactly 'the unknown is this one constant'.
+
+    Deliberately decided from the solution set rather than from the LaTeX: one
+    solution, and that solution is a single value with no free symbols left in
+    it. A line stating two roots at once ('x = 2, x = 3') is already a complete
+    answer and is not part of a run.
+    """
+    if not isinstance(outcome, set) or len(outcome) != 1:
+        return False
+    try:
+        return not sympy.sympify(next(iter(outcome))).free_symbols
+    except Exception:
+        return False
+
+
+def _answer_runs(outcomes: list[set[str] | None | object]) -> dict[int, list[int]]:
+    """Group consecutive single-root lines, so 'x = 2' then 'x = 3' is one answer.
+
+    Maps each position in a run of two or more onto the whole run. A run of one
+    is absent from the mapping and so behaves exactly as it always has: a
+    single 'x = 5' after 'x^2 = 5x' is still a lost root, not half an answer.
+    """
+    runs: dict[int, list[int]] = {}
+    start = 0
+    while start < len(outcomes):
+        if not _states_a_single_root(outcomes[start]):
+            start += 1
+            continue
+        end = start
+        while end + 1 < len(outcomes) and _states_a_single_root(outcomes[end + 1]):
+            end += 1
+        if end > start:
+            positions = list(range(start, end + 1))
+            for position in positions:
+                runs[position] = positions
+        start = end + 1
+    return runs
 
 
 def _model_solution_set(model_solution_steps: list[str], variable: str) -> set[str] | None:
