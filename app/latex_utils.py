@@ -12,6 +12,12 @@ from sympy.parsing.latex import parse_latex
 # Applied in order. Each entry is (pattern, replacement).
 _REWRITES: list[tuple[str, str]] = [
     (r"\\\[|\\\]|\$\$|\$", ""),          # display/inline math wrappers
+    # Prose is not mathematics. 'or' inside prose is a separator between two
+    # answers, so keep it; everything else in a \text{} block must go, because
+    # parse_latex happily turns 'expand the brackets' into a product of
+    # single-letter symbols that looks like a real (wrong) equation.
+    (r"\\(?:text|textrm|mbox)\s*\{[^{}]*\bor\b[^{}]*\}", " or "),
+    (r"\\(?:text|textrm|mbox)\s*\{[^{}]*\}", " "),
     (r"\\left|\\right", ""),             # sizing commands SymPy dislikes
     (r"\\dfrac|\\tfrac", r"\\frac"),     # fraction variants
     (r"\\times|\\cdot", "*"),            # explicit multiplication
@@ -113,6 +119,10 @@ def _evaluate(expression: sympy.Basic) -> sympy.Basic:
 
 def _parse_single(part: str, variable: str) -> sympy.Eq | None:
     symbol = sympy.Symbol(variable)
+    if part.count("=") > 1:
+        # Two equations run together with no separator. Better to degrade this
+        # line honestly than to report a confident, wrong solution set.
+        return None
     try:
         if "=" in part:
             left, _, right = part.partition("=")

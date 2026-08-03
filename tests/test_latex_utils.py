@@ -40,3 +40,11 @@ def test_parse_answer_line_yields_two_equations():
 
 def test_unparseable_line_returns_empty_list():
     assert parse_equation_line(r"\text{no idea what this is}", "x") == []
+
+
+def test_prose_containing_the_unknown_is_still_rejected():
+    # 'expand' contains an x, and parse_latex will happily read the whole
+    # phrase as a product of single-letter symbols. Prose must never be
+    # mistaken for a verifiable step.
+    assert parse_equation_line(r"\text{expand the brackets}", "x") == []
+    assert parse_equation_line(r"\text{x is the answer}", "x") == []
