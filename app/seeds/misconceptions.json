@@ -1,0 +1,58 @@
+{
+  "divided_by_variable_lost_root": {
+    "tag": "divided_by_variable_lost_root",
+    "name": "Dividing both sides by the unknown",
+    "why_students_do_it": "Dividing by x looks like the same simplification as dividing by a constant, but it silently assumes x is not zero and therefore discards x = 0 as a solution.",
+    "feedback_template": "You divided both sides by x. That is only valid when x is not zero, so it quietly throws away the solution x = 0. Instead, move everything to one side and factorise.",
+    "remediation_reference": "Notes §2 — the zero-product principle",
+    "practice_template_ids": ["quad_zero_root"]
+  },
+  "dropped_plus_minus": {
+    "tag": "dropped_plus_minus",
+    "name": "Taking only the positive square root",
+    "why_students_do_it": "The square-root symbol denotes the principal (positive) root, so students forget that solving x^2 = k requires both roots.",
+    "feedback_template": "When you take the square root of both sides you must allow both signs. x^2 = k gives x = +sqrt(k) and x = -sqrt(k).",
+    "remediation_reference": "Notes §3 — square roots and the plus-or-minus sign",
+    "practice_template_ids": ["quad_plus_minus"]
+  },
+  "sign_error": {
+    "tag": "sign_error",
+    "name": "Sign error in factorising or rearranging",
+    "why_students_do_it": "When factorising x^2 + bx + c the signs of the two numbers depend on the signs of both b and c, and it is easy to reverse them.",
+    "feedback_template": "Check the signs in your factorisation. Expand your brackets and compare with the original equation — if they do not match, the signs are the usual culprit.",
+    "remediation_reference": "Notes §1 — factorising quadratics",
+    "practice_template_ids": ["quad_sign_check"]
+  },
+  "squaring_introduced_spurious_root": {
+    "tag": "squaring_introduced_spurious_root",
+    "name": "Squaring both sides introduced an extra solution",
+    "why_students_do_it": "Squaring is not reversible, so it can create solutions that do not satisfy the original equation.",
+    "feedback_template": "Squaring both sides can create solutions that do not work in the original equation. Always substitute your answers back to check.",
+    "remediation_reference": "Notes §4 — reversible and irreversible operations",
+    "practice_template_ids": ["quad_sign_check"]
+  },
+  "lost_solution": {
+    "tag": "lost_solution",
+    "name": "A solution was lost during rearranging",
+    "why_students_do_it": "Some manipulations quietly discard cases, particularly cancelling a common factor.",
+    "feedback_template": "One of the solutions disappeared between two of your lines. Look for a step where you cancelled or divided by something that could be zero.",
+    "remediation_reference": "Notes §2 — the zero-product principle",
+    "practice_template_ids": ["quad_zero_root"]
+  },
+  "gained_solution": {
+    "tag": "gained_solution",
+    "name": "An extra solution appeared",
+    "why_students_do_it": "A manipulation that is not reversible can introduce values that do not satisfy the original equation.",
+    "feedback_template": "One of your answers does not satisfy the original equation. Substitute each answer back into the question to check.",
+    "remediation_reference": "Notes §4 — reversible and irreversible operations",
+    "practice_template_ids": ["quad_sign_check"]
+  },
+  "no_working_shown": {
+    "tag": "no_working_shown",
+    "name": "Answer given with no working",
+    "why_students_do_it": "The student may have solved it mentally or by calculator, but method marks cannot be awarded for working that is not shown.",
+    "feedback_template": "Your answer is correct, but there is no working to award method marks to. Show the rearrangement and the factorisation or formula you used.",
+    "remediation_reference": "Notes §0 — how your work is marked",
+    "practice_template_ids": ["quad_sign_check"]
+  }
+}

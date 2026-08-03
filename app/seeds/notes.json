@@ -1,0 +1,34 @@
+{
+  "quadratics": [
+    {
+      "id": "notes-0",
+      "title": "Notes §0 — how your work is marked",
+      "body": "Marks are awarded for method as well as for the final answer. A correct answer with no working cannot earn the method marks."
+    },
+    {
+      "id": "notes-1",
+      "title": "Notes §1 — factorising quadratics",
+      "body": "To factorise x^2 + bx + c, find two numbers whose product is c and whose sum is b. Expand your brackets to check before proceeding."
+    },
+    {
+      "id": "notes-2",
+      "title": "Notes §2 — the zero-product principle",
+      "body": "If AB = 0 then A = 0 or B = 0. This only works when the product equals zero, which is why you must rearrange so that one side is zero before factorising. Never divide both sides by the unknown: doing so discards the solution where the unknown is zero."
+    },
+    {
+      "id": "notes-3",
+      "title": "Notes §3 — square roots and the plus-or-minus sign",
+      "body": "If x^2 = k with k > 0, then x = +sqrt(k) or x = -sqrt(k). Writing only the positive root loses half the solutions."
+    },
+    {
+      "id": "notes-4",
+      "title": "Notes §4 — reversible and irreversible operations",
+      "body": "Adding, subtracting, and multiplying or dividing by a non-zero constant are reversible and preserve the solution set. Squaring both sides and dividing by an expression containing the unknown are not."
+    },
+    {
+      "id": "notes-5",
+      "title": "Notes §5 — the quadratic formula and the discriminant",
+      "body": "For ax^2 + bx + c = 0 the solutions are x = (-b +/- sqrt(b^2 - 4ac)) / (2a). The discriminant b^2 - 4ac determines the nature of the roots: positive gives two real roots, zero gives one repeated root, negative gives no real roots."
+    }
+  ]
+}

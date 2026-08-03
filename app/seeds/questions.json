@@ -1,0 +1,106 @@
+[
+  {
+    "id": "q1",
+    "prompt": "Solve $x^2 - 5x + 6 = 0$.",
+    "model_solution_steps": [
+      "x^2 - 5x + 6 = 0",
+      "(x - 2)(x - 3) = 0",
+      "x = 2, x = 3"
+    ],
+    "variable": "x",
+    "topic_tag": "quadratics",
+    "criteria": [
+      { "id": "C1", "max": 1, "description": "Recognised the equation is in, or rearranged it to, a form suitable for solving" },
+      { "id": "C2", "max": 3, "description": "Applied a valid solution method without losing or gaining solutions" },
+      { "id": "C3", "max": 2, "description": "Carried out the algebra and arithmetic correctly" },
+      { "id": "C4", "max": 1, "description": "Stated all solutions" },
+      { "id": "C5", "max": 1, "description": "Working is clear and logically ordered" }
+    ]
+  },
+  {
+    "id": "q2",
+    "prompt": "Solve $x^2 = 5x$.",
+    "model_solution_steps": [
+      "x^2 = 5x",
+      "x^2 - 5x = 0",
+      "x(x - 5) = 0",
+      "x = 0, x = 5"
+    ],
+    "variable": "x",
+    "topic_tag": "quadratics",
+    "criteria": [
+      { "id": "C1", "max": 2, "description": "Rearranged so that one side is zero, rather than dividing through by the unknown" },
+      { "id": "C2", "max": 3, "description": "Applied a valid solution method without losing or gaining solutions" },
+      { "id": "C3", "max": 2, "description": "Carried out the algebra and arithmetic correctly" },
+      { "id": "C4", "max": 1, "description": "Stated all solutions" }
+    ]
+  },
+  {
+    "id": "q3",
+    "prompt": "Solve $2x^2 + 3x - 5 = 0$.",
+    "model_solution_steps": [
+      "2x^2 + 3x - 5 = 0",
+      "(2x + 5)(x - 1) = 0",
+      "x = -5/2, x = 1"
+    ],
+    "variable": "x",
+    "topic_tag": "quadratics",
+    "criteria": [
+      { "id": "C1", "max": 1, "description": "Identified the coefficients correctly" },
+      { "id": "C2", "max": 3, "description": "Applied a valid solution method without losing or gaining solutions" },
+      { "id": "C3", "max": 2, "description": "Carried out the algebra and arithmetic correctly" },
+      { "id": "C4", "max": 1, "description": "Stated all solutions" }
+    ]
+  },
+  {
+    "id": "q4",
+    "prompt": "Solve $x^2 + 4x + 1 = 0$, giving exact answers.",
+    "model_solution_steps": [
+      "x^2 + 4x + 1 = 0",
+      "(x + 2)^2 - 3 = 0",
+      "x = -2 + \\sqrt{3}, x = -2 - \\sqrt{3}"
+    ],
+    "variable": "x",
+    "topic_tag": "quadratics",
+    "criteria": [
+      { "id": "C1", "max": 1, "description": "Recognised that the expression does not factorise over the integers" },
+      { "id": "C2", "max": 3, "description": "Applied a valid exact method (formula or completing the square) correctly" },
+      { "id": "C3", "max": 2, "description": "Simplified the surd correctly" },
+      { "id": "C4", "max": 1, "description": "Stated both solutions" }
+    ]
+  },
+  {
+    "id": "q5",
+    "prompt": "Solve $x^2 + 2x + 5 = 0$. State clearly whether there are real solutions.",
+    "model_solution_steps": [
+      "x^2 + 2x + 5 = 0",
+      "x = -1 + 2i, x = -1 - 2i"
+    ],
+    "variable": "x",
+    "topic_tag": "quadratics",
+    "criteria": [
+      { "id": "C1", "max": 2, "description": "Evaluated the discriminant correctly" },
+      { "id": "C2", "max": 2, "description": "Drew the correct conclusion about real solutions" },
+      { "id": "C3", "max": 2, "description": "Carried out the algebra and arithmetic correctly" }
+    ]
+  },
+  {
+    "id": "q6",
+    "prompt": "Solve $(x - 2)(x - 3) = 2$.",
+    "model_solution_steps": [
+      "(x - 2)(x - 3) = 2",
+      "x^2 - 5x + 6 = 2",
+      "x^2 - 5x + 4 = 0",
+      "(x - 1)(x - 4) = 0",
+      "x = 1, x = 4"
+    ],
+    "variable": "x",
+    "topic_tag": "quadratics",
+    "criteria": [
+      { "id": "C1", "max": 2, "description": "Expanded and rearranged so that one side is zero before factorising" },
+      { "id": "C2", "max": 3, "description": "Applied a valid solution method without losing or gaining solutions" },
+      { "id": "C3", "max": 2, "description": "Carried out the algebra and arithmetic correctly" },
+      { "id": "C4", "max": 1, "description": "Stated all solutions" }
+    ]
+  }
+]
