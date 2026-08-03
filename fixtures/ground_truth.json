@@ -1,0 +1,26 @@
+[
+  {
+    "image_filename": "REPLACE-ME-q2-divided-by-x.jpg",
+    "question_id": "q2",
+    "expected_steps": ["x^2 = 5x", "x = 5"],
+    "expected_misconceptions": ["divided_by_variable_lost_root"],
+    "expected_marks": { "C1": 0, "C2": 1, "C3": 2, "C4": 0 },
+    "notes": "Placeholder. Replace image_filename and expected_* once the real script is photographed. Mirrors the hand-authored case in scripts/seed_demo_cache.py: student divides both sides of x^2 = 5x by x and loses the root x = 0."
+  },
+  {
+    "image_filename": "REPLACE-ME-q1-sign-error.jpg",
+    "question_id": "q1",
+    "expected_steps": ["x^2 - 5x + 6 = 0", "(x + 2)(x + 3) = 0", "x = -2, x = -3"],
+    "expected_misconceptions": ["sign_error"],
+    "expected_marks": { "C1": 1, "C2": 1, "C3": 0, "C4": 1, "C5": 1 },
+    "notes": "Placeholder, no real photograph exists yet. Student flips the sign of both factors when factorising x^2 - 5x + 6, giving roots -2 and -3 instead of 2 and 3 -- a 'different_roots' divergence classified as sign_error."
+  },
+  {
+    "image_filename": "REPLACE-ME-q4-dropped-plus-minus.jpg",
+    "question_id": "q4",
+    "expected_steps": ["x^2 + 4x + 1 = 0", "(x + 2)^2 - 3 = 0", "x = -2 + \\sqrt{3}"],
+    "expected_misconceptions": ["dropped_plus_minus"],
+    "expected_marks": { "C1": 1, "C2": 2, "C3": 1, "C4": 0 },
+    "notes": "Placeholder, no real photograph exists yet. Student completes the square correctly but states only the positive root, dropping x = -2 - sqrt(3) -- a 'lost_roots' divergence classified as dropped_plus_minus."
+  }
+]
