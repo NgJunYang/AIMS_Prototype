@@ -27,10 +27,19 @@ _REWRITES: list[tuple[str, str]] = [
     # the whole line it appears on: prose says something the verifier cannot
     # check, so a line containing it is not a verifiable step. A connective
     # says only 'and so', which is exactly what the comparison already tests.
-    # The trailing lookahead keeps '\to' from matching the start of '\top'.
+    # '\to' is deliberately NOT in this list. Unlike the others it has a genuine
+    # mathematical use between bare expressions (limit and mapping notation), so
+    # stripping it turns 'x \to 2' into 'x 2' -> Eq(2*x, 0) -> {'0'}, which is
+    # precisely the value classify() reads as the headline lost-root
+    # misconception. It is rejected outright by _NON_EQUALITY_RELATION instead,
+    # which is also what stops the same hazard arriving through parse_latex's
+    # silent truncation - see that pattern's comment. The eight below are safe:
+    # used relationally they sit between two equations, so the line carries two
+    # '=' signs and the count("=") > 1 guard in _parse_single rejects it already.
+    # The trailing lookahead stops a name matching a longer command's prefix.
     (
         r"\\(?:therefore|because|Longrightarrow|Leftrightarrow|Rightarrow"
-        r"|Leftarrow|implies|iff|to)(?![A-Za-z])",
+        r"|Leftarrow|implies|iff)(?![A-Za-z])",
         " ",
     ),
     (r"\\left|\\right", ""),             # sizing commands SymPy dislikes
@@ -41,6 +50,42 @@ _REWRITES: list[tuple[str, str]] = [
     (r"\\mathrm|\\mathit|\\mathbf", ""),
     (r"\s+", " "),                       # collapse whitespace
 ]
+
+# Guard A: a line whose relation is not equality is not a step in an
+# equation-solving chain, so it must degrade to unparseable rather than be
+# judged. This has to be a *pre-parse* check on the raw line, because
+# parse_latex does not fail on these - it silently truncates at a token it does
+# not know and hands back whatever it managed to read:
+#
+#     parse_latex(r'x \to 2')          -> x          free_symbols {x}
+#     parse_latex(r'x \longrightarrow 2') -> x       free_symbols {x}
+#
+# 'x' then becomes Eq(x, 0) and yields {'0'} - the value classify() reads as the
+# headline lost-root misconception. No stray symbol is left behind, so the
+# free-symbol guard in _parse_single cannot see that anything was discarded, and
+# after parsing there is no evidence left at all. Hence a token blocklist.
+#
+# Matched against the raw line, before the rewrites run: '\right' would
+# otherwise have already eaten the '\right' of '\rightarrow', and the
+# connectives would already be gone. Case matters, which is what keeps
+# '\Rightarrow' (a connective, stripped) distinct from '\rightarrow' (a
+# relation, rejected). Every name carries the trailing lookahead so it cannot
+# match a longer command's prefix: '\le' must not match '\left' or '\leq',
+# '\in' must not match '\infty', '\to' must not match '\top'.
+_NON_EQUALITY_RELATION = re.compile(
+    r"[<>]"
+    r"|\\(?:"
+    # Arrows and maps. SymPy truncates the line at all of these.
+    r"longrightarrow|rightarrow|leftarrow|mapsto|to"
+    # Orderings. These parse into Relational objects whose only free symbol is
+    # the unknown, so they slip past the free-symbol guard. Longest first; the
+    # 'qq'/'slant' spellings are in SymPy's own grammar (LaTeX.g4 lines 138-149).
+    r"|leqslant|leqq|leq|le|geqslant|geqq|geq|ge|neq|ne|gg|ll"
+    # Other relations. These leave a stray symbol and so are already rejected,
+    # but naming them keeps the intent explicit rather than incidental.
+    r"|approx|simeq|sim|propto|notin|in|equiv|subset|supset"
+    r")(?![A-Za-z])"
+)
 
 # Separators that survive normalisation. '\text{ or }' is not listed because
 # normalise_latex has already rewritten it to ' or ', which '\bor\b' catches.
@@ -118,8 +163,14 @@ def parse_equation_line(raw: str, variable: str = "x") -> list[sympy.Eq]:
 
     A line may contain several equations ('x = 0, x = 5'). A bare expression
     is interpreted as 'expression = 0', which is how students often write a
-    factorised form. Returns [] if nothing could be parsed.
+    factorised form. Returns [] if nothing could be parsed, which includes a
+    line stating a relation other than equality: an inequality is not a step in
+    an equation-solving chain, and reporting it as a solution set would be a
+    confident claim about working this module cannot verify.
     """
+    if _NON_EQUALITY_RELATION.search(raw):
+        return []
+
     equations: list[sympy.Eq] = []
     for part in split_answer_line(raw):
         for branch in expand_plus_minus(part):
@@ -161,6 +212,26 @@ def _parse_single(part: str, variable: str) -> sympy.Eq | None:
 
     if lhs is None or rhs is None:
         return None
+
+    # Guard B: defence in depth behind _NON_EQUALITY_RELATION, for a relation
+    # spelling the blocklist misses. Either side arriving as a comparison rather
+    # than a quantity ('x \geqslant 2' -> GreaterThan(x, 2)) means this line is
+    # not an equation, and its only free symbol may well be the unknown, so the
+    # free-symbol guard below would wave it through.
+    #
+    # Tested as 'is an ordinary expression' rather than 'is a Boolean', because
+    # sympy.Symbol inherits from Boolean - symbols are usable in boolean
+    # algebra - so rejecting Boolean operands would reject 'x = 2'. Everything
+    # to reject here (Relational, BooleanTrue/False, And/Or) is not an Expr;
+    # everything to keep (Symbol, Add, Mul, Integer, I) is. Note this runs on
+    # the *operands*: the BooleanTrue that sympy.Eq legitimately evaluates to
+    # for 'x = x' is constructed below and must survive, as must the
+    # BooleanFalse for 'x + 1 = x + 2'.
+    for operand in (lhs, rhs):
+        if not isinstance(operand, sympy.Expr) or isinstance(
+            operand, sympy.core.relational.Relational
+        ):
+            return None
 
     if variable != "i":
         # '2i' parses as '2*i' with 'i' a free symbol; students mean sqrt(-1).

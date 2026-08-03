@@ -1,3 +1,4 @@
+import pytest
 import sympy
 
 from app.latex_utils import normalise_latex, parse_equation_line, split_answer_line
@@ -69,18 +70,37 @@ def test_bug1_connective_is_stripped_not_multiplied_into_the_equation():
     equations = parse_equation_line(r"\therefore x = 2", "x")
     assert len(equations) == 1
     assert equations[0] == sympy.Eq(sympy.Symbol("x"), 2)
-    for connective in [
-        r"\therefore",
-        r"\because",
-        r"\Rightarrow",
-        r"\Longrightarrow",
-        r"\Leftrightarrow",
-        r"\Leftarrow",
-        r"\implies",
-        r"\iff",
-        r"\to",
-    ]:
+    for connective in CONNECTIVES:
         assert len(parse_equation_line(f"{connective} x = 2, x = 3", "x")) == 2, connective
+
+
+CONNECTIVES = [
+    r"\therefore",
+    r"\because",
+    r"\Rightarrow",
+    r"\Longrightarrow",
+    r"\Leftrightarrow",
+    r"\Leftarrow",
+    r"\implies",
+    r"\iff",
+]
+
+
+@pytest.mark.parametrize("connective", CONNECTIVES)
+def test_each_connective_leaves_the_equation_intact(connective):
+    assert normalise_latex(f"{connective} x = 2").strip() == "x = 2"
+    assert parse_equation_line(f"{connective} x = 2", "x") == [
+        sympy.Eq(sympy.Symbol("x"), 2)
+    ]
+
+
+def test_arrow_is_a_relation_not_a_connective_and_is_rejected():
+    # '\to' is not stripped like the connectives above: between bare expressions
+    # it is a real relation (limit, mapping). It is rejected outright, because
+    # parse_latex does not fail on it - it silently truncates, handing back a
+    # bare 'x' with no trace that '\to 2' was discarded.
+    assert parse_equation_line(r"x \to 2", "x") == []
+    assert parse_equation_line(r"\to x = 2", "x") == []
 
 
 def test_a_connective_strip_does_not_eat_a_longer_command_name():
@@ -116,3 +136,45 @@ def test_bug1_general_formula_degrades_rather_than_inventing_roots():
 def test_complex_answers_still_parse_after_the_free_symbol_guard():
     # 'i' is substituted for sympy.I, which contributes no free symbols.
     assert len(parse_equation_line("x = -1 + 2i, x = -1 - 2i", "x")) == 2
+
+
+# Guard A's blocklist. A line whose relation is not equality is not a step in an
+# equation-solving chain, so none of these may produce a solution set.
+NON_EQUALITY_RELATIONS = [
+    r"\to", r"\rightarrow", r"\longrightarrow", r"\mapsto", r"\leftarrow",
+    r"\geq", r"\ge", r"\geqq", r"\geqslant",
+    r"\leq", r"\le", r"\leqq", r"\leqslant",
+    r"\neq", r"\ne", r"\approx", r"\sim", r"\simeq", r"\propto",
+    r"\in", r"\notin", r"\equiv", r"\gg", r"\ll", r"\subset", r"\supset",
+    "<", ">",
+]
+
+
+@pytest.mark.parametrize("token", NON_EQUALITY_RELATIONS)
+def test_a_non_equality_relation_is_rejected(token):
+    assert parse_equation_line(f"x {token} 2", "x") == [], token
+
+
+# Commands whose names begin with a blocklisted token. The lookahead must not
+# let the blocklist eat any of these, or ordinary lines start disappearing.
+@pytest.mark.parametrize(
+    "latex",
+    [
+        r"\left(x - 2\right)\left(x - 3\right) = 0",  # '\le' must not eat '\left'
+        r"\top x = 2",                                # '\to' must not eat '\top'
+        r"x \times 2 = 4",                            # '\to' must not eat '\times'
+        r"\text{or} x = 2",                           # '\to' must not eat '\text'
+        r"\therefore x = 2",                          # '\the...' is a connective
+    ],
+)
+def test_the_relation_blocklist_does_not_eat_a_longer_command(latex):
+    from app.latex_utils import _NON_EQUALITY_RELATION
+
+    assert _NON_EQUALITY_RELATION.search(latex) is None, latex
+
+
+def test_infinity_is_not_mistaken_for_the_set_membership_token():
+    # '\in' must not match the start of '\infty'.
+    from app.latex_utils import _NON_EQUALITY_RELATION
+
+    assert _NON_EQUALITY_RELATION.search(r"x = \infty") is None

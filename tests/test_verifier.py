@@ -121,6 +121,71 @@ def test_a_general_formula_line_still_degrades_to_unparseable():
     assert solution_set(r"\therefore x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}", "x") is None
 
 
+NON_EQUALITY_RELATIONS = [
+    r"\to", r"\rightarrow", r"\longrightarrow", r"\mapsto", r"\leftarrow",
+    r"\geq", r"\ge", r"\geqq", r"\geqslant",
+    r"\leq", r"\le", r"\leqq", r"\leqslant",
+    r"\neq", r"\ne", r"\approx", r"\sim", r"\simeq", r"\propto",
+    r"\in", r"\notin", r"\equiv", r"\gg", r"\ll", r"\subset", r"\supset",
+    "<", ">",
+]
+
+
+@pytest.mark.parametrize("token", NON_EQUALITY_RELATIONS)
+def test_a_line_whose_relation_is_not_equality_is_unparseable(token):
+    # An inequality is not a step in an equation-solving chain. It used to give
+    # set() - 'parsed, no solutions' - which reads downstream as 'every root was
+    # lost', the same fabrication class as the other bugs. None is the honest
+    # answer: this module cannot verify it, so it must not judge it.
+    assert solution_set(f"x {token} 2", "x") is None, token
+
+
+def test_silent_truncation_by_the_latex_parser_cannot_invent_a_root():
+    # The non-obvious part: parse_latex does not fail on these. It truncates at
+    # the token it does not know and returns what it read, so 'x \to 2' arrives
+    # as the bare expression 'x', becomes Eq(x, 0) and yields {'0'} - the value
+    # classify() reads as the headline lost-root misconception. Nothing survives
+    # parsing to show that '\to 2' was discarded, and no stray free symbol is
+    # left, so only a pre-parse check can catch it.
+    assert solution_set(r"x \to 2", "x") is None
+    assert solution_set(r"x \rightarrow 2", "x") is None
+    assert solution_set(r"x \longrightarrow 2", "x") is None
+
+
+def test_guard_b_rejects_a_relation_the_blocklist_would_have_missed(monkeypatch):
+    # Guard B is reachable, not merely belt-and-braces: SymPy's grammar accepts
+    # '\leqq' and '\leqslant' (LaTeX.g4), which parse to Relational objects
+    # whose only free symbol is the unknown, so the free-symbol guard passes
+    # them. Blinding the blocklist to those two names simulates any relation
+    # spelling it does not know about; Guard B still stops them.
+    import re
+
+    from app import latex_utils
+
+    narrowed = re.compile(
+        latex_utils._NON_EQUALITY_RELATION.pattern.replace("leqslant|leqq|", "")
+    )
+    monkeypatch.setattr(latex_utils, "_NON_EQUALITY_RELATION", narrowed)
+
+    assert narrowed.search(r"x \leqslant 2") is None  # the blocklist is now blind
+    assert solution_set(r"x \leqslant 2", "x") is None  # and Guard B catches it
+    assert solution_set(r"x \leqq 2", "x") is None
+
+
+def test_an_inequality_step_degrades_and_accuses_the_student_of_nothing():
+    report = verify(
+        steps("x^2 - 5x + 6 = 0", r"x \geq 2", "x = 2, x = 3"),
+        model_solution_steps=["x^2 - 5x + 6 = 0", "x = 2, x = 3"],
+        variable="x",
+    )
+    assert report.steps[1].parsed is False
+    assert report.steps[1].divergence == "unparseable"
+    assert report.steps[1].solutions == []
+    assert report.candidate_misconceptions == []
+    assert report.first_divergence_index is None
+    assert report.all_steps_parsed is False
+
+
 def test_bug2_prose_never_produces_a_solution_set():
     # {'0'} was the worst possible wrong answer here: classify()'s flagship
     # check is `"0" in lost_roots`, so prose could fabricate the headline
