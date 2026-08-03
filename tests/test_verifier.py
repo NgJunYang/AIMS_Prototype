@@ -107,6 +107,13 @@ def test_bug1_connective_before_the_answer_invents_no_misconception():
     assert report.first_divergence_index is None
     assert report.steps[1].lost_roots == []
     assert report.steps[1].gained_roots == []
+    # The line the answer was written on is now unparseable, so the answer is
+    # not established rather than wrong: final_answer_verified says which.
+    # (Bug 5's rule and this script pull in opposite directions - see the
+    # accompanying report. Nothing is asserted as an error against the
+    # student, which is the point of bug 1.)
+    assert report.final_answer_correct is False
+    assert report.final_answer_verified is False
 
 
 def test_bug2_prose_never_produces_a_solution_set():
@@ -206,6 +213,67 @@ def test_bug4_both_square_roots_on_separate_lines_is_correct():
     assert report.candidate_misconceptions == []
     assert report.first_divergence_index is None
     assert report.final_answer_correct is True
+
+
+def test_two_answers_separated_by_a_wide_gap_are_both_read():
+    assert solution_set(r"x = 2 \quad x = 3", "x") == {"2", "3"}
+
+
+def test_bug5_unparseable_final_line_does_not_award_the_answer_mark():
+    # `previous` is the last line that *parsed*, so the answer mark used to be
+    # decided from an intermediate line while the actual answer line was never
+    # read at all.
+    report = verify(
+        steps("x^2 = 5x", "x(x - 5) = 0", r"\text{answer: five}"),
+        model_solution_steps=["x^2 = 5x", "x(x - 5) = 0", "x = 0, x = 5"],
+        variable="x",
+    )
+    assert report.final_answer_correct is False
+    assert report.final_answer_verified is False
+
+
+def test_bug5_a_verified_wrong_answer_is_distinguishable_from_an_unread_one():
+    report = verify(
+        steps("x^2 = 5x", "x = 5"),
+        model_solution_steps=["x^2 = 5x", "x = 0, x = 5"],
+        variable="x",
+    )
+    assert report.final_answer_correct is False
+    assert report.final_answer_verified is True
+
+
+def test_bug5_unparseable_model_solution_is_not_evidence_against_the_student():
+    # 'if expected' was falsy for both None and set(), so a model solution that
+    # failed to parse looked exactly like one with no solutions, and the marker
+    # would be told as fact that the student was wrong because the *seed data*
+    # did not parse.
+    report = verify(
+        steps("x^2 = 5x", "x = 0, x = 5"),
+        model_solution_steps=[r"\text{see the worksheet}"],
+        variable="x",
+    )
+    assert report.final_answer_correct is False
+    assert report.final_answer_verified is False
+
+    # A model solution that genuinely has no solutions is a real comparison.
+    report = verify(
+        steps("x + 1 = x + 2"),
+        model_solution_steps=["x + 1 = x + 2"],
+        variable="x",
+    )
+    assert report.final_answer_correct is True
+    assert report.final_answer_verified is True
+    assert report.model_solutions == []
+
+
+def test_bug5_identity_as_the_last_line_leaves_the_answer_unverified():
+    report = verify(
+        steps("x^2 = 5x", "x = 0, x = 5", "x(x - 5) = x^2 - 5x"),
+        model_solution_steps=["x^2 = 5x", "x = 0, x = 5"],
+        variable="x",
+    )
+    assert report.final_answer_correct is False
+    assert report.final_answer_verified is False
 
 
 REALISTIC_LINES = [

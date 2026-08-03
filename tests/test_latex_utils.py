@@ -50,6 +50,16 @@ def test_prose_containing_the_unknown_is_still_rejected():
     assert parse_equation_line(r"\text{x is the answer}", "x") == []
 
 
+def test_wide_gap_separates_two_answers():
+    # '\quad' is the natural transcription of two answers separated by a wide
+    # gap. normalise_latex rewrites it to a space before the split ran, so the
+    # split has to happen first.
+    assert split_answer_line(r"x = 2 \quad x = 3") == ["x = 2", "x = 3"]
+    assert split_answer_line(r"x = 2 \qquad x = 3") == ["x = 2", "x = 3"]
+    assert split_answer_line(r"\[x = 2 \quad x = 3\]") == ["x = 2", "x = 3"]
+    assert parse_equation_line(r"x = 2 \quad x = 3", "x") != []
+
+
 def test_bug1_stray_connective_does_not_multiply_into_the_equation():
     # parse_latex maps any unrecognised \command to a Symbol, so
     # '\therefore x = 2' used to parse as Eq(therefore*x, 2) and corrupt the

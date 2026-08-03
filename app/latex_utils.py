@@ -27,7 +27,14 @@ _REWRITES: list[tuple[str, str]] = [
     (r"\s+", " "),                       # collapse whitespace
 ]
 
-_SPLIT_PATTERN = re.compile(r",|;|\\text\{\s*or\s*\}|\\quad|\bor\b")
+# Separators that survive normalisation. '\text{ or }' is not listed because
+# normalise_latex has already rewritten it to ' or ', which '\bor\b' catches.
+_SPLIT_PATTERN = re.compile(r",|;|\bor\b")
+
+# A wide gap is how two answers get separated when nothing else is written
+# between them. It has to be split on *before* normalisation, which turns it
+# into ordinary whitespace and then collapses it.
+_WIDE_GAP_PATTERN = re.compile(r"\\qquad|\\quad")
 
 # A digit, letter, closing brace or closing bracket immediately followed by an
 # opening bracket means implicit multiplication: '2(x+1)', 'x(x-5)', ')(' .
@@ -70,7 +77,10 @@ def split_answer_line(raw: str) -> list[str]:
     A line with no separator is returned unchanged as a single-element list.
     """
     normalised = normalise_latex(raw)
-    parts = [part.strip() for part in _SPLIT_PATTERN.split(normalised)]
+    parts: list[str] = []
+    for chunk in _WIDE_GAP_PATTERN.split(raw):
+        parts.extend(_SPLIT_PATTERN.split(normalise_latex(chunk)))
+    parts = [part.strip() for part in parts]
     parts = [part for part in parts if part]
     return parts if len(parts) > 1 else [normalised]
 

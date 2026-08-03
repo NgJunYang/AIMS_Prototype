@@ -62,6 +62,10 @@ class StepVerification(BaseModel):
 class VerificationReport(BaseModel):
     steps: list[StepVerification]
     final_answer_correct: bool
+    # False when the answer was never established: the student's last line did
+    # not parse (or was an identity), or the model solution itself did not
+    # parse. Distinguishes 'the answer is wrong' from 'we cannot say'.
+    final_answer_verified: bool = True
     model_solutions: list[str] = Field(default_factory=list)
     candidate_misconceptions: list[str] = Field(default_factory=list)
 

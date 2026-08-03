@@ -189,12 +189,24 @@ def verify(
         verifications.append(verification)
         previous = current
 
-    final_correct = previous is not None and expected is not None and previous == expected
+    # `previous` is the last line that *parsed*, so without this an unparseable
+    # final line would silently award the answer mark on the strength of an
+    # intermediate line. An identity as the last line says nothing either. And
+    # if the model solution did not parse there is nothing to compare against.
+    last_outcome = outcomes[-1] if outcomes else None
+    answer_established = (
+        previous is not None
+        and expected is not None
+        and last_outcome is not None
+        and last_outcome is not TAUTOLOGY
+    )
+    final_correct = answer_established and previous == expected
 
     return VerificationReport(
         steps=verifications,
         final_answer_correct=final_correct,
-        model_solutions=sorted(expected) if expected else [],
+        final_answer_verified=answer_established,
+        model_solutions=sorted(expected) if expected is not None else [],
         candidate_misconceptions=classify(verifications, student_steps),
     )
 
