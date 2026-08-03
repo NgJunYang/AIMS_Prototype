@@ -120,9 +120,16 @@ def mark(
         schema=_SCHEMA,
     )
 
-    # The rubric is the authority on maximum marks, never the model.
+    # The rubric is the authority on maximum marks, never the model. The model
+    # response is untrusted input: a malformed reply (wrong types, not just
+    # wrong values) must degrade to "no judgement returned", never raise.
     max_by_id = {c.id: c.max for c in question.criteria}
-    returned = {item.get("criterion_id"): item for item in payload.get("criteria", [])}
+    raw_criteria = payload.get("criteria")
+    returned = {
+        item.get("criterion_id"): item
+        for item in (raw_criteria if isinstance(raw_criteria, list) else [])
+        if isinstance(item, dict)
+    }
 
     criteria: list[CriterionMark] = []
     for criterion in question.criteria:
@@ -154,9 +161,15 @@ def mark(
             )
         )
 
+    raw_misconceptions = payload.get("misconceptions")
+    if not isinstance(raw_misconceptions, list):
+        raw_misconceptions = []
+    else:
+        raw_misconceptions = [tag for tag in raw_misconceptions if isinstance(tag, str)]
+
     proposal = MarkProposal(
         criteria=criteria,
-        misconceptions=payload.get("misconceptions", []),
+        misconceptions=raw_misconceptions,
     )
     proposal.warnings = cross_check(proposal, report)
     return proposal

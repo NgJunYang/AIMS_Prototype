@@ -202,10 +202,10 @@ def _parse_single(part: str, variable: str) -> sympy.Eq | None:
     try:
         if "=" in part:
             left, _, right = part.partition("=")
-            lhs = _evaluate(parse_latex(left.strip()))
-            rhs = _evaluate(parse_latex(right.strip()))
+            lhs = _evaluate(parse_latex(left.strip(), strict=True))
+            rhs = _evaluate(parse_latex(right.strip(), strict=True))
         else:
-            lhs = _evaluate(parse_latex(part.strip()))
+            lhs = _evaluate(parse_latex(part.strip(), strict=True))
             rhs = sympy.Integer(0)
     except Exception:
         return None
