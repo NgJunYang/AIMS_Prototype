@@ -11,6 +11,13 @@ line n with line n-1 classifies what went wrong:
     shrank  -> a root was discarded (dividing by the unknown, dropping the +/-)
     grew    -> a spurious root appeared (e.g. squaring both sides)
     changed -> an algebra or arithmetic error
+
+Two kinds of line are not solution sets to be compared, and treating them as
+such invents errors that the student did not make: a line that could not be
+parsed, and a line that is an identity (true for every value of the unknown).
+Both are skipped, leaving the comparison to run between the lines either side.
+One answer written over several lines ('x = 2' then 'x = 3') is likewise read
+as a single logical step.
 """
 
 import sympy
