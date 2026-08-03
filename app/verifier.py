@@ -234,27 +234,50 @@ def _states_a_single_root(outcome: set[str] | None | object) -> bool:
         return False
 
 
+def _is_transparent(outcome: set[str] | None | object) -> bool:
+    """True for a line that carries no solution set to compare.
+
+    An unparseable line and an identity are both skipped by verify() without
+    disturbing `previous`, so they must not break up an answer either: a
+    student can write 'x = 2', a note in words, then 'x = 3'.
+    """
+    return outcome is None or outcome is TAUTOLOGY
+
+
 def _answer_runs(outcomes: list[set[str] | None | object]) -> dict[int, list[int]]:
-    """Group consecutive single-root lines, so 'x = 2' then 'x = 3' is one answer.
+    """Group single-root lines that state *different* roots into one answer.
 
     Maps each position in a run of two or more onto the whole run. A run of one
     is absent from the mapping and so behaves exactly as it always has: a
     single 'x = 5' after 'x^2 = 5x' is still a lost root, not half an answer.
+
+    Two adjacent lines stating the *same* root are not a two-part answer, they
+    are an ordinary step ('2x = 4' then 'x = 2'), so they are left alone and
+    compared to each other as usual. Listing *different* roots is what makes a
+    multi-line answer.
     """
     runs: dict[int, list[int]] = {}
-    start = 0
-    while start < len(outcomes):
-        if not _states_a_single_root(outcomes[start]):
-            start += 1
+
+    def close(group: list[int]) -> None:
+        if len(group) > 1:
+            for position in group:
+                runs[position] = list(group)
+
+    members: list[int] = []
+    for position, outcome in enumerate(outcomes):
+        if _is_transparent(outcome):
             continue
-        end = start
-        while end + 1 < len(outcomes) and _states_a_single_root(outcomes[end + 1]):
-            end += 1
-        if end > start:
-            positions = list(range(start, end + 1))
-            for position in positions:
-                runs[position] = positions
-        start = end + 1
+        if not _states_a_single_root(outcome):
+            close(members)
+            members = []
+            continue
+        if members and outcomes[members[-1]] == outcome:
+            # Restating the same root ends the run and begins a new one here.
+            close(members)
+            members = [position]
+            continue
+        members.append(position)
+    close(members)
     return runs
 
 

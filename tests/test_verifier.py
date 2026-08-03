@@ -209,6 +209,60 @@ def test_bug4_a_run_of_one_still_detects_a_lost_root():
     assert "dropped_plus_minus" in report.candidate_misconceptions
 
 
+def test_bug4_a_note_between_two_answer_lines_does_not_split_the_answer():
+    # An unparseable line is transparent everywhere else in verify(), so it must
+    # not break up a multi-line answer either. It used to, which resurrected the
+    # fabricated 'lost_solution' and 'sign_error' from bug 4.
+    report = verify(
+        steps("(x - 2)(x - 3) = 0", "x = 2", r"\text{and also}", "x = 3"),
+        model_solution_steps=["x^2 - 5x + 6 = 0", "x = 2, x = 3"],
+        variable="x",
+    )
+    assert report.candidate_misconceptions == []
+    assert report.first_divergence_index is None
+    assert report.final_answer_correct is True
+    assert report.steps[2].parsed is False
+    assert report.steps[3].solutions == ["2", "3"]
+
+
+def test_bug4_an_identity_between_two_answer_lines_does_not_split_the_answer():
+    report = verify(
+        steps("(x - 2)(x - 3) = 0", "x = 2", "x(x - 5) = x^2 - 5x", "x = 3"),
+        model_solution_steps=["x^2 - 5x + 6 = 0", "x = 2, x = 3"],
+        variable="x",
+    )
+    assert report.candidate_misconceptions == []
+    assert report.first_divergence_index is None
+    assert report.final_answer_correct is True
+
+
+def test_restating_the_same_root_is_an_ordinary_step_not_a_multi_line_answer():
+    # '2x = 4' then 'x = 2' state the same root, so they are a real algebraic
+    # step and must keep their own verdict rather than being coalesced.
+    report = verify(
+        steps("2x = 4", "x = 2"),
+        model_solution_steps=["2x = 4", "x = 2"],
+        variable="x",
+    )
+    assert report.steps[1].equivalent_to_previous is True
+    assert report.steps[0].note == ""
+    assert report.steps[1].note == ""
+    assert report.steps[0].solutions == ["2"]
+    assert report.final_answer_correct is True
+    assert report.candidate_misconceptions == []
+
+    # Stating *different* roots on consecutive lines still coalesces.
+    report = verify(
+        steps("x^2 - 5x + 6 = 0", "x = 2", "x = 3"),
+        model_solution_steps=["x^2 - 5x + 6 = 0", "x = 2, x = 3"],
+        variable="x",
+    )
+    assert report.steps[1].note != ""
+    assert report.steps[2].solutions == ["2", "3"]
+    assert report.candidate_misconceptions == []
+    assert report.first_divergence_index is None
+
+
 def test_bug4_both_square_roots_on_separate_lines_is_correct():
     report = verify(
         steps("x^2 = 9", "x = 3", "x = -3"),
