@@ -412,3 +412,18 @@ def test_path_traversal_in_submission_id_does_not_escape_the_submissions_dir(
     response = client.get(f"/api/submissions/{traversal_id}")
     assert 400 <= response.status_code < 500
     assert "leaked" not in response.text
+
+
+def test_an_absurdly_long_line_is_refused_without_being_parsed():
+    """Pins the length guard in app.latex_utils.
+
+    ANTLR's error recovery is superlinear on pathological input, so handing
+    thousands of characters of junk to parse_latex takes ~15s. No line of
+    handwritten algebra is that long, so it degrades like any unreadable line.
+    """
+    from app.latex_utils import _MAX_LINE_LENGTH
+
+    assert solution_set("a" * (_MAX_LINE_LENGTH + 1), "x") is None
+    # A line just inside the limit is still parsed normally.
+    padded = "x^2 - 5x + 6 = 0".ljust(_MAX_LINE_LENGTH - 1)
+    assert solution_set(padded, "x") == {"2", "3"}

@@ -144,7 +144,7 @@ just seeded.
 .venv/Scripts/python.exe -m pytest -q
 ```
 
-391 tests currently pass. Notable groups:
+392 tests currently pass. Notable groups:
 
 - **`tests/test_seed_integrity.py`** — every model solution line in
   `app/seeds/questions.json` actually parses, and verifies as correct against

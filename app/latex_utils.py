@@ -103,6 +103,17 @@ _IMPLICIT_MULTIPLICATION = re.compile(r"([A-Za-z0-9})])\s*\(")
 # '\pm' has no meaning to SymPy; it parses as a free symbol called 'pm'.
 _PLUS_MINUS = re.compile(r"\\pm|\\mp")
 
+# One line of a student's working. The longest thing in the seed data is well
+# under 60 characters, so this is generous by an order of magnitude.
+#
+# The guard exists because ANTLR's error recovery is superlinear on pathological
+# input: rejecting a few thousand characters of alphabetic junk takes SymPy
+# fifteen-odd seconds, which is slow enough to look like a hung request and slow
+# enough to be worth someone's while against a public endpoint. Anything this
+# long is not a line of handwritten algebra, so refusing to parse it costs
+# nothing and it degrades to 'unparseable' like any other line we cannot read.
+_MAX_LINE_LENGTH = 500
+
 
 def normalise_latex(raw: str) -> str:
     """Rewrite equivalent LaTeX spellings into the subset SymPy parses well."""
@@ -168,6 +179,9 @@ def parse_equation_line(raw: str, variable: str = "x") -> list[sympy.Eq]:
     an equation-solving chain, and reporting it as a solution set would be a
     confident claim about working this module cannot verify.
     """
+    if len(raw) > _MAX_LINE_LENGTH:
+        return []
+
     if _NON_EQUALITY_RELATION.search(raw):
         return []
 
