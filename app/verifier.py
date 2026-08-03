@@ -19,10 +19,24 @@ from app.latex_utils import parse_equation_line
 from app.models import Step, StepVerification, VerificationReport
 
 
-def solution_set(latex: str, variable: str = "x") -> set[str] | None:
+# A line that is true for whatever the unknown is ('x(x - 5) = x^2 - 5x', which
+# is how a student checks their own factorisation) carries no information about
+# the solution set. sympy.solve returns [] for it, which is indistinguishable
+# from "no solutions" - so it needs its own outcome, or an identity reads as
+# "every root was lost".
+TAUTOLOGY = object()
+
+
+def solution_set(latex: str, variable: str = "x") -> set[str] | None | object:
     """Return the solution set of a written line as canonical strings.
 
-    Returns None if the line could not be parsed.
+    Four possible outcomes, and the differences between them are load-bearing:
+
+        None           -> could not be read as mathematics; do not judge it
+        TAUTOLOGY      -> true for all values of the unknown; carries no
+                          information, so it must not be compared
+        set()          -> parsed, and genuinely has no solutions ('x + 1 = x + 2')
+        non-empty set  -> the solutions, as canonical strings
     """
     equations = parse_equation_line(latex, variable)
     if not equations:
@@ -31,6 +45,8 @@ def solution_set(latex: str, variable: str = "x") -> set[str] | None:
     symbol = sympy.Symbol(variable)
     solutions: set[str] = set()
     for equation in equations:
+        if _is_tautology(equation):
+            return TAUTOLOGY
         try:
             roots = sympy.solve(equation, symbol, dict=False)
         except Exception:
@@ -39,6 +55,27 @@ def solution_set(latex: str, variable: str = "x") -> set[str] | None:
             solutions.add(_canonical(root))
 
     return solutions
+
+
+def _is_tautology(equation: sympy.Basic) -> bool:
+    """True when this equation holds for every value of the unknown.
+
+    ``sympy.Eq`` auto-evaluates, so ``parse_equation_line`` can hand back a
+    bare ``BooleanTrue`` ('x = x'), which has no ``.lhs``. ``BooleanFalse``
+    ('x + 1 = x + 2') has no ``.lhs`` either, so it correctly falls through to
+    being solved and reported as a genuinely empty solution set.
+
+    ``expand`` rather than ``simplify``: sufficient for polynomial work at this
+    level and far cheaper.
+    """
+    if equation is sympy.true:
+        return True
+    if not hasattr(equation, "lhs"):
+        return False
+    try:
+        return sympy.expand(equation.lhs - equation.rhs) == 0
+    except Exception:
+        return False
 
 
 def _canonical(expression: sympy.Expr) -> str:
@@ -83,6 +120,21 @@ def verify(
             )
             # Do not update `previous`: compare the next parseable line to the
             # last one we actually understood.
+            continue
+
+        if current is TAUTOLOGY:
+            verifications.append(
+                StepVerification(
+                    index=step.index,
+                    parsed=True,
+                    equivalent_to_previous=True,
+                    divergence=None,
+                    solutions=[],
+                    note="This line is an identity; it neither gains nor loses solutions.",
+                )
+            )
+            # An identity is a valid step that says nothing about the solution
+            # set, so `previous` must survive it untouched.
             continue
 
         verification = StepVerification(

@@ -1,7 +1,7 @@
 import pytest
 
 from app.models import Step
-from app.verifier import solution_set, verify
+from app.verifier import TAUTOLOGY, solution_set, verify
 
 
 def steps(*latex: str) -> list[Step]:
@@ -126,6 +126,28 @@ def test_bug2_genuinely_unsatisfiable_equation_is_still_an_empty_set():
     # The distinction that matters most: set() means 'parsed, no solutions',
     # None means 'could not be read as mathematics'.
     assert solution_set("x + 1 = x + 2", "x") == set()
+
+
+def test_bug3_identity_line_is_not_read_as_losing_every_root():
+    # A student checking their own factorisation writes a line that is true for
+    # all x. sympy.solve returns [] for it, which used to read as a genuinely
+    # empty solution set - i.e. 'every root was lost' and then 'every root came
+    # back', producing two confident, mutually contradictory misconceptions.
+    assert solution_set("x(x - 5) = x^2 - 5x", "x") is TAUTOLOGY
+    report = verify(
+        steps("x^2 = 5x", "x(x - 5) = x^2 - 5x", "x = 0, x = 5"),
+        model_solution_steps=["x^2 = 5x", "x(x - 5) = 0", "x = 0, x = 5"],
+        variable="x",
+    )
+    assert report.candidate_misconceptions == []
+    assert report.first_divergence_index is None
+    assert report.final_answer_correct is True
+    # The identity is a valid step, and it does not disturb the comparison
+    # between the lines either side of it.
+    assert report.steps[1].parsed is True
+    assert report.steps[1].divergence is None
+    assert report.steps[1].solutions == []
+    assert report.all_steps_parsed is True
 
 
 REALISTIC_LINES = [
