@@ -1,0 +1,80 @@
+I am working on a hackathon project called:
+
+AI for Individualised Mastery Support (AIMS)
+
+The wider problem is that lecturers teaching large classes struggle to provide timely and personalised feedback for open-ended assignments. Students often receive only a mark or generic feedback, making it difficult for them to understand their mistakes and identify what they should practise next.
+
+For the hackathon prototype, I want to narrow the scope to AI-assisted marking of handwritten mathematics homework.
+
+The intended workflow is:
+
+1. A lecturer provides a mathematics question.
+2. The lecturer provides a model solution and marking rubric.
+3. The lecturer uploads a student’s handwritten solution as an image or scanned document.
+4. The system recognises the handwritten mathematics and converts it into editable text or LaTeX.
+5. The system analyses the student’s working steps, not only the final answer.
+6. It compares the student’s solution with the model answer, rubric and relevant learning materials.
+7. It recommends marks for each step or rubric criterion.
+8. It identifies mathematical errors and possible misconceptions.
+9. It generates personalised feedback explaining what the student did correctly, what went wrong and how to improve.
+10. It generates targeted practice questions based on the student’s weaknesses.
+11. The lecturer reviews and can edit or override all AI-generated marks and feedback.
+
+I am currently considering the following technologies and ideas:
+
+- OCR or mathematical handwriting recognition
+- Image preprocessing
+- LaTeX extraction and editing
+- Multimodal language models
+- Retrieval-Augmented Generation using rubrics, model solutions, lecture notes and worked examples
+- Symbolic mathematics tools for checking whether equations and answers are mathematically equivalent
+- Misconception detection
+- AI-generated targeted practice questions
+
+However, I do not want you to assume that all of these are necessary or that my current approach is the best one. Critically evaluate the idea and recommend the most practical solution.
+
+This is a hackathon project built by a team of around four to five students. The prototype must be achievable within a limited development period. We do not need a production-ready platform or support for every type of mathematics.
+
+The MVP should focus on one manageable category of handwritten mathematics, such as algebra, quadratic equations, differentiation or another topic you believe is more suitable.
+
+Important considerations:
+
+- Mathematical handwriting recognition may be inaccurate.
+- Users should be able to correct the extracted LaTeX before marking.
+- The system should assess methods and intermediate working, not just final answers.
+- The system should provide marking recommendations rather than make irreversible grading decisions.
+- The output should be explainable and connected to the rubric.
+- The demonstration must still work even if OCR fails.
+- We should avoid training a handwriting model from scratch unless there is a very strong reason.
+- The system should avoid exposing student personal data or API keys.
+- The final prototype should have a clear and impressive end-to-end demonstration.
+
+Your role is to act as our lead software architect, AI engineer, product planner and hackathon mentor.
+
+First, do not start coding immediately.
+
+Analyse the project independently and provide:
+
+1. Your understanding of the problem and proposed product.
+2. A critical evaluation of the idea.
+3. The strongest value proposition.
+4. A realistic and clearly bounded MVP.
+5. The mathematics topic we should support first.
+6. The essential features versus optional features.
+7. A recommended system architecture.
+8. A recommended technology stack.
+9. How OCR, LaTeX, RAG and mathematical verification should interact.
+10. Whether RAG is genuinely useful for this prototype and what information should be retrieved.
+11. The main technical risks and fallback strategies.
+12. A suggested user interface and demonstration flow.
+13. A development plan for a team of four to five people.
+14. A sensible division of responsibilities.
+15. The sample questions, rubrics, handwritten answers and learning materials we should prepare.
+16. A testing and evaluation strategy.
+17. Any important weaknesses, assumptions or missing considerations in our idea.
+
+You may challenge my proposed approach and suggest a simpler or better alternative.
+
+Prioritise a reliable and demonstrable hackathon prototype over an overly ambitious system.
+
+At the end, ask only the essential clarification questions needed before implementation. After I answer them, help us plan and build the application incrementally.
