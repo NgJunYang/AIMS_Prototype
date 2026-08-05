@@ -17,15 +17,19 @@ def test_normalise_rewrites_common_variants():
 
 
 def test_parse_simple_equation():
-    equations = parse_equation_line("x^2 - 5x + 6 = 0", "x")
-    assert len(equations) == 1
-    assert equations[0].lhs - equations[0].rhs == sympy.sympify("x**2 - 5*x + 6")
+    branches = parse_equation_line("x^2 - 5x + 6 = 0", "x")
+    assert len(branches) == 1
+    assert len(branches[0]) == 1
+    equation = branches[0][0]
+    assert equation.lhs - equation.rhs == sympy.sympify("x**2 - 5*x + 6")
 
 
 def test_parse_bare_expression_is_treated_as_equal_to_zero():
-    equations = parse_equation_line("x^2 - 4", "x")
-    assert len(equations) == 1
-    assert sympy.simplify(equations[0].lhs - equations[0].rhs) == sympy.sympify("x**2 - 4")
+    branches = parse_equation_line("x^2 - 4", "x")
+    assert len(branches) == 1
+    assert len(branches[0]) == 1
+    equation = branches[0][0]
+    assert sympy.simplify(equation.lhs - equation.rhs) == sympy.sympify("x**2 - 4")
 
 
 def test_split_answer_line_handles_comma_and_or():
@@ -35,8 +39,9 @@ def test_split_answer_line_handles_comma_and_or():
 
 
 def test_parse_answer_line_yields_two_equations():
-    equations = parse_equation_line("x = 0, x = 5", "x")
-    assert len(equations) == 2
+    branches = parse_equation_line("x = 0, x = 5", "x")
+    assert len(branches) == 2
+    assert all(len(branch) == 1 for branch in branches)
 
 
 def test_unparseable_line_returns_empty_list():
@@ -67,9 +72,9 @@ def test_bug1_connective_is_stripped_not_multiplied_into_the_equation():
     # solution set. A connective is punctuation: it is removed, and the
     # equation it introduces is verified normally.
     assert normalise_latex(r"\therefore x = 2") == "x = 2"
-    equations = parse_equation_line(r"\therefore x = 2", "x")
-    assert len(equations) == 1
-    assert equations[0] == sympy.Eq(sympy.Symbol("x"), 2)
+    branches = parse_equation_line(r"\therefore x = 2", "x")
+    assert len(branches) == 1
+    assert branches[0] == [sympy.Eq(sympy.Symbol("x"), 2)]
     for connective in CONNECTIVES:
         assert len(parse_equation_line(f"{connective} x = 2, x = 3", "x")) == 2, connective
 
@@ -90,7 +95,7 @@ CONNECTIVES = [
 def test_each_connective_leaves_the_equation_intact(connective):
     assert normalise_latex(f"{connective} x = 2").strip() == "x = 2"
     assert parse_equation_line(f"{connective} x = 2", "x") == [
-        sympy.Eq(sympy.Symbol("x"), 2)
+        [sympy.Eq(sympy.Symbol("x"), 2)]
     ]
 
 
@@ -178,3 +183,83 @@ def test_infinity_is_not_mistaken_for_the_set_membership_token():
     from app.latex_utils import _NON_EQUALITY_RELATION
 
     assert _NON_EQUALITY_RELATION.search(r"x = \infty") is None
+
+
+# ---------- chain equality ('a = b = c') ----------
+
+
+def test_chain_equality_yields_consecutive_pairwise_equations():
+    # A professor's photographed solution wrote exactly this: the factorised
+    # form and its expansion asserted equal in one breath, then set to zero.
+    branches = parse_equation_line("x^2 - 5x + 6 = (x-2)(x-3) = 0", "x")
+    assert len(branches) == 1
+    chain = branches[0]
+    assert len(chain) == 2
+    assert chain[0] == sympy.Eq(
+        sympy.sympify("x**2 - 5*x + 6"), sympy.sympify("(x-2)*(x-3)")
+    )
+    assert chain[1] == sympy.Eq(sympy.sympify("(x-2)*(x-3)"), 0)
+
+
+def test_a_chain_with_a_genuine_identity_link_still_solves_the_real_link():
+    # The identity half of the chain (x^2-5x+6 IS (x-2)(x-3)) carries no
+    # constraint; only the real link (= 0) determines the roots.
+    from app.verifier import solution_set
+
+    assert solution_set("x^2 - 5x + 6 = (x-2)(x-3) = 0", "x") == {"2", "3"}
+
+
+def test_a_three_link_chain_intersects_all_real_links():
+    # 'x = 2 = x' has two real (non-identity) links: Eq(x,2) and Eq(2,x), both
+    # with root {2}. The intersection is {2}, not a union that would be wrong
+    # if the links disagreed.
+    from app.verifier import solution_set
+
+    assert solution_set("x = 2 = x", "x") == {"2"}
+
+
+def test_a_fully_tautological_chain_is_still_a_tautology():
+    from app.verifier import TAUTOLOGY, solution_set
+
+    assert solution_set("x = x = x", "x") == TAUTOLOGY
+
+
+def test_a_stray_double_equals_with_an_empty_term_is_rejected():
+    assert parse_equation_line("x == 2", "x") == []
+
+
+def test_a_connective_joining_two_equations_is_still_rejected_not_misread_as_a_chain():
+    # This is the regression the naive fix would have introduced: stripping
+    # '\therefore' to a space turns 'x^2-5x+6=0 \therefore x=2' into
+    # 'x^2-5x+6=0  x=2', which is textually identical to a genuine chain
+    # equality. Reading it as one would silently assert that the quadratic
+    # equals x, which is not what was written - two separate deductive steps
+    # were run together by removing the connective between them. Chain
+    # parsing must stay switched off whenever a connective was present, so
+    # this line degrades exactly as it did before chains were supported.
+    assert parse_equation_line(r"x^2 - 5x + 6 = 0 \therefore x = 2", "x") == []
+    for connective in CONNECTIVES:
+        assert (
+            parse_equation_line(f"x^2 - 5x + 6 = 0 {connective} x = 2", "x") == []
+        ), connective
+
+
+def test_chain_equality_combines_with_the_or_answer_list():
+    # 'x - 2 = 0 = x - 3' (nonsensical chain) alongside a real alternative,
+    # comma-separated: each comma-branch is parsed independently.
+    branches = parse_equation_line("x = 2, x = 3 = x", "x")
+    assert len(branches) == 2
+    assert branches[0] == [sympy.Eq(sympy.Symbol("x"), 2)]
+    assert len(branches[1]) == 2
+
+
+def test_chain_equality_remains_correct_for_complex_solutions():
+    # Pins that the intersection-based design (not a sum-of-squares trick,
+    # which is unsound over the complex numbers: 1**2 + I**2 == 0 despite
+    # neither term being zero) gives the right answer when the roots are
+    # genuinely complex.
+    from app.verifier import solution_set
+
+    assert solution_set(
+        "x^2 + 2x + 5 = (x+1)^2 + 4 = 0", "x"
+    ) == {"-1 - 2*I", "-1 + 2*I"}

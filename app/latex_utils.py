@@ -9,6 +9,16 @@ import re
 import sympy
 from sympy.parsing.latex import parse_latex
 
+# Discourse connectives ('\therefore', '\Rightarrow', ...), matched against the
+# *raw* line before any rewrite runs. Defined up front because both the
+# normalisation rewrite below and parse_equation_line's chain-equality guard
+# need the identical token list - see the comment on the rewrite entry and on
+# _parse_chain for why the two need to agree.
+_CONNECTIVE_PATTERN = re.compile(
+    r"\\(?:therefore|because|Longrightarrow|Leftrightarrow|Rightarrow"
+    r"|Leftarrow|implies|iff)(?![A-Za-z])"
+)
+
 # Applied in order. Each entry is (pattern, replacement).
 _REWRITES: list[tuple[str, str]] = [
     (r"\\\[|\\\]|\$\$|\$", ""),          # display/inline math wrappers
@@ -33,15 +43,16 @@ _REWRITES: list[tuple[str, str]] = [
     # precisely the value classify() reads as the headline lost-root
     # misconception. It is rejected outright by _NON_EQUALITY_RELATION instead,
     # which is also what stops the same hazard arriving through parse_latex's
-    # silent truncation - see that pattern's comment. The eight below are safe:
-    # used relationally they sit between two equations, so the line carries two
-    # '=' signs and the count("=") > 1 guard in _parse_single rejects it already.
+    # silent truncation - see that pattern's comment. The eight below sit
+    # between two otherwise-complete equations, so once stripped to a space the
+    # line carries two '=' signs run together with nothing between them - the
+    # exact shape a genuine chain equality ('a = b = c') also has. The two are
+    # not distinguishable after this rewrite runs, so parse_equation_line
+    # checks the *raw* line for a connective (via _CONNECTIVE_PATTERN, same
+    # token list) before it will read a multi-'=' line as a chain, and falls
+    # back to rejecting it otherwise - see parse_equation_line and _parse_chain.
     # The trailing lookahead stops a name matching a longer command's prefix.
-    (
-        r"\\(?:therefore|because|Longrightarrow|Leftrightarrow|Rightarrow"
-        r"|Leftarrow|implies|iff)(?![A-Za-z])",
-        " ",
-    ),
+    (_CONNECTIVE_PATTERN.pattern, " "),
     (r"\\left|\\right", ""),             # sizing commands SymPy dislikes
     (r"\\dfrac|\\tfrac", r"\\frac"),     # fraction variants
     (r"\\times|\\cdot", "*"),            # explicit multiplication
@@ -169,15 +180,25 @@ def expand_plus_minus(part: str) -> list[str]:
     return [plus, minus]
 
 
-def parse_equation_line(raw: str, variable: str = "x") -> list[sympy.Eq]:
-    """Parse one written line into a list of SymPy equations.
+def parse_equation_line(raw: str, variable: str = "x") -> list[list[sympy.Eq]]:
+    """Parse one written line into a list of branches, each an AND-chain.
 
-    A line may contain several equations ('x = 0, x = 5'). A bare expression
-    is interpreted as 'expression = 0', which is how students often write a
-    factorised form. Returns [] if nothing could be parsed, which includes a
-    line stating a relation other than equality: an inequality is not a step in
-    an equation-solving chain, and reporting it as a solution set would be a
-    confident claim about working this module cannot verify.
+    A line may state several alternative answers ('x = 0, x = 5'): each is a
+    branch, and the branches are alternatives (verifier.solution_set unions
+    them). Within one branch, a chain equality ('a = b = c') asserts that every
+    term equals every other simultaneously, so it is returned as the list of
+    consecutive pairwise equations [Eq(a, b), Eq(b, c)] - the links of the
+    chain, which solution_set() intersects rather than unions. The ordinary
+    case (one '=', no chain) is a branch of exactly one link, so this is a
+    strict generalisation: it behaves identically to before for every line
+    with at most one '=' sign, which is every line in the existing test suite.
+
+    A bare expression is interpreted as 'expression = 0', which is how
+    students often write a factorised form. Returns [] if nothing could be
+    parsed, which includes a line stating a relation other than equality: an
+    inequality is not a step in an equation-solving chain, and reporting it as
+    a solution set would be a confident claim about working this module
+    cannot verify.
     """
     if len(raw) > _MAX_LINE_LENGTH:
         return []
@@ -185,14 +206,21 @@ def parse_equation_line(raw: str, variable: str = "x") -> list[sympy.Eq]:
     if _NON_EQUALITY_RELATION.search(raw):
         return []
 
-    equations: list[sympy.Eq] = []
+    # A discourse connective disables chain parsing for the whole line: once
+    # stripped to a space by the rewrite above, a connective joining two
+    # otherwise-separate equations is textually identical to a genuine chain
+    # equality, and reading it as one would silently combine two statements
+    # the writer never intended to combine. See _parse_chain.
+    allow_chains = not _CONNECTIVE_PATTERN.search(raw)
+
+    branches: list[list[sympy.Eq]] = []
     for part in split_answer_line(raw):
-        for branch in expand_plus_minus(part):
-            equation = _parse_single(branch, variable)
-            if equation is None:
+        for chunk in expand_plus_minus(part):
+            chain = _parse_chain(chunk, variable, allow_chains=allow_chains)
+            if chain is None:
                 return []
-            equations.append(equation)
-    return equations
+            branches.append(chain)
+    return branches
 
 
 def _evaluate(expression: sympy.Basic) -> sympy.Basic:
@@ -207,64 +235,92 @@ def _evaluate(expression: sympy.Basic) -> sympy.Basic:
     return expression.func(*[_evaluate(argument) for argument in expression.args])
 
 
-def _parse_single(part: str, variable: str) -> sympy.Eq | None:
+def _parse_chain(
+    part: str, variable: str, allow_chains: bool = True
+) -> list[sympy.Eq] | None:
+    """Parse one statement into its pairwise equations.
+
+    'a = b' is the ordinary case: one equation, returned as a single-element
+    list. 'a = b = c' is a chain equality - standard notation asserting every
+    term equals every other simultaneously - and becomes the list of
+    consecutive pairwise equations [Eq(a, b), Eq(b, c)]; solution_set()
+    combines a branch's links by intersection, which is what "all must hold
+    at once" means. A chain of one link is exactly today's single equation.
+
+    allow_chains=False preserves the old, blunter behaviour (reject outright)
+    for a line with more than one '=': set by parse_equation_line when the raw
+    line contained a discourse connective, because after that connective is
+    stripped to a space, two separate connective-joined equations are
+    textually indistinguishable from a genuine chain - see that function.
+    """
     symbol = sympy.Symbol(variable)
-    if part.count("=") > 1:
-        # Two equations run together with no separator. Better to degrade this
-        # line honestly than to report a confident, wrong solution set.
-        return None
-    try:
-        if "=" in part:
-            left, _, right = part.partition("=")
-            lhs = _evaluate(parse_latex(left.strip(), strict=True))
-            rhs = _evaluate(parse_latex(right.strip(), strict=True))
-        else:
-            lhs = _evaluate(parse_latex(part.strip(), strict=True))
-            rhs = sympy.Integer(0)
-    except Exception:
+
+    if not allow_chains and part.count("=") > 1:
         return None
 
-    if lhs is None or rhs is None:
+    terms = part.split("=") if "=" in part else [part, "0"]
+    if any(not term.strip() for term in terms):
+        # A stray '=' with nothing on one side ('x = = 2'). Degrade rather
+        # than guess what was meant.
         return None
 
-    # Guard B: defence in depth behind _NON_EQUALITY_RELATION, for a relation
-    # spelling the blocklist misses. Either side arriving as a comparison rather
-    # than a quantity ('x \geqslant 2' -> GreaterThan(x, 2)) means this line is
-    # not an equation, and its only free symbol may well be the unknown, so the
-    # free-symbol guard below would wave it through.
-    #
-    # Tested as 'is an ordinary expression' rather than 'is a Boolean', because
-    # sympy.Symbol inherits from Boolean - symbols are usable in boolean
-    # algebra - so rejecting Boolean operands would reject 'x = 2'. Everything
-    # to reject here (Relational, BooleanTrue/False, And/Or) is not an Expr;
-    # everything to keep (Symbol, Add, Mul, Integer, I) is. Note this runs on
-    # the *operands*: the BooleanTrue that sympy.Eq legitimately evaluates to
-    # for 'x = x' is constructed below and must survive, as must the
-    # BooleanFalse for 'x + 1 = x + 2'.
-    for operand in (lhs, rhs):
-        if not isinstance(operand, sympy.Expr) or isinstance(
-            operand, sympy.core.relational.Relational
-        ):
+    parsed_terms: list[sympy.Expr] = []
+    for term in terms:
+        value = _parse_term(term.strip())
+        if value is None:
             return None
+        parsed_terms.append(value)
 
     if variable != "i":
         # '2i' parses as '2*i' with 'i' a free symbol; students mean sqrt(-1).
         imaginary = sympy.Symbol("i")
         try:
-            lhs = lhs.subs(imaginary, sympy.I)
-            rhs = rhs.subs(imaginary, sympy.I)
+            parsed_terms = [term.subs(imaginary, sympy.I) for term in parsed_terms]
         except Exception:
             return None
 
-    if (lhs.free_symbols | rhs.free_symbols) != {symbol}:
-        # The unknown must be the *only* free symbol. Anything else means this
-        # is not a step in this variable's solution chain: prose (which
-        # parse_latex reads as a product of single-letter symbols), a
-        # connective such as '\therefore' or '\Rightarrow' (which parse_latex
-        # maps to a symbol and multiplies into the equation), or an
-        # un-substituted general formula. Also rejects a line with no unknown
-        # at all, e.g. an arithmetic aside.
+    all_free_symbols: set[sympy.Symbol] = set()
+    for term in parsed_terms:
+        all_free_symbols |= term.free_symbols
+    if all_free_symbols != {symbol}:
+        # The unknown must be the *only* free symbol across the whole chain.
+        # Anything else means this is not a step in this variable's solution
+        # chain: prose (which parse_latex reads as a product of single-letter
+        # symbols), a connective such as '\therefore' or '\Rightarrow' (which
+        # parse_latex maps to a symbol and multiplies into the equation), or
+        # an un-substituted general formula. Also rejects a line with no
+        # unknown at all, e.g. an arithmetic aside.
         # Placed after the 'i' -> sympy.I substitution, so complex answers
         # still pass: sympy.I contributes no free symbols.
         return None
-    return sympy.Eq(lhs, rhs)
+
+    return [
+        sympy.Eq(left, right) for left, right in zip(parsed_terms, parsed_terms[1:])
+    ]
+
+
+def _parse_term(text: str) -> sympy.Expr | None:
+    """Parse one side of an equation, or one link of a chain, into an Expr."""
+    try:
+        value = _evaluate(parse_latex(text, strict=True))
+    except Exception:
+        return None
+    if value is None:
+        return None
+
+    # Guard B: defence in depth behind _NON_EQUALITY_RELATION, for a relation
+    # spelling the blocklist misses. A term arriving as a comparison rather
+    # than a quantity ('x \geqslant 2' -> GreaterThan(x, 2)) means this line is
+    # not an equation, and its only free symbol may well be the unknown, so the
+    # free-symbol guard would wave it through.
+    #
+    # Tested as 'is an ordinary expression' rather than 'is a Boolean', because
+    # sympy.Symbol inherits from Boolean - symbols are usable in boolean
+    # algebra - so rejecting Boolean operands would reject 'x'. Everything to
+    # reject here (Relational, BooleanTrue/False, And/Or) is not an Expr;
+    # everything to keep (Symbol, Add, Mul, Integer, I) is.
+    if not isinstance(value, sympy.Expr) or isinstance(
+        value, sympy.core.relational.Relational
+    ):
+        return None
+    return value

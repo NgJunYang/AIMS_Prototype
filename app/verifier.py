@@ -44,22 +44,46 @@ def solution_set(latex: str, variable: str = "x") -> set[str] | None | object:
                           information, so it must not be compared
         set()          -> parsed, and genuinely has no solutions ('x + 1 = x + 2')
         non-empty set  -> the solutions, as canonical strings
+
+    A written line is a list of branches (alternative answers, e.g.
+    'x = 2, x = 3'), and each branch is a chain of one or more equations that
+    must all hold at once ('a = b = c' is two links: Eq(a, b) and Eq(b, c)).
+    So a branch's contribution is the *intersection* of its links' roots, and
+    the line's solution set is the *union* of its branches' contributions.
+    For every branch of length 1 - which is every line with at most one '='
+    per branch, i.e. the entire pre-chain-equality test suite - this is
+    exactly the old union-only logic: intersecting a single set with itself
+    is a no-op.
     """
-    equations = parse_equation_line(latex, variable)
-    if not equations:
+    branches = parse_equation_line(latex, variable)
+    if not branches:
         return None
 
     symbol = sympy.Symbol(variable)
     solutions: set[str] = set()
-    for equation in equations:
-        if _is_tautology(equation):
+    for branch in branches:
+        if all(_is_tautology(link) for link in branch):
+            # Matches the old short-circuit exactly for a length-1 branch: any
+            # equation in the OR-list being an identity discards the whole
+            # line, in order, the same as today. For a longer chain, this
+            # means *every* link is an identity (true chain of substitutions
+            # rather than a constraint), which carries the same "no
+            # information" meaning.
             return TAUTOLOGY
         try:
-            roots = sympy.solve(equation, symbol, dict=False)
+            branch_solutions: set[str] | None = None
+            for link in branch:
+                if _is_tautology(link):
+                    # A tautological link contributes no constraint of its
+                    # own (e.g. the professor's "x^2-5x+6 = (x-2)(x-3)" half of
+                    # a chain, which is an algebraic identity); it must not
+                    # shrink the intersection to nothing.
+                    continue
+                roots = {_canonical(root) for root in sympy.solve(link, symbol, dict=False)}
+                branch_solutions = roots if branch_solutions is None else branch_solutions & roots
         except Exception:
             return None
-        for root in roots:
-            solutions.add(_canonical(root))
+        solutions |= branch_solutions if branch_solutions is not None else set()
 
     return solutions
 

@@ -416,3 +416,26 @@ REALISTIC_LINES = [
 @pytest.mark.parametrize("latex", REALISTIC_LINES)
 def test_realistic_lines_all_parse(latex):
     assert solution_set(latex, "x") is not None, f"failed to parse: {latex}"
+
+
+def test_a_chain_equality_step_verifies_against_itself():
+    # A lecturer photographed a model solution whose first step was written as
+    # a chain equality: 'x^2 - 5x + 6 = (x-2)(x-3) = 0'. This used to be
+    # rejected outright (more than one '=' with no separator), producing a
+    # 400 on save even though the working is correct. It must now verify
+    # cleanly, with no fabricated divergence against the very same roots
+    # stated the ordinary way on the next line.
+    report = verify(
+        steps("x^2 - 5x + 6 = (x-2)(x-3) = 0", "x = 2 \\text{ or } x = 3"),
+        model_solution_steps=[
+            "x^2 - 5x + 6 = (x-2)(x-3) = 0",
+            "x = 2 \\text{ or } x = 3",
+        ],
+        variable="x",
+    )
+    assert report.steps[0].parsed is True
+    assert report.steps[0].divergence is None
+    assert report.candidate_misconceptions == []
+    assert report.first_divergence_index is None
+    assert report.final_answer_correct is True
+    assert report.final_answer_verified is True
