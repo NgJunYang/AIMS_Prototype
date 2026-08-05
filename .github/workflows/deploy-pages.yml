@@ -3,7 +3,7 @@ name: Deploy static frontend to GitHub Pages
 on:
   push:
     branches:
-      - main
+      - branch3
     paths:
       - ".github/workflows/deploy-pages.yml"
       - "scripts/build_pages_config.js"
