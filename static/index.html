@@ -78,8 +78,8 @@
             <h2 class="card-title">Start marking</h2>
             <div class="flex flex-wrap gap-3 items-center">
               <label class="btn-secondary cursor-pointer">
-                Upload photo of working
-                <input id="file-input" type="file" accept="image/*" class="hidden" />
+                Upload photo or PDF of working
+                <input id="file-input" type="file" accept="image/*,application/pdf" class="hidden" />
               </label>
               <button id="type-in-btn" class="btn-secondary" type="button">Type it in</button>
               <button id="sample-script-btn" class="btn-secondary" type="button">
@@ -92,6 +92,8 @@
               known worked example (<span class="font-mono">x^2 = 5x</span> then
               <span class="font-mono">x = 5</span>) so the confirm → review flow can be
               exercised end-to-end without an image or an API key for transcription.
+              A multi-page PDF shows a page picker so you can choose the right page before
+              it's transcribed.
             </p>
             <p id="setup-notice" class="hidden text-sm text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg p-3"></p>
           </div>

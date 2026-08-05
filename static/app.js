@@ -27,6 +27,15 @@ const state = {
   uploadedImageUrl: null, // string | null (object URL)
   localSteps: [], // [{index, latex, confidence}] — the editable draft on screen 2
   classChart: null, // Chart | null
+
+  // PDF page picker — a staged file lets Prev/Next and the eventual commit
+  // resubmit it without re-asking the lecturer for a file.
+  pendingUploadFile: null, // File | null
+  uploadSourceType: null, // "image" | "pdf" | null
+  uploadPageCount: 1,
+  uploadSelectedPage: 1,
+  uploadPreviewB64: null, // base64 PNG from /api/uploads/preview (PDF only)
+  uploadPreviewBusy: false,
 };
 
 // ---------------------------------------------------------------------
@@ -61,13 +70,25 @@ const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question_id: questionId }),
     }),
-  transcribe: (submissionId, file) => {
+  transcribe: (submissionId, file, page = 1) => {
     const form = new FormData();
     form.append("file", file);
+    form.append("page", String(page));
     return apiFetch(`/api/submissions/${submissionId}/transcribe`, {
       method: "POST",
       body: form,
     });
+  },
+  inspectUpload: (file) => {
+    const form = new FormData();
+    form.append("file", file);
+    return apiFetch("/api/uploads/inspect", { method: "POST", body: form });
+  },
+  previewUpload: (file, page) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("page", String(page));
+    return apiFetch("/api/uploads/preview", { method: "POST", body: form });
   },
   updateSteps: (submissionId, steps) =>
     apiFetch(`/api/submissions/${submissionId}/steps`, {
@@ -308,19 +329,87 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+/**
+ * A plain image goes straight to transcription, exactly as before — no
+ * added latency or clicks. A PDF is staged instead: the lecturer browses
+ * pages at zero cost (no LLM call) via /api/uploads/preview before
+ * committing one page to the real /transcribe call.
+ */
 async function beginWithUpload(file) {
   if (!state.currentQuestion) return;
+
+  const looksLikePdf =
+    file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
 
   const sub = await api.createSubmission(state.currentQuestion.id);
   state.submissionId = sub.id;
   state.submission = sub;
-  state.uploadedImageUrl = URL.createObjectURL(file);
   state.localSteps = [];
 
+  if (!looksLikePdf) {
+    state.uploadedImageUrl = URL.createObjectURL(file);
+    state.pendingUploadFile = null;
+    state.uploadSourceType = "image";
+    state.uploadPageCount = 1;
+    state.uploadSelectedPage = 1;
+    state.uploadPreviewB64 = null;
+
+    showScreen("confirm");
+    await transcribeStagedFile(1, file);
+    return;
+  }
+
+  state.uploadedImageUrl = null;
+  state.pendingUploadFile = file;
+  state.uploadSourceType = "pdf";
+  state.uploadPageCount = 1;
+  state.uploadSelectedPage = 1;
+  state.uploadPreviewB64 = null;
+
   showScreen("confirm");
+  setConfirmBusy(true, "Reading PDF…");
+  try {
+    const inspection = await api.inspectUpload(file);
+    state.uploadPageCount = inspection.page_count;
+    await loadPagePreview(1);
+  } catch (err) {
+    renderConfirmScreen();
+    showConfirmError(err);
+  } finally {
+    setConfirmBusy(false);
+  }
+}
+
+/** Render one PDF page as a preview, at zero cost — no submission touched, no LLM call. */
+async function loadPagePreview(page) {
+  if (!state.pendingUploadFile) return;
+  state.uploadPreviewBusy = true;
+  renderConfirmScreen();
+  try {
+    const preview = await api.previewUpload(state.pendingUploadFile, page);
+    state.uploadSelectedPage = preview.page;
+    state.uploadPageCount = preview.page_count;
+    state.uploadPreviewB64 = preview.preview_b64;
+  } catch (err) {
+    showConfirmError(err);
+  } finally {
+    state.uploadPreviewBusy = false;
+    renderConfirmScreen();
+  }
+}
+
+/**
+ * The real commit: one billed vision-model call. Used by both the plain
+ * image fast path (passed `file` directly) and the PDF picker (falls back
+ * to the staged `state.pendingUploadFile`).
+ */
+async function transcribeStagedFile(page, file) {
+  const fileToSend = file || state.pendingUploadFile;
+  if (!fileToSend || !state.submissionId) return;
+
   setConfirmBusy(true, "Transcribing the image…");
   try {
-    const updated = await api.transcribe(sub.id, file);
+    const updated = await api.transcribe(state.submissionId, fileToSend, page);
     state.submission = updated;
     state.localSteps = (
       (updated.transcription && updated.transcription.steps) ||
@@ -342,6 +431,11 @@ async function beginManualEntry(prefill) {
   state.submissionId = sub.id;
   state.submission = sub;
   state.uploadedImageUrl = null;
+  state.pendingUploadFile = null;
+  state.uploadSourceType = null;
+  state.uploadPageCount = 1;
+  state.uploadSelectedPage = 1;
+  state.uploadPreviewB64 = null;
   state.localSteps = prefill.length
     ? prefill.map((s, i) => ({
         index: i + 1,
@@ -389,22 +483,7 @@ function renderConfirmScreen() {
     : "";
 
   // --- image / placeholder pane ---
-  const imagePane = document.getElementById("image-pane");
-  clearChildren(imagePane);
-  if (state.uploadedImageUrl) {
-    const img = document.createElement("img");
-    img.src = state.uploadedImageUrl;
-    img.alt = "Uploaded student working";
-    img.className = "w-full rounded-lg border border-slate-200";
-    imagePane.appendChild(img);
-  } else {
-    const placeholder = el(
-      "div",
-      "text-sm text-slate-500 border border-dashed border-slate-300 rounded-lg p-6 text-center",
-      "No image was uploaded — these steps were entered manually."
-    );
-    imagePane.appendChild(placeholder);
-  }
+  renderImagePane();
 
   const notes = document.getElementById("transcription-notes");
   const notesText = state.submission?.transcription?.notes;
@@ -417,6 +496,109 @@ function renderConfirmScreen() {
 
   // --- editable step list ---
   renderStepList();
+}
+
+/**
+ * Three cases: a PDF staged but not yet committed to a transcription (a
+ * page picker); a committed upload — image or PDF — shown as a plain
+ * preview; or manual entry with no upload at all.
+ */
+function renderImagePane() {
+  const imagePane = document.getElementById("image-pane");
+  clearChildren(imagePane);
+
+  const hasTranscription = !!state.submission?.transcription;
+
+  if (state.uploadSourceType === "pdf" && !hasTranscription) {
+    renderPendingPdfPicker(imagePane);
+    return;
+  }
+
+  if (state.uploadedImageUrl || (state.uploadSourceType === "pdf" && hasTranscription)) {
+    const img = document.createElement("img");
+    img.src = state.uploadedImageUrl || `data:image/png;base64,${state.uploadPreviewB64 || ""}`;
+    img.alt = "Uploaded student working";
+    img.className = "w-full rounded-lg border border-slate-200";
+    imagePane.appendChild(img);
+
+    const pageCount = state.submission?.source_page_count;
+    if (state.uploadSourceType === "pdf" && pageCount > 1) {
+      imagePane.appendChild(
+        el(
+          "p",
+          "text-xs text-slate-500 mt-1",
+          `Page ${state.submission.source_page} of ${pageCount}`
+        )
+      );
+    }
+    return;
+  }
+
+  const placeholder = el(
+    "div",
+    "text-sm text-slate-500 border border-dashed border-slate-300 rounded-lg p-6 text-center",
+    "No image was uploaded — these steps were entered manually."
+  );
+  imagePane.appendChild(placeholder);
+}
+
+/** The page picker for a staged PDF: preview, Prev/Next stepper, and the commit button. */
+function renderPendingPdfPicker(container) {
+  if (!state.uploadPreviewB64) {
+    container.appendChild(
+      el(
+        "div",
+        "text-sm text-slate-500 border border-dashed border-slate-300 rounded-lg p-6 text-center",
+        "Loading page preview…"
+      )
+    );
+    return;
+  }
+
+  const img = document.createElement("img");
+  img.src = `data:image/png;base64,${state.uploadPreviewB64}`;
+  img.alt = "PDF page preview";
+  img.className = "w-full rounded-lg border border-slate-200";
+  container.appendChild(img);
+
+  if (state.uploadPageCount > 1) {
+    const stepper = document.createElement("div");
+    stepper.className = "flex items-center justify-between gap-2 mt-2";
+
+    const prev = document.createElement("button");
+    prev.type = "button";
+    prev.className = "btn-secondary text-xs px-3 py-1";
+    prev.textContent = "◀ Prev";
+    prev.disabled = state.uploadPreviewBusy || state.uploadSelectedPage <= 1;
+    prev.addEventListener("click", () => loadPagePreview(state.uploadSelectedPage - 1));
+    stepper.appendChild(prev);
+
+    stepper.appendChild(
+      el(
+        "span",
+        "text-xs text-slate-500",
+        `Page ${state.uploadSelectedPage} of ${state.uploadPageCount}`
+      )
+    );
+
+    const next = document.createElement("button");
+    next.type = "button";
+    next.className = "btn-secondary text-xs px-3 py-1";
+    next.textContent = "Next ▶";
+    next.disabled = state.uploadPreviewBusy || state.uploadSelectedPage >= state.uploadPageCount;
+    next.addEventListener("click", () => loadPagePreview(state.uploadSelectedPage + 1));
+    stepper.appendChild(next);
+
+    container.appendChild(stepper);
+  }
+
+  const commitBtn = document.createElement("button");
+  commitBtn.type = "button";
+  commitBtn.className = "btn-primary w-full mt-2";
+  commitBtn.textContent = "Transcribe this page";
+  commitBtn.disabled = state.uploadPreviewBusy;
+  commitBtn.addEventListener("click", () => transcribeStagedFile(state.uploadSelectedPage));
+  container.appendChild(commitBtn);
 }
 
 function renderStepList() {
