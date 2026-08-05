@@ -1,0 +1,30 @@
+{
+  "criteria": [
+    {
+      "criterion_id": "C1",
+      "proposed": 1,
+      "justification": "Step 1 presents the equation already with zero on one side, suitable for factorising and applying the zero-product principle."
+    },
+    {
+      "criterion_id": "C2",
+      "proposed": 3,
+      "justification": "Step 1 shows factorisation into (x-2)(x-3)=0 and Step 2 applies the zero-product principle, giving both roots with none lost or gained."
+    },
+    {
+      "criterion_id": "C3",
+      "proposed": 2,
+      "justification": "The factors in Step 1 lead to the roots in Step 2, which the CAS confirms are exactly ['2','3']."
+    },
+    {
+      "criterion_id": "C4",
+      "proposed": 1,
+      "justification": "Step 2 states both solutions, x = 2 or x = 3, matching the verified solution set."
+    },
+    {
+      "criterion_id": "C5",
+      "proposed": 1,
+      "justification": "Steps 1 and 2 run in a clear logical order from factorisation to roots; the chained equality in Step 1 is slightly loose notation but the reasoning is followable."
+    }
+  ],
+  "misconceptions": []
+}

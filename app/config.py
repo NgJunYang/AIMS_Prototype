@@ -21,6 +21,16 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 # "offline" -> serve only from the cache, never touch the network
 DEMO_MODE = os.getenv("DEMO_MODE", "live")
 
+# Comma-separated list of origins allowed to call this API cross-origin, e.g.
+# "https://t-zinlin.github.io" when the frontend is deployed separately on
+# GitHub Pages. Defaults to "*" (any origin) because this demo carries no
+# auth/cookies to protect - see the CORSMiddleware setup in main.py.
+ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "*").split(",")
+    if origin.strip()
+]
+
 VISION_MODEL = "claude-sonnet-5"
 MARKING_MODEL = "claude-opus-5"
 

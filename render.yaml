@@ -1,0 +1,23 @@
+# Deploys the FastAPI backend on Render's free tier.
+#
+# DEMO_MODE defaults to "offline": the app serves only pre-cached LLM
+# responses from fixtures/llm_cache/ and never calls the Anthropic API, so no
+# API key is needed at all for judges to see a working demo. ANTHROPIC_API_KEY
+# is listed with `sync: false` so Render prompts for it in the dashboard only
+# if you switch to live mode - it is never read from this file or the repo.
+services:
+  - type: web
+    name: aims-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: DEMO_MODE
+        value: offline
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: "*"

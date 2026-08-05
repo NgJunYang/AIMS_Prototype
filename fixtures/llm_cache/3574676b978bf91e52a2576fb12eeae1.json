@@ -1,0 +1,13 @@
+{
+  "steps": [
+    {
+      "latex": "x^2 - 5x + 6 = (x-2)(x-3) = 0",
+      "confidence": "high"
+    },
+    {
+      "latex": "x = 2 \\text{ or } x = 3",
+      "confidence": "high"
+    }
+  ],
+  "notes": "Handwriting is clear; no crossings-out observed."
+}

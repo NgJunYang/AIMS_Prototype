@@ -5,6 +5,7 @@ import re
 import uuid
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -12,7 +13,7 @@ from pydantic import BaseModel, Field
 from app import uploads
 from app.authoring import default_criteria, validate_question
 from app.cohort import summarise
-from app.config import IMAGES_DIR, SEEDS_DIR, STATIC_DIR
+from app.config import ALLOWED_ORIGINS, IMAGES_DIR, SEEDS_DIR, STATIC_DIR
 from app.feedback import write as write_feedback
 from app.llm import OfflineCacheMiss
 from app.marker import mark as mark_submission
@@ -31,6 +32,18 @@ from app.transcriber import transcribe, transcribe_model_solution
 from app.verifier import verify
 
 app = FastAPI(title="AIMS")
+
+# Only needed when the frontend is served from a different origin than this
+# API - e.g. a static build on GitHub Pages calling a backend deployed
+# elsewhere. Same-origin deployment (this app serving static/ itself, the
+# default) never hits CORS at all. No cookies or credentials are used, so a
+# permissive default is a data-shape risk, not an auth one; see ALLOWED_ORIGINS.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Server-derived names only. Also the fence for the solution-image route: this
 # filename round-trips through the hand-editable data/questions.json overlay.

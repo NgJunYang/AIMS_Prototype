@@ -1,0 +1,13 @@
+{
+  "steps": [
+    {
+      "latex": "x^2 = 5x",
+      "confidence": "high"
+    },
+    {
+      "latex": "x = 5",
+      "confidence": "high"
+    }
+  ],
+  "notes": "Solution as written divides both sides by x, losing the x=0 solution - this appears to be a mathematical error in the original working, transcribed as-is without correction."
+}

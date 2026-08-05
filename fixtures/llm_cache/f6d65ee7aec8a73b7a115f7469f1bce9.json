@@ -1,0 +1,10 @@
+{
+  "what_went_well": "Full marks here \u2014 you spotted straight away that the equation already had zero on one side, which is exactly the condition needed before factorising (C1). Your factorisation into (x-2)(x-3) = 0 in Step 1 is correct, and applying the zero-product principle in Step 2 gave you both roots with none lost or gained (C2, C3). Step 2 states both solutions, x = 2 or x = 3, and the two steps read in a clear logical order (C4, C5).",
+  "what_went_wrong": "Nothing cost you a mark. The one thing worth tidying is the chained equality in Step 1, where you wrote x^2 - 5x + 6 = (x-2)(x-3) = 0 in a single line: this runs together two different claims, that the quadratic factorises in that way, and that the product equals zero. Strung together like that, a reader has to work out which part is the identity and which part is the equation you are solving, so the notation is doing less to signpost your reasoning than it could.",
+  "how_to_improve": "Next time, split Step 1 into two lines: first write x^2 - 5x + 6 = 0, then on a new line write (x-2)(x-3) = 0, so each line is one complete equation. Before moving to the roots, expand (x-2)(x-3) in the margin to confirm it returns the original quadratic. Then keep your Step 2 as it is, since naming the zero-product principle as the reason for splitting into x = 2 or x = 3 is what earns the method marks.",
+  "references": [
+    "Notes \u00a70 \u2014 how your work is marked",
+    "Notes \u00a71 \u2014 factorising quadratics",
+    "Notes \u00a72 \u2014 the zero-product principle"
+  ]
+}

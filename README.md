@@ -195,6 +195,56 @@ judge to distrust than one that names them:
   input. Not a correctness issue, but worth knowing before pasting an
   enormous line into the transcription editor.
 
+## Deploying for judges (GitHub Pages + a hosted backend)
+
+GitHub Pages only serves static files — it cannot run this app's FastAPI
+backend, the SymPy verifier, or an LLM call with a hidden key. So the
+frontend (`static/`) and backend (`app/`) are deployed to two different
+places, and the frontend is told where the backend lives via one file.
+
+**1. Deploy the backend (runs the API, holds no secret by default).**
+
+`render.yaml` is already set up for Render's free tier:
+
+1. Push this branch to GitHub.
+2. On [render.com](https://render.com), New → Blueprint → pick this repo/branch.
+   Render reads `render.yaml` automatically.
+3. It deploys with `DEMO_MODE=offline` — the app serves only the responses
+   already cached in `fixtures/llm_cache/` and never calls the Anthropic API,
+   so **no API key is required for the demo to work**, and none is exposed.
+4. Note the service URL Render gives you, e.g. `https://aims-backend.onrender.com`.
+   (Free-tier instances sleep after inactivity and take a few seconds to wake
+   on the first request — expected, not a bug.)
+
+To run *live* (real transcription/marking of new photos) instead, open the
+service's Environment tab on Render and set `ANTHROPIC_API_KEY` and
+`DEMO_MODE=live` there. The key is entered directly into Render's dashboard —
+it is never written to this repo, `render.yaml`, or any committed file.
+
+**2. Point the frontend at that backend.**
+
+Edit `static/config.js`:
+
+```js
+window.AIMS_API_BASE = "https://aims-backend.onrender.com"; // your URL from step 1
+```
+
+Commit that change.
+
+**3. Publish `static/` on GitHub Pages.**
+
+Repo Settings → Pages → Source: this branch, folder `/static`. GitHub gives
+you a URL of the form `https://<org>.github.io/<repo>/` — that's the link for
+judges.
+
+**Why this shape:** `apiFetch()` in `app.js` prefixes every API call with
+`window.AIMS_API_BASE`, and the backend's `CORSMiddleware`
+(`ALLOWED_ORIGINS` env var, default `*`) allows the cross-origin calls that
+result. Everything else about the app — the verifier, the marking pipeline,
+the offline cache — is unchanged; only *where the two halves run* differs
+from local dev, where `config.js` is left as `""` and FastAPI serves both
+itself on one origin.
+
 ## Not built yet
 
 - Real handwritten fixtures. `fixtures/images/` is currently empty and
