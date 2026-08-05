@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app import uploads
+from app.authoring import default_criteria, validate_question
 from app.cohort import summarise
 from app.config import IMAGES_DIR, SEEDS_DIR, STATIC_DIR
 from app.feedback import write as write_feedback
@@ -16,10 +17,12 @@ from app.marker import mark as mark_submission
 from app.models import ClassSummary, Question, Step, Submission
 from app.practice import QUESTION_TYPES, generate_practice
 from app.store import (
+    delete_question,
     get_question,
     list_questions,
     list_submissions,
     load_submission,
+    save_question,
     save_submission,
 )
 from app.transcriber import transcribe
@@ -43,6 +46,11 @@ class UpdateSteps(BaseModel):
 class Override(BaseModel):
     criterion_id: str
     proposed: int
+
+
+class QuestionCheck(BaseModel):
+    ok: bool
+    problems: list[str] = Field(default_factory=list)
 
 
 class RegeneratePractice(BaseModel):
@@ -96,6 +104,94 @@ def api_list_questions() -> list[Question]:
 @app.get("/api/questions/{question_id}")
 def api_get_question(question_id: str) -> Question:
     return _question(question_id)
+
+
+@app.get("/api/question-template")
+def api_question_template() -> dict:
+    """A starting point for a new question: a method-agnostic default rubric.
+
+    Method-agnostic on purpose - a rubric naming factorisation would penalise
+    a student who correctly completed the square instead.
+    """
+    return {
+        "variable": "x",
+        "criteria": [c.model_dump() for c in default_criteria()],
+    }
+
+
+@app.post("/api/questions/validate")
+def api_validate_question(question: Question) -> QuestionCheck:
+    """Dry-run the same checks saving would apply, without saving.
+
+    Lets the lecturer see their own model solution verified before committing
+    to it, which is the point: the tool holds the author to the standard it
+    holds the student to.
+    """
+    return QuestionCheck(
+        ok=not validate_question(question), problems=validate_question(question)
+    )
+
+
+@app.post("/api/questions")
+def api_create_question(question: Question) -> Question:
+    if question.id in {q.id for q in list_questions()}:
+        raise HTTPException(
+            status_code=409, detail=f"a question with id {question.id!r} already exists"
+        )
+    problems = validate_question(question)
+    if problems:
+        raise HTTPException(status_code=400, detail=problems)
+    save_question(question)
+    return question
+
+
+@app.put("/api/questions/{question_id}")
+def api_update_question(question_id: str, question: Question) -> Question:
+    existing = _question(question_id)
+    if question.id != question_id:
+        raise HTTPException(
+            status_code=400, detail="a question's id cannot be changed"
+        )
+    problems = validate_question(question)
+    if problems:
+        raise HTTPException(status_code=400, detail=problems)
+
+    save_question(question)
+
+    # A submission was verified and marked against the *old* model solution and
+    # rubric. If either changed, those results no longer describe this question,
+    # and a stale mark is worse than no mark - so clear them and require a
+    # re-mark, exactly as editing the transcribed steps does.
+    if (
+        question.model_solution_steps != existing.model_solution_steps
+        or question.criteria != existing.criteria
+        or question.variable != existing.variable
+    ):
+        for submission in list_submissions():
+            if submission.question_id != question_id or submission.marks is None:
+                continue
+            _invalidate_downstream(submission)
+            save_submission(submission)
+
+    return question
+
+
+@app.delete("/api/questions/{question_id}")
+def api_delete_question(question_id: str) -> dict[str, str]:
+    _question(question_id)  # 404 if it does not exist
+
+    dependents = [s for s in list_submissions() if s.question_id == question_id]
+    if dependents:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"{len(dependents)} submission(s) were marked against this "
+                f"question. Deleting it would leave them unmarkable."
+            ),
+        )
+
+    delete_question(question_id)
+    return {"deleted": question_id}
 
 
 # ---------- submissions ----------

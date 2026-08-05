@@ -1,4 +1,5 @@
 import io
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -25,6 +26,9 @@ def isolate_disk_writes(tmp_path, monkeypatch):
     submissions.mkdir()
     monkeypatch.setattr(main, "IMAGES_DIR", images)
     monkeypatch.setattr(store, "SUBMISSIONS_DIR", submissions)
+    # Question authoring writes an overlay file; without this, tests would
+    # add and delete questions in the developer's real bank.
+    monkeypatch.setattr(store, "QUESTIONS_FILE", tmp_path / "questions.json")
 
 # A real, byte-correct 1x1 PNG. The previous literal here had a bad IDAT
 # checksum and silently worked for years because no code path ever actually
@@ -409,6 +413,154 @@ def test_transcribe_a_specific_pdf_page(monkeypatch):
     body = response.json()
     assert body["source_page"] == 2
     assert body["source_page_count"] == 2
+
+
+NEW_QUESTION = {
+    "id": "authored1",
+    "prompt": "Solve $x^2 - 7x + 12 = 0$.",
+    "model_solution_steps": [
+        "x^2 - 7x + 12 = 0",
+        "(x - 3)(x - 4) = 0",
+        "x = 3, x = 4",
+    ],
+    "variable": "x",
+    "criteria": [{"id": "C1", "max": 2, "description": "Solved it"}],
+}
+
+
+def test_question_template_offers_a_method_agnostic_default_rubric():
+    body = client.get("/api/question-template").json()
+    assert body["criteria"]
+    text = " ".join(c["description"].lower() for c in body["criteria"])
+    assert "factoris" not in text
+
+
+def test_a_lecturer_can_add_a_question_and_then_use_it():
+    created = client.post("/api/questions", json=NEW_QUESTION)
+    assert created.status_code == 200
+
+    assert "authored1" in [q["id"] for q in client.get("/api/questions").json()]
+    assert client.get("/api/questions/authored1").status_code == 200
+    # And it is immediately usable - no restart, no cache staleness.
+    assert (
+        client.post("/api/submissions", json={"question_id": "authored1"}).status_code
+        == 200
+    )
+
+
+def test_a_question_whose_model_solution_loses_a_root_is_refused():
+    """The tool holds the lecturer to the standard it holds the student to."""
+    bad = {**NEW_QUESTION, "model_solution_steps": ["x^2 = 5x", "x = 5"]}
+    response = client.post("/api/questions", json=bad)
+    assert response.status_code == 400
+    assert any("step 2" in p for p in response.json()["detail"])
+    # Nothing was saved.
+    assert client.get("/api/questions/authored1").status_code == 404
+
+
+def test_validate_reports_problems_without_saving_anything():
+    bad = {**NEW_QUESTION, "model_solution_steps": ["x^2 = 5x", "x = 5"]}
+    body = client.post("/api/questions/validate", json=bad).json()
+    assert body["ok"] is False
+    assert body["problems"]
+    assert client.get("/api/questions/authored1").status_code == 404
+
+    good = client.post("/api/questions/validate", json=NEW_QUESTION).json()
+    assert good["ok"] is True
+    assert good["problems"] == []
+
+
+def test_adding_a_question_with_an_existing_id_is_rejected():
+    assert client.post("/api/questions", json={**NEW_QUESTION, "id": "q1"}).status_code == 409
+
+
+def test_editing_a_question_cannot_change_its_id():
+    client.post("/api/questions", json=NEW_QUESTION)
+    response = client.put(
+        "/api/questions/authored1", json={**NEW_QUESTION, "id": "renamed"}
+    )
+    assert response.status_code == 400
+
+
+def test_editing_a_model_solution_invalidates_marks_made_against_the_old_one(
+    monkeypatch,
+):
+    """A mark computed against a different model solution no longer describes
+    this question, and a stale mark is worse than no mark."""
+    _stub_llm(monkeypatch)
+    client.post("/api/questions", json=NEW_QUESTION)
+    created = client.post(
+        "/api/submissions", json={"question_id": "authored1"}
+    ).json()
+    client.put(
+        f"/api/submissions/{created['id']}/steps",
+        json={"steps": [{"index": 1, "latex": "x^2 - 7x + 12 = 0"}]},
+    )
+    marked = client.post(f"/api/submissions/{created['id']}/mark").json()
+    assert marked["marks"] is not None
+
+    client.put(
+        "/api/questions/authored1",
+        json={
+            **NEW_QUESTION,
+            "model_solution_steps": [
+                "x^2 - 7x + 12 = 0",
+                "(x - 3)(x - 4) = 0",
+                "x = 4, x = 3",
+            ],
+            "criteria": [{"id": "C1", "max": 5, "description": "Rewritten"}],
+        },
+    )
+
+    after = client.get(f"/api/submissions/{created['id']}").json()
+    assert after["marks"] is None
+    assert after["verification"] is None
+
+
+def test_editing_only_the_prompt_leaves_existing_marks_alone(monkeypatch):
+    _stub_llm(monkeypatch)
+    client.post("/api/questions", json=NEW_QUESTION)
+    created = client.post("/api/submissions", json={"question_id": "authored1"}).json()
+    client.post(f"/api/submissions/{created['id']}/mark")
+
+    client.put(
+        "/api/questions/authored1",
+        json={**NEW_QUESTION, "prompt": "Solve $x^2 - 7x + 12 = 0$ by any method."},
+    )
+
+    after = client.get(f"/api/submissions/{created['id']}").json()
+    assert after["marks"] is not None
+
+
+def test_a_lecturer_can_delete_their_own_question():
+    client.post("/api/questions", json=NEW_QUESTION)
+    assert client.delete("/api/questions/authored1").status_code == 200
+    assert client.get("/api/questions/authored1").status_code == 404
+
+
+def test_deleting_a_seeded_question_hides_it_without_touching_the_seed_file():
+    assert client.delete("/api/questions/q3").status_code == 200
+    assert client.get("/api/questions/q3").status_code == 404
+    # The shipped seed file is unchanged: a fresh overlay restores it.
+    seeded = json.loads(
+        (store.SEEDS_DIR / "questions.json").read_text(encoding="utf-8")
+    )
+    assert "q3" in [item["id"] for item in seeded]
+
+
+def test_a_question_with_submissions_cannot_be_deleted(monkeypatch):
+    _stub_llm(monkeypatch)
+    client.post("/api/questions", json=NEW_QUESTION)
+    client.post("/api/submissions", json={"question_id": "authored1"})
+
+    response = client.delete("/api/questions/authored1")
+    assert response.status_code == 409
+    assert "unmarkable" in response.json()["detail"]
+    assert client.get("/api/questions/authored1").status_code == 200
+
+
+def test_deleting_an_unknown_question_is_a_404():
+    assert client.delete("/api/questions/nope").status_code == 404
 
 
 def test_regenerate_practice_as_scenario_questions(monkeypatch):

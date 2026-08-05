@@ -86,6 +86,80 @@
             </div>
           </div>
 
+          <div class="flex flex-wrap gap-2">
+            <button id="new-question-btn" class="btn-secondary" type="button">
+              + New question
+            </button>
+            <button id="edit-question-btn" class="btn-secondary hidden" type="button">
+              Edit this question
+            </button>
+            <button id="delete-question-btn" class="btn-secondary hidden" type="button">
+              Delete this question
+            </button>
+          </div>
+
+          <!-- Question authoring form (hidden until New/Edit is pressed) -->
+          <div id="question-editor" class="hidden card space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 id="question-editor-title" class="card-title !mb-0">New question</h2>
+              <button id="question-editor-close" class="btn-secondary text-xs px-3 py-1" type="button">
+                Cancel
+              </button>
+            </div>
+
+            <p class="text-xs text-slate-500 max-w-2xl">
+              Your model solution is checked with the same symbolic engine that
+              marks the students. If it loses or gains a solution anywhere, it is
+              refused — a model solution that is wrong would mark every student
+              against it wrongly.
+            </p>
+
+            <div class="flex flex-wrap gap-4">
+              <div>
+                <label for="qe-id" class="block text-sm font-medium text-slate-700 mb-1">Id</label>
+                <input id="qe-id" type="text" class="field w-40" placeholder="q7" autocomplete="off" />
+              </div>
+              <div>
+                <label for="qe-variable" class="block text-sm font-medium text-slate-700 mb-1">Variable</label>
+                <input id="qe-variable" type="text" class="field w-20" value="x" maxlength="1" autocomplete="off" />
+              </div>
+              <div class="flex-1 min-w-64">
+                <label for="qe-prompt" class="block text-sm font-medium text-slate-700 mb-1">
+                  Prompt <span class="font-normal text-slate-500">(use $…$ for maths)</span>
+                </label>
+                <input id="qe-prompt" type="text" class="field w-full"
+                       placeholder="Solve $x^2 - 7x + 12 = 0$." autocomplete="off" />
+              </div>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <h3 class="card-title !mb-0">Model solution</h3>
+                <button id="qe-add-step" class="btn-secondary text-xs px-3 py-1" type="button">
+                  + Add step
+                </button>
+              </div>
+              <div id="qe-steps" class="space-y-2"></div>
+            </div>
+
+            <div>
+              <div class="flex items-center justify-between mb-1">
+                <h3 class="card-title !mb-0">Rubric</h3>
+                <button id="qe-add-criterion" class="btn-secondary text-xs px-3 py-1" type="button">
+                  + Add criterion
+                </button>
+              </div>
+              <div id="qe-criteria" class="space-y-2"></div>
+            </div>
+
+            <div id="qe-result" class="hidden text-sm"></div>
+
+            <div class="flex flex-wrap gap-2">
+              <button id="qe-check" class="btn-secondary" type="button">Check the maths</button>
+              <button id="qe-save" class="btn-primary" type="button">Save question</button>
+            </div>
+          </div>
+
           <div id="question-detail" class="hidden grid md:grid-cols-2 gap-6">
             <div class="card">
               <h2 class="card-title">Prompt</h2>

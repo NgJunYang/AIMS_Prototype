@@ -11,6 +11,9 @@ FIXTURES_DIR = BASE_DIR / "fixtures"
 LLM_CACHE_DIR = FIXTURES_DIR / "llm_cache"
 IMAGES_DIR = FIXTURES_DIR / "images"
 SUBMISSIONS_DIR = BASE_DIR / "data" / "submissions"
+# Lecturer-authored questions, layered over the read-only seeded bank so the
+# seed file stays pristine and a fresh clone still starts with six questions.
+QUESTIONS_FILE = BASE_DIR / "data" / "questions.json"
 
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
 

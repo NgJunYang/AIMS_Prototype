@@ -43,6 +43,12 @@ const state = {
 
   practiceType: "bare", // "bare" | "scenario"
   practiceBusy: false,
+
+  // Question authoring. `editingId` is null for a new question, or the id of
+  // the question being edited.
+  editingId: null,
+  qeSteps: [], // string[]  — model solution lines being authored
+  qeCriteria: [], // [{id, max, description}]
 };
 
 /** The typed student name, or an auto-incrementing fallback if left blank. */
@@ -128,6 +134,27 @@ const api = {
       body: JSON.stringify({ criterion_id: criterionId, proposed }),
     }),
   classSummary: () => apiFetch("/api/class/summary"),
+  questionTemplate: () => apiFetch("/api/question-template"),
+  validateQuestion: (question) =>
+    apiFetch("/api/questions/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(question),
+    }),
+  createQuestion: (question) =>
+    apiFetch("/api/questions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(question),
+    }),
+  updateQuestion: (id, question) =>
+    apiFetch(`/api/questions/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(question),
+    }),
+  deleteQuestion: (id) =>
+    apiFetch(`/api/questions/${encodeURIComponent(id)}`, { method: "DELETE" }),
 };
 
 // ---------------------------------------------------------------------
@@ -315,6 +342,8 @@ function selectQuestion(id) {
   if (!question) {
     detail.classList.add("hidden");
     entry.classList.add("hidden");
+    document.getElementById("edit-question-btn").classList.add("hidden");
+    document.getElementById("delete-question-btn").classList.add("hidden");
     return;
   }
 
@@ -344,6 +373,291 @@ function selectQuestion(id) {
   detail.classList.remove("hidden");
   entry.classList.remove("hidden");
   document.getElementById("setup-notice").classList.add("hidden");
+  document.getElementById("edit-question-btn").classList.remove("hidden");
+  document.getElementById("delete-question-btn").classList.remove("hidden");
+}
+
+// ---------------------------------------------------------------------
+// 5b. Question authoring
+// ---------------------------------------------------------------------
+
+function initQuestionEditor() {
+  document
+    .getElementById("new-question-btn")
+    .addEventListener("click", () => openQuestionEditor(null));
+  document
+    .getElementById("edit-question-btn")
+    .addEventListener("click", () => openQuestionEditor(state.currentQuestion));
+  document
+    .getElementById("delete-question-btn")
+    .addEventListener("click", deleteCurrentQuestion);
+  document
+    .getElementById("question-editor-close")
+    .addEventListener("click", closeQuestionEditor);
+
+  document.getElementById("qe-add-step").addEventListener("click", () => {
+    state.qeSteps.push("");
+    renderQeSteps();
+  });
+  document.getElementById("qe-add-criterion").addEventListener("click", () => {
+    state.qeCriteria.push({
+      id: `C${state.qeCriteria.length + 1}`,
+      max: 1,
+      description: "",
+    });
+    renderQeCriteria();
+  });
+
+  document.getElementById("qe-check").addEventListener("click", checkQuestion);
+  document.getElementById("qe-save").addEventListener("click", saveQuestion);
+}
+
+async function openQuestionEditor(question) {
+  state.editingId = question ? question.id : null;
+
+  if (question) {
+    state.qeSteps = [...question.model_solution_steps];
+    state.qeCriteria = question.criteria.map((c) => ({ ...c }));
+    document.getElementById("qe-id").value = question.id;
+    document.getElementById("qe-id").disabled = true;
+    document.getElementById("qe-variable").value = question.variable;
+    document.getElementById("qe-prompt").value = question.prompt;
+    document.getElementById("question-editor-title").textContent =
+      `Edit ${question.id}`;
+  } else {
+    // A new question starts from the method-agnostic default rubric, so a
+    // lecturer does not accidentally write a factorisation-only one.
+    let template = { variable: "x", criteria: [] };
+    try {
+      template = await api.questionTemplate();
+    } catch (_) {
+      /* fall back to an empty rubric rather than blocking */
+    }
+    state.qeSteps = ["", ""];
+    state.qeCriteria = template.criteria.map((c) => ({ ...c }));
+    document.getElementById("qe-id").value = "";
+    document.getElementById("qe-id").disabled = false;
+    document.getElementById("qe-variable").value = template.variable || "x";
+    document.getElementById("qe-prompt").value = "";
+    document.getElementById("question-editor-title").textContent = "New question";
+  }
+
+  renderQeSteps();
+  renderQeCriteria();
+  hideQeResult();
+  document.getElementById("question-editor").classList.remove("hidden");
+}
+
+function closeQuestionEditor() {
+  document.getElementById("question-editor").classList.add("hidden");
+  state.editingId = null;
+  hideQeResult();
+}
+
+function renderQeSteps() {
+  const box = document.getElementById("qe-steps");
+  clearChildren(box);
+  state.qeSteps.forEach((latex, index) => {
+    const row = el("div", "flex items-start gap-2");
+
+    const col = el("div", "flex-1 min-w-0");
+    const preview = el("div", "katex-preview");
+    renderKatexInto(preview, latex || "\\text{(empty)}", true);
+    col.appendChild(preview);
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "field step-input mt-1 w-full text-sm";
+    input.value = latex;
+    input.placeholder = `Line ${index + 1}, e.g. x^2 - 7x + 12 = 0`;
+    input.addEventListener("input", () => {
+      state.qeSteps[index] = input.value;
+      renderKatexInto(preview, input.value || "\\text{(empty)}", true);
+    });
+    col.appendChild(input);
+    row.appendChild(col);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "text-slate-400 hover:text-red-600 px-2 shrink-0";
+    remove.title = "Remove line";
+    remove.textContent = "✕";
+    remove.addEventListener("click", () => {
+      state.qeSteps.splice(index, 1);
+      renderQeSteps();
+    });
+    row.appendChild(remove);
+
+    box.appendChild(row);
+  });
+}
+
+function renderQeCriteria() {
+  const box = document.getElementById("qe-criteria");
+  clearChildren(box);
+  state.qeCriteria.forEach((criterion, index) => {
+    const row = el("div", "flex items-center gap-2");
+
+    const id = document.createElement("input");
+    id.type = "text";
+    id.className = "field w-16 font-mono text-xs";
+    id.value = criterion.id;
+    id.addEventListener("input", () => (state.qeCriteria[index].id = id.value));
+    row.appendChild(id);
+
+    const description = document.createElement("input");
+    description.type = "text";
+    description.className = "field flex-1 min-w-0 text-sm";
+    description.value = criterion.description;
+    description.placeholder = "What this criterion rewards";
+    description.addEventListener(
+      "input",
+      () => (state.qeCriteria[index].description = description.value)
+    );
+    row.appendChild(description);
+
+    const max = document.createElement("input");
+    max.type = "number";
+    max.min = "0";
+    max.className = "field w-16 text-right tabular-nums";
+    max.value = String(criterion.max);
+    max.addEventListener("input", () => {
+      const value = Number(max.value);
+      state.qeCriteria[index].max = Number.isFinite(value) && value >= 0 ? value : 0;
+    });
+    row.appendChild(max);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "text-slate-400 hover:text-red-600 px-2 shrink-0";
+    remove.title = "Remove criterion";
+    remove.textContent = "✕";
+    remove.addEventListener("click", () => {
+      state.qeCriteria.splice(index, 1);
+      renderQeCriteria();
+    });
+    row.appendChild(remove);
+
+    box.appendChild(row);
+  });
+}
+
+/** The question as currently typed, in the shape the API expects. */
+function questionFromEditor() {
+  return {
+    id: document.getElementById("qe-id").value.trim(),
+    prompt: document.getElementById("qe-prompt").value.trim(),
+    variable: document.getElementById("qe-variable").value.trim() || "x",
+    topic_tag: "quadratics",
+    model_solution_steps: state.qeSteps
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0),
+    criteria: state.qeCriteria.map((c) => ({
+      id: c.id,
+      max: Number(c.max) || 0,
+      description: c.description,
+    })),
+  };
+}
+
+function showQeResult(ok, lines) {
+  const box = document.getElementById("qe-result");
+  clearChildren(box);
+  box.classList.remove("hidden");
+  box.className = ok
+    ? "text-sm verdict-row verdict-good"
+    : "text-sm verdict-row verdict-bad";
+  if (ok) {
+    box.appendChild(
+      el(
+        "p",
+        "",
+        "The model solution verifies against itself — every step preserves the solution set."
+      )
+    );
+    return;
+  }
+  const list = el("ul", "list-disc list-inside space-y-1");
+  lines.forEach((line) => list.appendChild(el("li", "", line)));
+  box.appendChild(list);
+}
+
+function hideQeResult() {
+  document.getElementById("qe-result").classList.add("hidden");
+}
+
+/** Problems reported by the API, which may be a list or a single string. */
+function problemsFrom(err) {
+  const detail = err.body && err.body.detail;
+  if (Array.isArray(detail)) return detail;
+  return [detail || err.message || "Something went wrong."];
+}
+
+async function checkQuestion() {
+  try {
+    const result = await api.validateQuestion(questionFromEditor());
+    showQeResult(result.ok, result.problems);
+  } catch (err) {
+    showQeResult(false, problemsFrom(err));
+  }
+}
+
+async function saveQuestion() {
+  const question = questionFromEditor();
+  try {
+    if (state.editingId) {
+      await api.updateQuestion(state.editingId, question);
+    } else {
+      await api.createQuestion(question);
+    }
+  } catch (err) {
+    showQeResult(false, problemsFrom(err));
+    return;
+  }
+
+  await reloadQuestions(question.id);
+  closeQuestionEditor();
+  const notice = document.getElementById("setup-notice");
+  notice.textContent = `Saved ${question.id}.`;
+  notice.classList.remove("hidden");
+}
+
+async function deleteCurrentQuestion() {
+  if (!state.currentQuestion) return;
+  const id = state.currentQuestion.id;
+  if (!window.confirm(`Delete question ${id}?`)) return;
+
+  try {
+    await api.deleteQuestion(id);
+  } catch (err) {
+    const notice = document.getElementById("setup-notice");
+    notice.textContent = problemsFrom(err).join(" ");
+    notice.classList.remove("hidden");
+    return;
+  }
+
+  await reloadQuestions(null);
+}
+
+/** Re-fetch the bank after an edit and reselect something sensible. */
+async function reloadQuestions(preferredId) {
+  const select = document.getElementById("question-select");
+  clearChildren(select);
+  const placeholder = document.createElement("option");
+  placeholder.value = "";
+  placeholder.textContent = "Choose a question…";
+  select.appendChild(placeholder);
+
+  await loadQuestions();
+
+  const target =
+    preferredId && state.questions.some((q) => q.id === preferredId)
+      ? preferredId
+      : state.questions.length
+        ? state.questions[0].id
+        : "";
+  select.value = target;
+  selectQuestion(target);
 }
 
 function escapeHtml(str) {
@@ -1239,6 +1553,7 @@ function renderStudentsTable(students) {
 async function init() {
   initNav();
   initSetupScreen();
+  initQuestionEditor();
   initConfirmScreen();
   initReviewScreen();
   showScreen("setup");

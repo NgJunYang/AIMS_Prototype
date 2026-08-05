@@ -2,6 +2,6 @@
 __pycache__/
 *.pyc
 .env
-data/submissions/
+data/
 .pytest_cache/
 .DS_Store
