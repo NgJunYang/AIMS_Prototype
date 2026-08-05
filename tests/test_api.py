@@ -411,6 +411,52 @@ def test_transcribe_a_specific_pdf_page(monkeypatch):
     assert body["source_page_count"] == 2
 
 
+def test_regenerate_practice_as_scenario_questions(monkeypatch):
+    _stub_llm(monkeypatch)
+    submission_id = _new_submission()
+    client.put(
+        f"/api/submissions/{submission_id}/steps",
+        json={"steps": [{"index": 1, "latex": "x^2 = 5x"}]},
+    )
+    marked = client.post(f"/api/submissions/{submission_id}/mark").json()
+    assert all(p["question_type"] == "bare" for p in marked["practice"])
+
+    body = client.post(
+        f"/api/submissions/{submission_id}/practice",
+        json={"question_type": "scenario"},
+    ).json()
+
+    assert len(body["practice"]) == 3
+    assert any(p["question_type"] == "scenario" for p in body["practice"])
+    scenario = next(p for p in body["practice"] if p["question_type"] == "scenario")
+    assert scenario["admissible_roots"]
+    assert scenario["rejected_note"]
+    # Regenerating phrasing must not disturb any verified result.
+    assert body["marks"] is not None
+    assert body["verification"] is not None
+
+
+def test_regenerate_practice_before_marking_returns_409():
+    submission_id = _new_submission()
+    response = client.post(
+        f"/api/submissions/{submission_id}/practice",
+        json={"question_type": "scenario"},
+    )
+    assert response.status_code == 409
+
+
+def test_regenerate_practice_with_an_unknown_type_is_rejected(monkeypatch):
+    _stub_llm(monkeypatch)
+    submission_id = _new_submission()
+    client.post(f"/api/submissions/{submission_id}/mark")
+
+    response = client.post(
+        f"/api/submissions/{submission_id}/practice",
+        json={"question_type": "interpretive_dance"},
+    )
+    assert response.status_code == 400
+
+
 def test_class_summary_is_available():
     response = client.get("/api/class/summary")
     assert response.status_code == 200
@@ -418,6 +464,51 @@ def test_class_summary_is_available():
     assert "misconception_counts" in body
     assert "students" in body
     assert "recommendation" in body
+
+
+def test_class_summary_falls_back_to_labelled_sample_when_nothing_is_marked():
+    """The isolate_disk_writes fixture gives every test an empty directory."""
+    body = client.get("/api/class/summary").json()
+    assert body["source"] == "sample"
+    assert "sample" in body["source_note"].lower()
+    # The seeded fixture must itself satisfy the consistency invariant.
+    assert len(body["students"]) == body["marked"]
+
+
+def test_class_summary_computes_from_real_submissions(monkeypatch):
+    _stub_llm(monkeypatch)
+    for pseudonym in ("Ann", "Ben"):
+        created = client.post(
+            "/api/submissions",
+            json={"question_id": "q2", "student_pseudonym": pseudonym},
+        ).json()
+        client.put(
+            f"/api/submissions/{created['id']}/steps",
+            json={"steps": [{"index": 1, "latex": "x^2 = 5x"}]},
+        )
+        client.post(f"/api/submissions/{created['id']}/mark")
+
+    body = client.get("/api/class/summary").json()
+
+    assert body["source"] == "computed"
+    assert body["cohort_size"] == 2
+    assert body["marked"] == 2
+    assert sorted(row["pseudonym"] for row in body["students"]) == ["Ann", "Ben"]
+    assert body["misconception_counts"][0]["count"] == 2
+    assert "2 of 2" in body["recommendation"]
+
+
+def test_class_summary_skips_a_corrupt_submission_file(monkeypatch):
+    _stub_llm(monkeypatch)
+    created = client.post("/api/submissions", json={"question_id": "q2"}).json()
+    client.post(f"/api/submissions/{created['id']}/mark")
+
+    (store.SUBMISSIONS_DIR / "half-written.json").write_text("{not json", encoding="utf-8")
+
+    body = client.get("/api/class/summary").json()
+    # The good submission still counts; the broken file is skipped, not fatal.
+    assert body["source"] == "computed"
+    assert body["cohort_size"] == 1
 
 
 def test_static_index_is_served_at_root():

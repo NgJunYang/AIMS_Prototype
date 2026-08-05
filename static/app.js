@@ -36,7 +36,21 @@ const state = {
   uploadSelectedPage: 1,
   uploadPreviewB64: null, // base64 PNG from /api/uploads/preview (PDF only)
   uploadPreviewBusy: false,
+
+  // Successive submissions need distinct names or the cohort table is one
+  // repeated row. Blank input falls back to "Student 1", "Student 2", ...
+  submissionsThisSession: 0,
+
+  practiceType: "bare", // "bare" | "scenario"
+  practiceBusy: false,
 };
+
+/** The typed student name, or an auto-incrementing fallback if left blank. */
+function nextStudentPseudonym() {
+  const typed = (document.getElementById("student-name").value || "").trim();
+  state.submissionsThisSession += 1;
+  return typed || `Student ${state.submissionsThisSession}`;
+}
 
 // ---------------------------------------------------------------------
 // 2. API client
@@ -64,11 +78,14 @@ async function apiFetch(path, options) {
 const api = {
   listQuestions: () => apiFetch("/api/questions"),
   getQuestion: (id) => apiFetch(`/api/questions/${encodeURIComponent(id)}`),
-  createSubmission: (questionId) =>
+  createSubmission: (questionId, studentPseudonym) =>
     apiFetch("/api/submissions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question_id: questionId }),
+      body: JSON.stringify({
+        question_id: questionId,
+        student_pseudonym: studentPseudonym,
+      }),
     }),
   transcribe: (submissionId, file, page = 1) => {
     const form = new FormData();
@@ -98,6 +115,12 @@ const api = {
     }),
   mark: (submissionId) =>
     apiFetch(`/api/submissions/${submissionId}/mark`, { method: "POST" }),
+  regeneratePractice: (submissionId, questionType) =>
+    apiFetch(`/api/submissions/${submissionId}/practice`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question_type: questionType }),
+    }),
   override: (submissionId, criterionId, proposed) =>
     apiFetch(`/api/submissions/${submissionId}/override`, {
       method: "POST",
@@ -341,7 +364,10 @@ async function beginWithUpload(file) {
   const looksLikePdf =
     file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
 
-  const sub = await api.createSubmission(state.currentQuestion.id);
+  const sub = await api.createSubmission(
+    state.currentQuestion.id,
+    nextStudentPseudonym()
+  );
   state.submissionId = sub.id;
   state.submission = sub;
   state.localSteps = [];
@@ -427,7 +453,10 @@ async function transcribeStagedFile(page, file) {
 async function beginManualEntry(prefill) {
   if (!state.currentQuestion) return;
 
-  const sub = await api.createSubmission(state.currentQuestion.id);
+  const sub = await api.createSubmission(
+    state.currentQuestion.id,
+    nextStudentPseudonym()
+  );
   state.submissionId = sub.id;
   state.submission = sub;
   state.uploadedImageUrl = null;
@@ -993,17 +1022,30 @@ function renderMisconceptionsTab(misconceptions) {
 function renderPracticeTab(practice) {
   const box = document.getElementById("tab-practice");
   clearChildren(box);
+
+  box.appendChild(renderPracticeControls());
+
   if (!practice.length) {
     box.appendChild(el("p", "text-sm text-slate-500", "No practice questions generated."));
     return;
   }
 
-  practice.forEach((p, i) => {
+  practice.forEach((p) => {
     const card = document.createElement("div");
     card.className = "border border-slate-200 rounded-lg p-3 mb-3";
 
-    const badge = el("span", "text-xs font-medium text-indigo-700 bg-indigo-50 rounded px-2 py-0.5", humanizeTag(p.misconception_tag));
-    card.appendChild(badge);
+    const badges = el("div", "flex flex-wrap gap-1 items-center");
+    badges.appendChild(
+      el(
+        "span",
+        "text-xs font-medium text-indigo-700 bg-indigo-50 rounded px-2 py-0.5",
+        humanizeTag(p.misconception_tag)
+      )
+    );
+    if (p.question_type === "scenario") {
+      badges.appendChild(el("span", "badge-live", "Word problem"));
+    }
+    card.appendChild(badges);
 
     const promptEl = document.createElement("div");
     promptEl.className = "mt-2 text-sm";
@@ -1011,8 +1053,18 @@ function renderPracticeTab(practice) {
     card.appendChild(promptEl);
 
     const answerEl = document.createElement("div");
-    answerEl.className = "katex-preview mt-2 hidden";
-    renderKatexInto(answerEl, p.answer_latex, false);
+    answerEl.className = "mt-2 hidden";
+    const answerMath = el("div", "katex-preview");
+    renderKatexInto(answerMath, p.answer_latex, false);
+    answerEl.appendChild(answerMath);
+    // A word problem may legitimately exclude a root. Saying why is the
+    // pedagogical point: discarding a root for a stated reason is not the
+    // same mistake as losing one without noticing.
+    if (p.rejected_note) {
+      answerEl.appendChild(
+        el("p", "text-xs text-slate-500 mt-1 italic", p.rejected_note)
+      );
+    }
 
     const toggle = document.createElement("button");
     toggle.type = "button";
@@ -1030,6 +1082,46 @@ function renderPracticeTab(practice) {
   });
 }
 
+/** Question-type picker: regenerates phrasing without re-marking. */
+function renderPracticeControls() {
+  const wrap = el("div", "flex flex-wrap gap-2 items-center mb-3");
+  wrap.appendChild(el("span", "text-xs text-slate-500", "Question style"));
+
+  [
+    { value: "bare", label: "Standard" },
+    { value: "scenario", label: "Word problem" },
+  ].forEach(({ value, label }) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-secondary text-xs px-3 py-1";
+    btn.textContent = label;
+    btn.disabled = state.practiceBusy || state.practiceType === value;
+    btn.addEventListener("click", () => regeneratePractice(value));
+    wrap.appendChild(btn);
+  });
+
+  if (state.practiceBusy) {
+    wrap.appendChild(el("span", "text-xs text-slate-400", "Regenerating…"));
+  }
+  return wrap;
+}
+
+async function regeneratePractice(questionType) {
+  if (!state.submissionId || state.practiceBusy) return;
+  state.practiceBusy = true;
+  state.practiceType = questionType;
+  renderPracticeTab(state.submission?.practice || []);
+  try {
+    const updated = await api.regeneratePractice(state.submissionId, questionType);
+    state.submission = updated;
+  } catch (err) {
+    alert((err.body && (err.body.detail || err.body.error)) || err.message);
+  } finally {
+    state.practiceBusy = false;
+    renderPracticeTab(state.submission?.practice || []);
+  }
+}
+
 // ---------------------------------------------------------------------
 // 8. Screen 4 — Class
 // ---------------------------------------------------------------------
@@ -1043,9 +1135,34 @@ async function loadAndRenderClassScreen() {
       "Could not load class summary: " + err.message;
     return;
   }
+  renderClassSourceNote(summary);
   renderClassStats(summary);
   renderClassChart(summary.misconception_counts || []);
   renderStudentsTable(summary.students || []);
+}
+
+/**
+ * Say plainly whether these numbers were computed from real marking or are
+ * the illustrative fallback. "Computed from 2 real submissions" is worth more
+ * than an unlabelled impressive-looking cohort.
+ */
+function renderClassSourceNote(summary) {
+  const box = document.getElementById("class-source-note");
+  clearChildren(box);
+  if (!summary.source_note) {
+    box.classList.add("hidden");
+    return;
+  }
+  box.classList.remove("hidden");
+
+  const computed = summary.source === "computed";
+  const badge = el(
+    "span",
+    computed ? "badge-live" : "badge-sample",
+    computed ? "Live data" : "Sample data"
+  );
+  box.appendChild(badge);
+  box.appendChild(el("span", "text-slate-500 ml-2", summary.source_note));
 }
 
 function renderClassStats(summary) {
@@ -1081,7 +1198,8 @@ function renderClassChart(counts) {
         {
           label: "Students affected",
           data: counts.map((c) => c.count),
-          backgroundColor: "rgb(99 102 241)",
+          backgroundColor: "#A5271B", // --color-red-pen — Chart.js reads this as a literal JS
+          // value, not a Tailwind class, so the tailwind.config palette remap can't reach it
           borderRadius: 4,
         },
       ],

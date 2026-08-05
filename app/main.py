@@ -5,16 +5,23 @@ import uuid
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app import uploads
+from app.cohort import summarise
 from app.config import IMAGES_DIR, SEEDS_DIR, STATIC_DIR
 from app.feedback import write as write_feedback
 from app.llm import OfflineCacheMiss
 from app.marker import mark as mark_submission
-from app.models import Question, Step, Submission
-from app.practice import generate_practice
-from app.store import get_question, list_questions, load_submission, save_submission
+from app.models import ClassSummary, Question, Step, Submission
+from app.practice import QUESTION_TYPES, generate_practice
+from app.store import (
+    get_question,
+    list_questions,
+    list_submissions,
+    load_submission,
+    save_submission,
+)
 from app.transcriber import transcribe
 from app.verifier import verify
 
@@ -36,6 +43,11 @@ class UpdateSteps(BaseModel):
 class Override(BaseModel):
     criterion_id: str
     proposed: int
+
+
+class RegeneratePractice(BaseModel):
+    question_type: str = "bare"
+    count: int = Field(default=3, ge=1, le=10)
 
 
 class UploadInspection(BaseModel):
@@ -244,12 +256,58 @@ def api_override(submission_id: str, body: Override) -> Submission:
     raise HTTPException(status_code=404, detail=f"unknown criterion: {body.criterion_id}")
 
 
+@app.post("/api/submissions/{submission_id}/practice")
+def api_regenerate_practice(submission_id: str, body: RegeneratePractice) -> Submission:
+    """Regenerate practice in a chosen framing, without re-marking.
+
+    Separated from /mark deliberately: changing how a question is phrased is
+    presentation, and should not cost another marking call or disturb any
+    verified result.
+    """
+    submission = _submission(submission_id)
+    if submission.marks is None:
+        raise HTTPException(
+            status_code=409, detail="mark this submission before generating practice"
+        )
+    if body.question_type not in QUESTION_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"unknown question type: {body.question_type}",
+        )
+
+    submission.practice = generate_practice(
+        submission.marks.misconceptions,
+        count=body.count,
+        seed=_seed_from_id(submission_id),
+        question_type=body.question_type,
+    )
+    save_submission(submission)
+    return submission
+
+
 # ---------- class view ----------
 
 
 @app.get("/api/class/summary")
-def api_class_summary() -> dict:
-    return json.loads((SEEDS_DIR / "class_summary.json").read_text(encoding="utf-8"))
+def api_class_summary() -> ClassSummary:
+    """The cohort view, computed from real submissions whenever any exist.
+
+    Falls back to the seeded fixture only on a genuinely empty machine (a
+    fresh clone has no submissions - data/submissions/ is gitignored), and
+    labels it as sample data when it does. "Computed from 4 real submissions"
+    is worth far more than an unlabelled illustrative 31.
+    """
+    submissions = list_submissions()
+    if submissions:
+        return summarise(submissions)
+
+    seeded = json.loads((SEEDS_DIR / "class_summary.json").read_text(encoding="utf-8"))
+    seeded["source"] = "sample"
+    seeded["source_note"] = (
+        "Illustrative sample cohort - no submissions have been marked on this "
+        "machine yet. Mark one and this view recomputes from real data."
+    )
+    return ClassSummary.model_validate(seeded)
 
 
 # ---------- helpers ----------

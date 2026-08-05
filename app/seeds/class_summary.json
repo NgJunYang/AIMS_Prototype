@@ -1,13 +1,12 @@
 {
-  "cohort_size": 31,
-  "marked": 31,
-  "mean_percentage": 62,
+  "cohort_size": 6,
+  "marked": 6,
+  "mean_percentage": 56,
   "misconception_counts": [
-    { "tag": "divided_by_variable_lost_root", "name": "Dividing both sides by the unknown", "count": 12 },
-    { "tag": "sign_error", "name": "Sign error in factorising or rearranging", "count": 9 },
-    { "tag": "dropped_plus_minus", "name": "Taking only the positive square root", "count": 6 },
-    { "tag": "no_working_shown", "name": "Answer given with no working", "count": 4 },
-    { "tag": "gained_solution", "name": "An extra solution appeared", "count": 2 }
+    { "tag": "divided_by_variable_lost_root", "name": "Dividing both sides by the unknown", "count": 2 },
+    { "tag": "sign_error", "name": "Sign error in factorising or rearranging", "count": 2 },
+    { "tag": "dropped_plus_minus", "name": "Taking only the positive square root", "count": 1 },
+    { "tag": "no_working_shown", "name": "Answer given with no working", "count": 1 }
   ],
   "students": [
     { "pseudonym": "Student A", "question_id": "q2", "mark": 4, "max": 8, "top_misconception": "divided_by_variable_lost_root" },
@@ -17,5 +16,5 @@
     { "pseudonym": "Student E", "question_id": "q6", "mark": 2, "max": 8, "top_misconception": "sign_error" },
     { "pseudonym": "Student F", "question_id": "q1", "mark": 4, "max": 8, "top_misconception": "no_working_shown" }
   ],
-  "recommendation": "12 of 31 students divided through by the unknown and lost a solution. Revisit the zero-product principle before the next assessment."
+  "recommendation": "2 of 6 marked submissions show dividing both sides by the unknown. Revisit Notes §2 — the zero-product principle before the next assessment."
 }

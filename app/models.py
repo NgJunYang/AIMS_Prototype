@@ -134,6 +134,74 @@ class PracticeQuestion(BaseModel):
     answer_latex: str
     misconception_tag: str
     template_id: str
+    # Optional with defaults so submissions saved before framings existed
+    # still validate - no migration needed.
+    question_type: str = "bare"
+    framing_id: str = "bare"
+    # The roots valid in this framing's context. A word problem may legitimately
+    # exclude one (a length cannot be negative); rejected_note says why.
+    admissible_roots: list[str] = Field(default_factory=list)
+    rejected_note: str = ""
+
+
+# ---------- Cohort view ----------
+
+
+class ClassMisconceptionCount(BaseModel):
+    tag: str
+    name: str
+    count: int = Field(ge=1)
+
+
+class ClassStudentRow(BaseModel):
+    pseudonym: str
+    question_id: str
+    mark: int = Field(ge=0)
+    max: int = Field(ge=0)
+    top_misconception: str | None = None
+
+
+class ClassSummary(BaseModel):
+    """The cohort view, computed from real submissions wherever possible.
+
+    `source` distinguishes the two honestly: "computed" means these numbers
+    were derived from submissions actually marked on this machine; "sample"
+    means the seeded illustrative fixture, served only when no submissions
+    exist at all (a fresh clone has none - data/submissions/ is gitignored).
+    """
+
+    source: Literal["computed", "sample"] = "computed"
+    source_note: str = ""
+    submission_count: int = Field(default=0, ge=0)
+    cohort_size: int = Field(default=0, ge=0)
+    marked: int = Field(default=0, ge=0)
+    mean_percentage: int = Field(default=0, ge=0, le=100)
+    misconception_counts: list[ClassMisconceptionCount] = Field(default_factory=list)
+    students: list[ClassStudentRow] = Field(default_factory=list)
+    recommendation: str = ""
+
+    @model_validator(mode="after")
+    def internally_consistent(self) -> "ClassSummary":
+        """Make an inconsistent summary unrepresentable.
+
+        The fixture this replaced claimed 31 students in a 6-row table, with a
+        mean that followed from neither. Enforcing the arithmetic in the type
+        means such a thing cannot be constructed, computed or deserialised.
+        """
+        if self.marked > self.cohort_size:
+            raise ValueError(
+                f"marked {self.marked} exceeds cohort_size {self.cohort_size}"
+            )
+        if len(self.students) != self.marked:
+            raise ValueError(
+                f"{len(self.students)} student rows but marked={self.marked}"
+            )
+        for row in self.students:
+            if row.mark > row.max:
+                raise ValueError(
+                    f"{row.pseudonym}: mark {row.mark} exceeds max {row.max}"
+                )
+        return self
 
 
 # ---------- The persisted submission ----------

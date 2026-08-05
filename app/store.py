@@ -57,3 +57,24 @@ def load_submission(submission_id: str) -> Submission:
     if not path.exists():
         raise KeyError(f"unknown submission id: {submission_id}")
     return Submission.model_validate_json(path.read_text(encoding="utf-8"))
+
+
+def list_submissions() -> list[Submission]:
+    """Every submission currently on disk, in stable filename order.
+
+    A file that fails to parse is skipped rather than raised. This directory
+    is written to live by the running server, so a half-flushed or
+    hand-edited file is a normal transient state; one bad file must not take
+    the whole cohort view down.
+    """
+    submissions: list[Submission] = []
+    for path in sorted(SUBMISSIONS_DIR.glob("*.json")):
+        try:
+            submissions.append(
+                Submission.model_validate_json(path.read_text(encoding="utf-8"))
+            )
+        except (OSError, ValueError):
+            # ValueError covers both json.JSONDecodeError and pydantic's
+            # ValidationError, which both subclass it.
+            continue
+    return submissions

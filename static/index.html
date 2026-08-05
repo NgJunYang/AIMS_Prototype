@@ -6,6 +6,28 @@
     <title>AIMS — AI Marking Support</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              slate: { 50:'#FAF6EA',100:'#F1E8D5',200:'#E4D6B8',300:'#CBB68C',400:'#A8926D',500:'#87724F',600:'#6B5A3D',700:'#4F4230',800:'#372E20',900:'#241D14' },
+              indigo: { 50:'#FBEAE5',100:'#F6D4CB',200:'#EDB4A5',300:'#E0917B',400:'#CD6C52',500:'#AE4028',600:'#8F2E1F',700:'#7A2419',800:'#5C1B12',900:'#3D110A' },
+              amber: { 50:'#FBF1DC',100:'#F5E3B8',200:'#E3C577',300:'#D2A94A',400:'#BB8A2E',500:'#9C6B12',600:'#97650E',700:'#7A4F0A',800:'#5C3B08',900:'#4A2F07' },
+              red: { 50:'#FBEAE5',100:'#F6D4CB',200:'#E3B3A8',300:'#D08F7E',400:'#BB6A52',500:'#B5402B',600:'#A5271B',700:'#8A2216',800:'#5C1B12',900:'#4A150E' },
+            },
+            fontFamily: { sans: ['Karla','ui-sans-serif','system-ui','sans-serif'], serif: ['Fraunces','Georgia','serif'] },
+          },
+        },
+      };
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500;1,9..144,600&family=Karla:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap"
+      rel="stylesheet"
+    />
 
     <link
       rel="stylesheet"
@@ -22,11 +44,11 @@
   </head>
   <body class="min-h-screen bg-slate-50 text-slate-900">
     <!-- ================= Nav ================= -->
-    <header class="sticky top-0 z-20 bg-white border-b border-slate-200">
+    <header class="site-header sticky top-0 z-20 border-b border-slate-200">
       <div class="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <span class="font-semibold tracking-tight text-slate-900">AIMS</span>
-          <span class="hidden sm:inline text-xs text-slate-400">AI Marking Support</span>
+          <span class="brand-mark">AIMS</span>
+          <span class="hidden sm:inline brand-tagline">AI Marking Support</span>
         </div>
         <nav id="main-nav" class="flex gap-1">
           <button class="nav-btn" data-screen="setup" type="button">1. Setup</button>
@@ -41,13 +63,27 @@
       <!-- ================= Screen 1: Setup ================= -->
       <section id="screen-setup" class="screen">
         <div class="max-w-5xl mx-auto p-6 space-y-6">
-          <div>
-            <label for="question-select" class="block text-sm font-medium text-slate-700 mb-1">
-              Question
-            </label>
-            <select id="question-select" class="field w-full md:w-96">
-              <option value="">Choose a question…</option>
-            </select>
+          <div class="flex flex-wrap gap-4 items-end">
+            <div>
+              <label for="question-select" class="block text-sm font-medium text-slate-700 mb-1">
+                Question
+              </label>
+              <select id="question-select" class="field w-full md:w-96">
+                <option value="">Choose a question…</option>
+              </select>
+            </div>
+            <div>
+              <label for="student-name" class="block text-sm font-medium text-slate-700 mb-1">
+                Student <span class="font-normal text-slate-500">(optional)</span>
+              </label>
+              <input
+                id="student-name"
+                type="text"
+                class="field w-full md:w-56"
+                placeholder="e.g. Student A"
+                autocomplete="off"
+              />
+            </div>
           </div>
 
           <div id="question-detail" class="hidden grid md:grid-cols-2 gap-6">
@@ -117,7 +153,7 @@
                 <div id="transcription-notes" class="hidden mt-3 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-3"></div>
               </div>
 
-              <div class="card">
+              <div class="card marking-surface">
                 <div class="flex items-center justify-between mb-1">
                   <h2 class="card-title !mb-0">Confirm the transcription</h2>
                   <button id="add-step-btn" class="btn-secondary text-xs px-3 py-1.5" type="button">
@@ -192,6 +228,8 @@
       <!-- ================= Screen 4: Class ================= -->
       <section id="screen-class" class="screen">
         <div class="max-w-5xl mx-auto p-6 space-y-6">
+          <div id="class-source-note" class="text-xs"></div>
+
           <div id="class-stats" class="grid grid-cols-3 gap-4"></div>
 
           <div id="class-recommendation" class="callout"></div>
