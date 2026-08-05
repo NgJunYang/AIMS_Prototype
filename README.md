@@ -195,55 +195,81 @@ judge to distrust than one that names them:
   input. Not a correctness issue, but worth knowing before pasting an
   enormous line into the transcription editor.
 
-## Deploying for judges (GitHub Pages + a hosted backend)
+## Deploying for judges (GitHub Pages + Render)
 
-GitHub Pages only serves static files — it cannot run this app's FastAPI
-backend, the SymPy verifier, or an LLM call with a hidden key. So the
-frontend (`static/`) and backend (`app/`) are deployed to two different
-places, and the frontend is told where the backend lives via one file.
+GitHub Pages can only serve static files; it cannot run FastAPI, SymPy, or an
+LLM call with a hidden key. The included deployment therefore publishes only
+`static/` to Pages and runs `app/` separately on Render.
 
-**1. Deploy the backend (runs the API, holds no secret by default).**
+### 1. Deploy the backend on Render
 
-`render.yaml` is already set up for Render's free tier:
+`render.yaml` defines the backend as a Render Blueprint:
 
-1. Push this branch to GitHub.
-2. On [render.com](https://render.com), New → Blueprint → pick this repo/branch.
-   Render reads `render.yaml` automatically.
-3. It deploys with `DEMO_MODE=offline` — the app serves only the responses
-   already cached in `fixtures/llm_cache/` and never calls the Anthropic API,
-   so **no API key is required for the demo to work**, and none is exposed.
-4. Note the service URL Render gives you, e.g. `https://aims-backend.onrender.com`.
-   (Free-tier instances sleep after inactivity and take a few seconds to wake
-   on the first request — expected, not a bug.)
+1. Push or merge these changes to the repository's default branch.
+2. On [render.com](https://render.com), choose **New → Blueprint**, connect
+   this repository, and deploy it. Render reads `render.yaml` automatically.
+3. Copy the exact HTTPS service URL shown by Render, for example
+   `https://aims-backend-xxxx.onrender.com`. Render service URLs are unique, so
+   do not assume the example URL is yours.
 
-To run *live* (real transcription/marking of new photos) instead, open the
-service's Environment tab on Render and set `ANTHROPIC_API_KEY` and
-`DEMO_MODE=live` there. The key is entered directly into Render's dashboard —
-it is never written to this repo, `render.yaml`, or any committed file.
+The Blueprint defaults to `DEMO_MODE=offline`, so cached demo flows work
+without an API key. For live transcription and marking, set
+`ANTHROPIC_API_KEY` and `DEMO_MODE=live` in the Render dashboard. Never put the
+key in `static/`, a GitHub Actions variable, `render.yaml`, or a committed
+`.env` file.
 
-**2. Point the frontend at that backend.**
+### 2. Configure the public backend URL
 
-Edit `static/config.js`:
+Do not edit `static/config.js`. Set the deployed backend URL once in GitHub:
 
-```js
-window.AIMS_API_BASE = "https://aims-backend.onrender.com"; // your URL from step 1
-```
+1. Open **Settings → Secrets and variables → Actions → Variables**.
+2. Create a repository variable named `AIMS_API_BASE` whose value is the exact
+   Render service origin, for example `https://aims-backend-xxxx.onrender.com`.
+   This URL is public browser configuration, not a secret; never put an API
+   key in it.
+3. Re-run **Deploy static frontend to GitHub Pages** under **Actions**, or push
+   a frontend change to `main`.
 
-Commit that change.
+During deployment, `.github/workflows/deploy-pages.yml` copies `static/` to an
+isolated Pages artifact and uses `scripts/build_pages_config.js` to generate
+that artifact's `config.js` with the configured URL. The committed
+`static/config.js` remains empty so local development continues to use the
+same FastAPI origin.
 
-**3. Publish `static/` on GitHub Pages.**
+### 3. Enable GitHub Pages
 
-Repo Settings → Pages → Source: this branch, folder `/static`. GitHub gives
-you a URL of the form `https://<org>.github.io/<repo>/` — that's the link for
-judges.
+Open **Settings → Pages** and, under **Build and deployment**, set **Source**
+to **GitHub Actions**. Do not select a branch folder: `/static` is not a valid
+branch-based Pages source. The workflow deploys on relevant pushes to `main`
+and can also be started manually from the Actions tab.
 
-**Why this shape:** `apiFetch()` in `app.js` prefixes every API call with
-`window.AIMS_API_BASE`, and the backend's `CORSMiddleware`
-(`ALLOWED_ORIGINS` env var, default `*`) allows the cross-origin calls that
-result. Everything else about the app — the verifier, the marking pipeline,
-the offline cache — is unchanged; only *where the two halves run* differs
-from local dev, where `config.js` is left as `""` and FastAPI serves both
-itself on one origin.
+After the workflow succeeds, the frontend is available at
+`https://<owner>.github.io/<repository>/`. Its local CSS and JavaScript paths
+are relative, so they work under the repository subpath. API and solution
+image requests are resolved against `window.AIMS_API_BASE` and therefore go
+to Render instead of GitHub Pages.
+
+The backend currently allows cross-origin requests through
+`ALLOWED_ORIGINS=*`, as configured in `render.yaml`. If you restrict it later,
+use the Pages **origin** only (for example `https://t-zinlin.github.io`, with no
+repository path) and include any custom-domain origin you use.
+
+### 4. Deployment checks
+
+1. Open `<your-render-origin>/api/health` and confirm it returns
+   `{"status":"ok"}` before opening the Pages site. A free instance may take a
+   short time to wake on its first request.
+2. Confirm the Pages workflow completed successfully and open the URL shown in
+   its `github-pages` deployment environment.
+3. In the site, verify that the question list loads. If it does not, check the
+   browser network panel: requests beginning with `/api/` must target the
+   Render host, not `<owner>.github.io`.
+4. Remember that offline mode supports cached demo inputs only. Enable live
+   mode on Render to transcribe and mark previously unseen uploads.
+
+This split changes only where the frontend and API are hosted. FastAPI still
+serves `static/` directly during local development, and the marking pipeline
+is otherwise unchanged.
 
 ## Not built yet
 

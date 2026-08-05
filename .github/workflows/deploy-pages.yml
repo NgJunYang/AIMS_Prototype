@@ -1,0 +1,60 @@
+name: Deploy static frontend to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/deploy-pages.yml"
+      - "scripts/build_pages_config.js"
+      - "static/**"
+      - "tests/test_pages_deployment.js"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Test static deployment inputs
+        run: node --test tests/test_pages_deployment.js
+
+      - name: Assemble static site
+        env:
+          # This is a public repository variable. Never put an API key in it.
+          AIMS_API_BASE: ${{ vars.AIMS_API_BASE }}
+        run: |
+          mkdir -p _site
+          cp -a static/. _site/
+          node scripts/build_pages_config.js _site/config.js
+          touch _site/.nojekyll
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -73,9 +73,16 @@ function nextStudentPseudonym() {
 // 2. API client
 // ---------------------------------------------------------------------
 
+/** Resolve an API path against the separately hosted backend, when configured. */
+function apiUrl(path) {
+  const base = String(window.AIMS_API_BASE || "")
+    .trim()
+    .replace(/\/+$/, "");
+  return `${base}${path}`;
+}
+
 async function apiFetch(path, options) {
-  const base = window.AIMS_API_BASE || "";
-  const res = await fetch(`${base}${path}`, options);
+  const res = await fetch(apiUrl(path), options);
   let body = null;
   try {
     body = await res.json();
@@ -605,7 +612,9 @@ function renderQeSolution() {
     img.alt = "Your handwritten model solution";
     img.className = "w-full rounded-lg border border-slate-200";
     img.onerror = () => clearChildren(preview);
-    img.src = `${window.AIMS_API_BASE || ""}/api/questions/${encodeURIComponent(state.editingId)}/solution-image`;
+    img.src = apiUrl(
+      `/api/questions/${encodeURIComponent(state.editingId)}/solution-image`,
+    );
     preview.appendChild(img);
   }
 }

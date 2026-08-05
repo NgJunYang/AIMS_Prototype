@@ -7,9 +7,9 @@
  * right setting whenever app.py serves static/ directly (local dev, or a
  * single deployment on Render/Railway/etc).
  *
- * If this frontend is instead published on its own (e.g. GitHub Pages),
- * there is no backend at that origin - set this to the URL of the
- * separately-deployed backend, e.g.:
- *   window.AIMS_API_BASE = "https://aims-backend.onrender.com";
+ * The GitHub Pages workflow replaces this file only inside the deployment
+ * artifact, using the public AIMS_API_BASE repository variable. The committed
+ * file therefore remains correct for local same-origin development and never
+ * contains a secret.
  */
 window.AIMS_API_BASE = "";

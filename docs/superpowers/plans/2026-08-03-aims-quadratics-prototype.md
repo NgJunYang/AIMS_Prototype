@@ -71,7 +71,7 @@ data/submissions/
 - [ ] **Step 3: Create `.env.example`**
 
 ```
-ANTHROPIC_API_KEY=sk-ant-put-your-key-here
+ANTHROPIC_API_KEY=
 DEMO_MODE=live
 ```
 
