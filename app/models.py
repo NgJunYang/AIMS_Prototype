@@ -21,16 +21,9 @@ class Criterion(BaseModel):
     description: str
 
 
-class Question(BaseModel):
-    id: str
-    prompt: str
-    model_solution_steps: list[str]
-    variable: str = "x"
-    topic_tag: str = "quadratics"
-    criteria: list[Criterion]
-
-
 # ---------- Transcription ----------
+# Declared before Question because Question carries a Transcription as the
+# audit record of a photographed model solution.
 
 
 class Step(BaseModel):
@@ -43,6 +36,29 @@ class Step(BaseModel):
 class Transcription(BaseModel):
     steps: list[Step]
     notes: str = ""
+
+
+class Question(BaseModel):
+    id: str
+    prompt: str
+    model_solution_steps: list[str]
+    variable: str = "x"
+    topic_tag: str = "quadratics"
+    criteria: list[Criterion]
+
+    # Provenance: a question's model solution originates from a photograph of
+    # the lecturer's own handwritten working. All optional with defaults, so the
+    # seeded questions and any existing data/questions.json overlay still
+    # validate with no migration.
+    solution_image_filename: str | None = None
+    solution_source_page: int | None = None
+    # The RAW transcription, before the lecturer corrected it. An audit record,
+    # never a source of truth: marking reads model_solution_steps and nothing
+    # else. Its value is the diff - comparing these steps against
+    # model_solution_steps shows exactly which lines a human changed, which is
+    # the only real evidence of review. solution_image_filename alone proves
+    # nothing, since a photograph of a napkin would satisfy the editor's gate.
+    solution_transcription: Transcription | None = None
 
 
 # ---------- Verification (SymPy, ground truth) ----------

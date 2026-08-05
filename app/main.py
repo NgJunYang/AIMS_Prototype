@@ -1,9 +1,11 @@
 import base64
+import hashlib
 import json
+import re
 import uuid
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -14,7 +16,7 @@ from app.config import IMAGES_DIR, SEEDS_DIR, STATIC_DIR
 from app.feedback import write as write_feedback
 from app.llm import OfflineCacheMiss
 from app.marker import mark as mark_submission
-from app.models import ClassSummary, Question, Step, Submission
+from app.models import ClassSummary, Question, Step, Submission, Transcription
 from app.practice import QUESTION_TYPES, generate_practice
 from app.store import (
     delete_question,
@@ -25,10 +27,14 @@ from app.store import (
     save_question,
     save_submission,
 )
-from app.transcriber import transcribe
+from app.transcriber import transcribe, transcribe_model_solution
 from app.verifier import verify
 
 app = FastAPI(title="AIMS")
+
+# Server-derived names only. Also the fence for the solution-image route: this
+# filename round-trips through the hand-editable data/questions.json overlay.
+_SOLUTION_IMAGE_PATTERN = re.compile(r"^solution-[0-9a-f]{12}\.png$")
 
 
 # ---------- request bodies ----------
@@ -51,6 +57,19 @@ class Override(BaseModel):
 class QuestionCheck(BaseModel):
     ok: bool
     problems: list[str] = Field(default_factory=list)
+
+
+class SolutionTranscription(BaseModel):
+    """A transcribed model solution, attached to no question.
+
+    The question does not exist yet when its solution is photographed, so this
+    is keyed by nothing and creates nothing but the stored image.
+    """
+
+    transcription: Transcription
+    page: int
+    page_count: int
+    image_filename: str
 
 
 class RegeneratePractice(BaseModel):
@@ -119,6 +138,54 @@ def api_question_template() -> dict:
     }
 
 
+@app.post("/api/questions/solution-transcribe")
+async def api_transcribe_solution(
+    file: UploadFile = File(...), page: int = Form(1)
+) -> SolutionTranscription:
+    """Transcribe a photograph of the lecturer's own handwritten worked solution.
+
+    Stateless: no question exists yet at this point, so nothing is created but
+    the stored image. The transcription is returned for the lecturer to correct,
+    and only becomes a model solution once they save the question - at which
+    point validate_question puts it through the same SymPy verification a
+    student's working gets.
+    """
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="empty file")
+    try:
+        info = uploads.inspect(raw)
+        png = uploads.render_page(raw, page=page)
+    except (uploads.UnsupportedUpload, uploads.PageOutOfRange) as exc:
+        # Deliberately before the vision call: garbage never reaches the model.
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    # Content-addressed on the *rendered* PNG, so the same photo submitted as a
+    # JPEG and as a one-page PDF dedupes to one file. The "solution-" prefix is
+    # load-bearing, not cosmetic: submission scans are f"{submission_id}.png"
+    # where submission_id is uuid4().hex[:12] - also twelve hex characters - so
+    # a bare digest would share their exact namespace shape.
+    #
+    # Content-addressing buys idempotence, not orphan-freedom: a lecturer who
+    # transcribes and then cancels leaves this file behind. Images here are
+    # write-once and never deleted, including on DELETE /api/questions/{id},
+    # since two questions may legitimately reference the same bytes.
+    filename = f"solution-{hashlib.sha256(png).hexdigest()[:12]}.png"
+    path = IMAGES_DIR / filename
+    if not path.exists():
+        path.write_bytes(png)
+
+    transcription = transcribe_model_solution(
+        image_b64=base64.b64encode(png).decode(), media_type="image/png"
+    )
+    return SolutionTranscription(
+        transcription=transcription,
+        page=page,
+        page_count=info.page_count,
+        image_filename=filename,
+    )
+
+
 @app.post("/api/questions/validate")
 def api_validate_question(question: Question) -> QuestionCheck:
     """Dry-run the same checks saving would apply, without saving.
@@ -174,6 +241,29 @@ def api_update_question(question_id: str, question: Question) -> Question:
             save_submission(submission)
 
     return question
+
+
+@app.get("/api/questions/{question_id}/solution-image")
+def api_question_solution_image(question_id: str) -> FileResponse:
+    """The photograph a question's model solution was transcribed from.
+
+    Served per-question rather than by mounting StaticFiles on IMAGES_DIR,
+    which would expose every student submission scan to anyone who guessed a
+    twelve-hex id. This route only ever returns bytes a question references.
+    """
+    question = _question(question_id)
+    name = question.solution_image_filename
+    if not name or not _SOLUTION_IMAGE_PATTERN.match(name):
+        raise HTTPException(status_code=404, detail="no solution image for this question")
+
+    # Two independent guards. The filename is server-derived today, but it
+    # round-trips through data/questions.json, which store._questions() will
+    # happily validate after a hand edit - so "../../../.env" is realistic
+    # input, not a theoretical one.
+    path = (IMAGES_DIR / name).resolve()
+    if not path.is_relative_to(IMAGES_DIR.resolve()) or not path.is_file():
+        raise HTTPException(status_code=404, detail="no solution image for this question")
+    return FileResponse(path, media_type="image/png")
 
 
 @app.delete("/api/questions/{question_id}")

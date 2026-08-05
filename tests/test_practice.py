@@ -247,6 +247,34 @@ def test_distinctness_holds_for_every_tag_and_the_fallback():
         assert len(set(prompts)) == 3, f"{tags} produced duplicates: {prompts}"
 
 
+def test_requesting_scenarios_actually_yields_scenarios():
+    """The deterministic counterpart to the API test.
+
+    Uses fixed seeds so it cannot be flaky: quad_zero_root's word problem
+    declines when it drew a = 1, so a seed-dependent assertion belongs here
+    with a known seed rather than behind a random submission id.
+    """
+    questions = generate_practice(
+        ["divided_by_variable_lost_root"], count=3, seed=5, question_type=SCENARIO
+    )
+    scenarios = [q for q in questions if q.question_type == SCENARIO]
+    assert scenarios, "expected at least one scenario at this seed"
+    for question in scenarios:
+        assert question.admissible_roots
+        assert question.rejected_note
+        assert "$" in question.prompt_latex  # prose with inline maths
+
+
+def test_every_seed_yields_only_known_framings():
+    """Whatever a seed draws, the result is always one of the two framings -
+    never an unlabelled third state."""
+    for seed in range(30):
+        for question in generate_practice(
+            ["divided_by_variable_lost_root"], count=3, seed=seed, question_type=SCENARIO
+        ):
+            assert question.question_type in {BARE, SCENARIO}
+
+
 def test_scenario_questions_are_also_distinct():
     for tags in (["divided_by_variable_lost_root"], ["dropped_plus_minus"]):
         questions = generate_practice(tags, count=3, seed=5, question_type=SCENARIO)

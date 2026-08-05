@@ -1,5 +1,6 @@
 import io
 import json
+import re
 
 import pytest
 from fastapi.testclient import TestClient
@@ -428,6 +429,267 @@ NEW_QUESTION = {
 }
 
 
+SOUND_SOLUTION_STEPS = [
+    Step(index=1, latex="x^2 - 7x + 12 = 0"),
+    Step(index=2, latex="(x - 3)(x - 4) = 0"),
+    Step(index=3, latex="x = 3, x = 4", confidence="low"),
+]
+
+
+def _stub_solution_transcription(monkeypatch, steps, notes=""):
+    """The new call path needs its own mock target.
+
+    Every existing transcription stub patches `main.transcribe` or
+    `transcriber.complete_json`; neither intercepts a lecturer's solution photo.
+    """
+    monkeypatch.setattr(
+        main,
+        "transcribe_model_solution",
+        lambda image_b64, media_type: Transcription(steps=steps, notes=notes),
+    )
+
+
+def test_solution_transcribe_returns_steps_and_stores_a_content_addressed_image(
+    monkeypatch,
+):
+    _stub_solution_transcription(monkeypatch, SOUND_SOLUTION_STEPS, notes="clear hand")
+
+    body = client.post(
+        "/api/questions/solution-transcribe",
+        files={"file": ("solution.png", io.BytesIO(PNG_1X1), "image/png")},
+    ).json()
+
+    assert re.fullmatch(r"solution-[0-9a-f]{12}\.png", body["image_filename"])
+    assert (main.IMAGES_DIR / body["image_filename"]).is_file()
+    assert body["transcription"]["steps"][0]["latex"] == "x^2 - 7x + 12 = 0"
+    assert body["transcription"]["notes"] == "clear hand"
+    assert body["page"] == 1 and body["page_count"] == 1
+
+
+def test_solution_transcribe_is_idempotent_for_the_same_image(monkeypatch):
+    _stub_solution_transcription(monkeypatch, SOUND_SOLUTION_STEPS)
+
+    first = client.post(
+        "/api/questions/solution-transcribe",
+        files={"file": ("a.png", io.BytesIO(PNG_1X1), "image/png")},
+    ).json()
+    second = client.post(
+        "/api/questions/solution-transcribe",
+        files={"file": ("b.png", io.BytesIO(PNG_1X1), "image/png")},
+    ).json()
+
+    assert first["image_filename"] == second["image_filename"]
+    assert len(list(main.IMAGES_DIR.iterdir())) == 1
+
+
+def test_solution_transcribe_creates_no_submission(monkeypatch):
+    """Pins the statelessness claim: the question does not exist yet."""
+    _stub_solution_transcription(monkeypatch, SOUND_SOLUTION_STEPS)
+    client.post(
+        "/api/questions/solution-transcribe",
+        files={"file": ("solution.png", io.BytesIO(PNG_1X1), "image/png")},
+    )
+    assert list(store.SUBMISSIONS_DIR.iterdir()) == []
+
+
+def test_solution_transcribe_with_empty_file_is_a_4xx():
+    response = client.post(
+        "/api/questions/solution-transcribe",
+        files={"file": ("empty.png", io.BytesIO(b""), "image/png")},
+    )
+    assert 400 <= response.status_code < 500
+
+
+def test_solution_transcribe_with_garbage_never_reaches_the_model(monkeypatch):
+    def _must_not_be_called(**_):
+        raise AssertionError("the vision model must never see undecodable bytes")
+
+    monkeypatch.setattr(main, "transcribe_model_solution", _must_not_be_called)
+
+    response = client.post(
+        "/api/questions/solution-transcribe",
+        files={"file": ("junk.png", io.BytesIO(b"not an image"), "image/png")},
+    )
+    assert 400 <= response.status_code < 500
+
+
+def test_solution_transcribe_out_of_range_page_is_a_4xx(monkeypatch):
+    _stub_solution_transcription(monkeypatch, SOUND_SOLUTION_STEPS)
+    response = client.post(
+        "/api/questions/solution-transcribe",
+        files={"file": ("solution.png", io.BytesIO(PNG_1X1), "image/png")},
+        data={"page": "2"},
+    )
+    assert 400 <= response.status_code < 500
+
+
+def test_solution_transcribe_honours_a_pdf_page(monkeypatch):
+    import fitz
+
+    _stub_solution_transcription(monkeypatch, SOUND_SOLUTION_STEPS)
+    doc = fitz.open()
+    doc.new_page()
+    doc.new_page()
+
+    body = client.post(
+        "/api/questions/solution-transcribe",
+        files={"file": ("solution.pdf", io.BytesIO(doc.tobytes()), "application/pdf")},
+        data={"page": "2"},
+    ).json()
+
+    assert body["page"] == 2
+    assert body["page_count"] == 2
+
+
+def test_solution_transcribe_offline_cache_miss_is_a_503_with_a_hint(monkeypatch):
+    from app.llm import OfflineCacheMiss
+
+    def boom(image_b64, media_type):
+        raise OfflineCacheMiss("no cached response for key abc")
+
+    monkeypatch.setattr(main, "transcribe_model_solution", boom)
+
+    response = client.post(
+        "/api/questions/solution-transcribe",
+        files={"file": ("solution.png", io.BytesIO(PNG_1X1), "image/png")},
+    )
+    assert response.status_code == 503
+    assert response.json()["error"] == "offline_cache_miss"
+    assert response.json()["hint"]
+
+
+def test_a_photographed_model_solution_flows_end_to_end_into_a_question(monkeypatch):
+    _stub_solution_transcription(monkeypatch, SOUND_SOLUTION_STEPS, notes="clear hand")
+    transcribed = client.post(
+        "/api/questions/solution-transcribe",
+        files={"file": ("solution.png", io.BytesIO(PNG_1X1), "image/png")},
+    ).json()
+
+    created = client.post(
+        "/api/questions",
+        json={
+            **NEW_QUESTION,
+            "model_solution_steps": [
+                s["latex"] for s in transcribed["transcription"]["steps"]
+            ],
+            "solution_image_filename": transcribed["image_filename"],
+            "solution_source_page": transcribed["page"],
+            "solution_transcription": transcribed["transcription"],
+        },
+    )
+    assert created.status_code == 200
+
+    fetched = client.get("/api/questions/authored1").json()
+    assert fetched["solution_image_filename"] == transcribed["image_filename"]
+    assert fetched["solution_source_page"] == 1
+    assert fetched["solution_transcription"]["notes"] == "clear hand"
+
+
+def test_a_photographed_model_solution_that_loses_a_root_is_refused_on_save(monkeypatch):
+    """A photo is not an excuse: SymPy remains the arbiter."""
+    _stub_solution_transcription(
+        monkeypatch,
+        [Step(index=1, latex="x^2 = 5x"), Step(index=2, latex="x = 5")],
+    )
+    transcribed = client.post(
+        "/api/questions/solution-transcribe",
+        files={"file": ("solution.png", io.BytesIO(PNG_1X1), "image/png")},
+    ).json()
+
+    response = client.post(
+        "/api/questions",
+        json={
+            **NEW_QUESTION,
+            "model_solution_steps": [
+                s["latex"] for s in transcribed["transcription"]["steps"]
+            ],
+            "solution_image_filename": transcribed["image_filename"],
+        },
+    )
+    assert response.status_code == 400
+    assert any("step 2" in p for p in response.json()["detail"])
+    assert client.get("/api/questions/authored1").status_code == 404
+
+
+def test_editing_a_question_preserves_its_provenance(monkeypatch):
+    """PUT replaces the whole question, so a client that omits provenance would
+    null it out on an ordinary prompt edit."""
+    _stub_solution_transcription(monkeypatch, SOUND_SOLUTION_STEPS)
+    transcribed = client.post(
+        "/api/questions/solution-transcribe",
+        files={"file": ("solution.png", io.BytesIO(PNG_1X1), "image/png")},
+    ).json()
+    payload = {
+        **NEW_QUESTION,
+        "solution_image_filename": transcribed["image_filename"],
+        "solution_source_page": 1,
+        "solution_transcription": transcribed["transcription"],
+    }
+    client.post("/api/questions", json=payload)
+
+    client.put(
+        "/api/questions/authored1",
+        json={**payload, "prompt": "Solve $x^2 - 7x + 12 = 0$ by any method."},
+    )
+
+    fetched = client.get("/api/questions/authored1").json()
+    assert fetched["solution_image_filename"] == transcribed["image_filename"]
+    assert fetched["solution_transcription"] is not None
+
+
+def test_re_photographing_without_changing_the_maths_keeps_existing_marks(monkeypatch):
+    """Re-photographing is a documentation change, not a mathematical one, so it
+    must not discard a cohort's marks."""
+    _stub_llm(monkeypatch)
+    client.post("/api/questions", json=NEW_QUESTION)
+    created = client.post("/api/submissions", json={"question_id": "authored1"}).json()
+    client.post(f"/api/submissions/{created['id']}/mark")
+
+    client.put(
+        "/api/questions/authored1",
+        json={**NEW_QUESTION, "solution_image_filename": "solution-abcdef123456.png"},
+    )
+
+    assert client.get(f"/api/submissions/{created['id']}").json()["marks"] is not None
+
+
+def test_the_solution_image_can_be_fetched_back(monkeypatch):
+    _stub_solution_transcription(monkeypatch, SOUND_SOLUTION_STEPS)
+    transcribed = client.post(
+        "/api/questions/solution-transcribe",
+        files={"file": ("solution.png", io.BytesIO(PNG_1X1), "image/png")},
+    ).json()
+    client.post(
+        "/api/questions",
+        json={**NEW_QUESTION, "solution_image_filename": transcribed["image_filename"]},
+    )
+
+    response = client.get("/api/questions/authored1/solution-image")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("image/png")
+    assert response.content == (main.IMAGES_DIR / transcribed["image_filename"]).read_bytes()
+
+
+def test_a_question_with_no_solution_image_returns_404():
+    assert client.get("/api/questions/q1/solution-image").status_code == 404
+
+
+def test_an_unknown_questions_solution_image_returns_404():
+    assert client.get("/api/questions/nope/solution-image").status_code == 404
+
+
+def test_a_hand_edited_traversal_filename_is_refused():
+    """data/questions.json is hand-editable, so this is realistic input."""
+    from app.models import Question
+
+    store.save_question(
+        Question(
+            **{**NEW_QUESTION, "solution_image_filename": "../../../../.env"}
+        )
+    )
+    assert client.get("/api/questions/authored1/solution-image").status_code == 404
+
+
 def test_question_template_offers_a_method_agnostic_default_rubric():
     body = client.get("/api/question-template").json()
     assert body["criteria"]
@@ -579,10 +841,18 @@ def test_regenerate_practice_as_scenario_questions(monkeypatch):
     ).json()
 
     assert len(body["practice"]) == 3
-    assert any(p["question_type"] == "scenario" for p in body["practice"])
-    scenario = next(p for p in body["practice"] if p["question_type"] == "scenario")
-    assert scenario["admissible_roots"]
-    assert scenario["rejected_note"]
+    # Deliberately not asserting that a scenario *appears*. The practice seed
+    # derives from the random submission id, and quad_zero_root's word problem
+    # honestly declines when it drew a = 1 (the prose would call a square a
+    # rectangle), so an all-bare result is a legitimate outcome roughly one run
+    # in sixty. What must always hold is that every question is one of the two
+    # known framings, and that any scenario carries its admissible roots and an
+    # explanation. tests/test_practice.py pins the appears-at-all case with a
+    # fixed seed.
+    assert all(p["question_type"] in {"bare", "scenario"} for p in body["practice"])
+    for scenario in [p for p in body["practice"] if p["question_type"] == "scenario"]:
+        assert scenario["admissible_roots"]
+        assert scenario["rejected_note"]
     # Regenerating phrasing must not disturb any verified result.
     assert body["marks"] is not None
     assert body["verification"] is not None
