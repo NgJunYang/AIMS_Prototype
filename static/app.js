@@ -49,6 +49,17 @@ const state = {
   editingId: null,
   qeSteps: [], // string[]  — model solution lines being authored
   qeCriteria: [], // [{id, max, description}]
+
+  // Model-solution photo. Deliberately its own namespace, never state.upload*:
+  // those belong to the student submission flow on screen 2, which can be live
+  // at the same time as the question editor.
+  qeSolutionFile: null, // File | null — staged for PDF page picking
+  qeSolutionPageCount: 1,
+  qeSolutionObjectUrl: null, // string | null — must be revoked
+  qeSolutionBusy: false,
+  qeSolutionImageFilename: null,
+  qeSolutionSourcePage: null,
+  qeSolutionTranscription: null, // {steps, notes} verbatim from the API
 };
 
 /** The typed student name, or an auto-incrementing fallback if left blank. */
@@ -155,6 +166,15 @@ const api = {
     }),
   deleteQuestion: (id) =>
     apiFetch(`/api/questions/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  transcribeSolution: (file, page = 1) => {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("page", String(page));
+    return apiFetch("/api/questions/solution-transcribe", {
+      method: "POST",
+      body: form,
+    });
+  },
 };
 
 // ---------------------------------------------------------------------
@@ -410,12 +430,211 @@ function initQuestionEditor() {
 
   document.getElementById("qe-check").addEventListener("click", checkQuestion);
   document.getElementById("qe-save").addEventListener("click", saveQuestion);
+
+  document.getElementById("qe-solution-file").addEventListener("change", (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) stageSolutionFile(file);
+    e.target.value = ""; // allow re-selecting the same file
+  });
+  document
+    .getElementById("qe-solution-transcribe")
+    .addEventListener("click", () => transcribeSolutionPage());
+}
+
+/**
+ * Steps become editable once a transcription exists, or when editing a question
+ * that already has a model solution. A new question starts locked: its model
+ * solution originates from a photograph, not from typing.
+ */
+function qeStepsUnlocked() {
+  return state.editingId !== null || state.qeSolutionTranscription !== null;
+}
+
+function resetQeSolution() {
+  if (state.qeSolutionObjectUrl) URL.revokeObjectURL(state.qeSolutionObjectUrl);
+  state.qeSolutionFile = null;
+  state.qeSolutionPageCount = 1;
+  state.qeSolutionObjectUrl = null;
+  state.qeSolutionBusy = false;
+  state.qeSolutionImageFilename = null;
+  state.qeSolutionSourcePage = null;
+  state.qeSolutionTranscription = null;
+}
+
+async function stageSolutionFile(file) {
+  if (
+    qeStepsUnlocked() &&
+    state.qeSteps.length &&
+    !window.confirm(
+      "Replace the current model solution with the transcription of this photo?"
+    )
+  ) {
+    return;
+  }
+
+  resetQeSolution();
+  state.qeSolutionFile = file;
+  state.qeSolutionObjectUrl = URL.createObjectURL(file); // free local preview
+  renderQeSolution();
+
+  // inspect() costs nothing: no LLM call, no disk write. Only ask for a page
+  // number when there is actually a choice to make.
+  try {
+    const info = await api.inspectUpload(file);
+    state.qeSolutionPageCount = info.page_count;
+  } catch (err) {
+    showQeSolutionStatus(false, problemsFrom(err).join(" "));
+    return;
+  }
+
+  if (state.qeSolutionPageCount > 1) {
+    renderQeSolution(); // reveals the page picker; lecturer chooses, then commits
+    return;
+  }
+  await transcribeSolutionPage(1);
+}
+
+async function transcribeSolutionPage(page) {
+  if (!state.qeSolutionFile || state.qeSolutionBusy) return;
+
+  const requested = page || Number(document.getElementById("qe-solution-page").value);
+  const clamped = Math.min(
+    Math.max(Number.isFinite(requested) ? requested : 1, 1),
+    state.qeSolutionPageCount
+  );
+
+  state.qeSolutionBusy = true;
+  renderQeSolution();
+  showQeSolutionStatus(null, "Transcribing your handwriting…");
+  try {
+    const result = await api.transcribeSolution(state.qeSolutionFile, clamped);
+    state.qeSolutionTranscription = result.transcription; // verbatim, same shape
+    state.qeSolutionImageFilename = result.image_filename;
+    state.qeSolutionSourcePage = result.page;
+    state.qeSolutionPageCount = result.page_count;
+    state.qeSteps = result.transcription.steps.map((s) => s.latex);
+
+    const notes = result.transcription.notes;
+    showQeSolutionStatus(
+      true,
+      `Transcribed ${state.qeSteps.length} line(s) from page ${result.page}.` +
+        (notes ? ` Note: ${notes}` : "")
+    );
+  } catch (err) {
+    const hint = err.body && err.body.hint;
+    showQeSolutionStatus(
+      false,
+      hint ? `${hint} ${err.body.detail || ""}` : problemsFrom(err).join(" ")
+    );
+    return;
+  } finally {
+    state.qeSolutionBusy = false;
+    renderQeSolution();
+    renderQeSteps();
+  }
+
+  // Show SymPy's verdict on the lecturer's own handwriting without making them
+  // ask. Suppressed until id and prompt are filled, or validation answers
+  // "The prompt cannot be empty" and buries the result that matters.
+  if (
+    document.getElementById("qe-id").value.trim() &&
+    document.getElementById("qe-prompt").value.trim()
+  ) {
+    await checkQuestion();
+  }
+}
+
+function showQeSolutionStatus(ok, message) {
+  const box = document.getElementById("qe-solution-status");
+  box.textContent = message;
+  box.classList.remove("hidden");
+  box.className =
+    ok === false
+      ? "text-sm verdict-row verdict-bad"
+      : ok === true
+        ? "text-sm verdict-row verdict-good"
+        : "text-sm text-slate-500";
+}
+
+function renderQeSolution() {
+  const unlocked = qeStepsUnlocked();
+  const busy = state.qeSolutionBusy;
+
+  document.getElementById("qe-add-step").disabled = !unlocked || busy;
+  document.getElementById("qe-check").disabled = !unlocked || busy;
+  document.getElementById("qe-save").disabled = !unlocked || busy;
+  document.getElementById("qe-steps-empty").classList.toggle("hidden", unlocked);
+
+  document
+    .getElementById("qe-solution-page-wrap")
+    .classList.toggle(
+      "hidden",
+      state.qeSolutionPageCount <= 1 || !state.qeSolutionFile
+    );
+  const pageInput = document.getElementById("qe-solution-page");
+  pageInput.max = String(state.qeSolutionPageCount);
+  document.getElementById("qe-solution-transcribe").disabled = busy;
+
+  document.getElementById("qe-solution-file-label").textContent =
+    state.qeSolutionTranscription || state.qeSolutionImageFilename
+      ? "Use a different photo"
+      : "Photograph your worked solution";
+
+  const meta = [];
+  if (state.qeSolutionPageCount > 1) {
+    meta.push(`${state.qeSolutionPageCount} pages`);
+  }
+  if (state.qeSolutionSourcePage) {
+    meta.push(`transcribed from page ${state.qeSolutionSourcePage}`);
+  }
+  document.getElementById("qe-solution-meta").textContent = meta.join(" · ");
+
+  const preview = document.getElementById("qe-solution-preview");
+  clearChildren(preview);
+  if (state.qeSolutionObjectUrl) {
+    const img = document.createElement("img");
+    img.src = state.qeSolutionObjectUrl;
+    img.alt = "Your handwritten model solution";
+    img.className = "w-full rounded-lg border border-slate-200";
+    preview.appendChild(img);
+  } else if (state.qeSolutionImageFilename && state.editingId) {
+    // Reopened question: fetch the stored photo. fixtures/images/ is untracked,
+    // so degrade quietly rather than showing a broken-image glyph.
+    const img = document.createElement("img");
+    img.alt = "Your handwritten model solution";
+    img.className = "w-full rounded-lg border border-slate-200";
+    img.onerror = () => clearChildren(preview);
+    img.src = `/api/questions/${encodeURIComponent(state.editingId)}/solution-image`;
+    preview.appendChild(img);
+  }
+}
+
+/**
+ * Latex strings the vision model was unsure about.
+ *
+ * Keyed by string, deliberately not by index: questionFromEditor() filters
+ * empty lines out, and any insert, delete or reorder desynchronises positions,
+ * so index i in the steps is not index i in the raw transcription. Matching on
+ * the text also gives the right behaviour for free — the moment the lecturer
+ * retypes a flagged line it stops matching and the warning retires itself,
+ * which is exactly what "I have checked this one" should look like.
+ */
+function qeLowConfidenceLatex() {
+  const transcription = state.qeSolutionTranscription;
+  if (!transcription) return new Set();
+  return new Set(
+    transcription.steps.filter((s) => s.confidence === "low").map((s) => s.latex)
+  );
 }
 
 async function openQuestionEditor(question) {
+  resetQeSolution();
   state.editingId = question ? question.id : null;
 
   if (question) {
+    state.qeSolutionImageFilename = question.solution_image_filename || null;
+    state.qeSolutionSourcePage = question.solution_source_page ?? null;
+    state.qeSolutionTranscription = question.solution_transcription || null;
     state.qeSteps = [...question.model_solution_steps];
     state.qeCriteria = question.criteria.map((c) => ({ ...c }));
     document.getElementById("qe-id").value = question.id;
@@ -433,7 +652,8 @@ async function openQuestionEditor(question) {
     } catch (_) {
       /* fall back to an empty rubric rather than blocking */
     }
-    state.qeSteps = ["", ""];
+    // No blank rows: a new question's model solution comes from a photograph.
+    state.qeSteps = [];
     state.qeCriteria = template.criteria.map((c) => ({ ...c }));
     document.getElementById("qe-id").value = "";
     document.getElementById("qe-id").disabled = false;
@@ -444,21 +664,37 @@ async function openQuestionEditor(question) {
 
   renderQeSteps();
   renderQeCriteria();
+  renderQeSolution();
   hideQeResult();
+  document.getElementById("qe-solution-status").classList.add("hidden");
   document.getElementById("question-editor").classList.remove("hidden");
 }
 
 function closeQuestionEditor() {
   document.getElementById("question-editor").classList.add("hidden");
   state.editingId = null;
+  // Must reset: otherwise closing after a transcription and reopening
+  // "+ New question" carries the previous photo forward, producing a question
+  // that lies about where its model solution came from.
+  resetQeSolution();
   hideQeResult();
 }
 
 function renderQeSteps() {
   const box = document.getElementById("qe-steps");
   clearChildren(box);
+  const lowConfidence = qeLowConfidenceLatex();
+
   state.qeSteps.forEach((latex, index) => {
-    const row = el("div", "flex items-start gap-2");
+    // Note .is-low-confidence is scoped as `.step-row.is-low-confidence` in
+    // app.css, so both classes are required for the amber treatment.
+    const isLow = lowConfidence.has(latex);
+    const row = el(
+      "div",
+      isLow
+        ? "step-row is-low-confidence flex items-start gap-2"
+        : "flex items-start gap-2"
+    );
 
     const col = el("div", "flex-1 min-w-0");
     const preview = el("div", "katex-preview");
@@ -475,6 +711,16 @@ function renderQeSteps() {
       renderKatexInto(preview, input.value || "\\text{(empty)}", true);
     });
     col.appendChild(input);
+
+    if (isLow) {
+      col.appendChild(
+        el(
+          "div",
+          "low-confidence-flag",
+          "⚠ Low-confidence transcription — check this line against your photo"
+        )
+      );
+    }
     row.appendChild(col);
 
     const remove = document.createElement("button");
@@ -557,6 +803,12 @@ function questionFromEditor() {
       max: Number(c.max) || 0,
       description: c.description,
     })),
+    // Carried through explicitly. PUT replaces the whole question, so omitting
+    // these would null out the provenance of a photo-authored question the
+    // moment anyone edited its prompt.
+    solution_image_filename: state.qeSolutionImageFilename,
+    solution_source_page: state.qeSolutionSourcePage,
+    solution_transcription: state.qeSolutionTranscription,
   };
 }
 
