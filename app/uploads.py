@@ -10,7 +10,7 @@ from io import BytesIO
 from typing import Literal
 
 import fitz  # PyMuPDF
-from PIL import Image, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageOps
 
 SourceType = Literal["image", "pdf"]
 
@@ -48,7 +48,12 @@ def inspect(raw: bytes) -> UploadInfo:
     try:
         with Image.open(BytesIO(raw)) as image:
             image.verify()
-    except (UnidentifiedImageError, OSError) as exc:
+    except Exception as exc:
+        # Pillow's decoders raise format-specific exceptions on corruption -
+        # e.g. a bad chunk CRC in a PNG surfaces as a bare SyntaxError, not
+        # UnidentifiedImageError/OSError. Catching broadly here is the only
+        # way to guarantee a malformed-but-plausible-looking upload degrades
+        # to a clean error instead of an unhandled 500.
         raise UnsupportedUpload(
             "Could not read this file as an image or a PDF."
         ) from exc
@@ -93,5 +98,7 @@ def render_page(raw: bytes, page: int = 1, dpi: int = 200) -> bytes:
             buffer = BytesIO()
             corrected.save(buffer, format="PNG")
             return buffer.getvalue()
-    except (UnidentifiedImageError, OSError) as exc:
+    except Exception as exc:
+        # See the matching comment in inspect(): Pillow's exceptions here are
+        # not limited to UnidentifiedImageError/OSError.
         raise UnsupportedUpload("Could not read this file as an image.") from exc

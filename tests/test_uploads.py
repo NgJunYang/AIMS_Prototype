@@ -69,6 +69,18 @@ def test_render_page_of_a_pdf_page_produces_a_reasonably_sized_image():
     assert out.width > 100 and out.height > 100
 
 
+def test_a_structurally_plausible_but_corrupt_png_is_rejected_not_crashed():
+    """A bad chunk checksum makes Pillow raise SyntaxError, not
+    UnidentifiedImageError/OSError - this pins that inspect() still degrades
+    to UnsupportedUpload rather than letting an unhandled exception through.
+    """
+    raw = bytearray(_png_bytes())
+    idat = raw.find(b"IDAT")
+    raw[idat + 5] ^= 0xFF  # flip a bit inside the IDAT chunk's data
+    with pytest.raises(UnsupportedUpload):
+        inspect(bytes(raw))
+
+
 def test_exif_rotation_is_corrected():
     """A 90-degree EXIF orientation tag must actually swap the reported
     dimensions once rendered — not just be silently ignored."""
