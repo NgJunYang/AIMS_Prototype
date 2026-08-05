@@ -26,20 +26,20 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.config import ANTHROPIC_API_KEY, DEMO_MODE, IMAGES_DIR, LLM_CACHE_DIR  # noqa: E402
-from app.transcriber import transcribe  # noqa: E402
+from app import uploads  # noqa: E402
+from app.transcriber import transcribe, transcribe_model_solution  # noqa: E402
 
-_MEDIA_TYPES = {
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".png": "image/png",
-}
+# Only a filename filter. The media type sent to the model is always
+# "image/png", because every server path normalises through
+# uploads.render_page() first - see the comment in main() for why that matters.
+_IMAGE_SUFFIXES = frozenset({".jpg", ".jpeg", ".png"})
 
 
 def _find_images(directory: Path) -> list[Path]:
     return sorted(
         path
         for path in directory.iterdir()
-        if path.is_file() and path.suffix.lower() in _MEDIA_TYPES
+        if path.is_file() and path.suffix.lower() in _IMAGE_SUFFIXES
     )
 
 
@@ -85,16 +85,27 @@ def main() -> int:
     successes = 0
     failures = 0
     for path in images:
-        media_type = _MEDIA_TYPES[path.suffix.lower()]
         print(f"  {path.name} ... ", end="", flush=True)
         try:
-            image_b64 = base64.b64encode(path.read_bytes()).decode()
-            transcription = transcribe(image_b64=image_b64, media_type=media_type)
+            # Warm exactly what the API will later look up. llm.cache_key hashes
+            # the image bytes, and every server path base64s
+            # uploads.render_page() output with media_type="image/png" - not the
+            # raw file. Sending the raw bytes here (as this script used to) put
+            # the warmed entries in a disjoint key space from the ones the
+            # server asks for, so the offline photo demo could never hit the
+            # cache no matter how much was warmed.
+            png = uploads.render_page(path.read_bytes())
+            image_b64 = base64.b64encode(png).decode()
+
+            # Both framings, because both are real server paths: a student's
+            # scan and a lecturer's photographed model solution.
+            student = transcribe(image_b64=image_b64, media_type="image/png")
+            transcribe_model_solution(image_b64=image_b64, media_type="image/png")
         except Exception as error:  # noqa: BLE001 - report and keep going
             print(f"FAILED ({type(error).__name__}: {error})")
             failures += 1
             continue
-        print(f"ok, {len(transcription.steps)} step(s) transcribed")
+        print(f"ok, {len(student.steps)} step(s) transcribed (both framings)")
         successes += 1
 
     after = _count_cache_entries()
