@@ -26,9 +26,15 @@ def isolate_disk_writes(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "IMAGES_DIR", images)
     monkeypatch.setattr(store, "SUBMISSIONS_DIR", submissions)
 
+# A real, byte-correct 1x1 PNG. The previous literal here had a bad IDAT
+# checksum and silently worked for years because no code path ever actually
+# decoded it - every test using it went straight to a mocked transcribe().
+# Once app.uploads started validating uploads for real, Pillow correctly
+# rejected it. Generated with PIL rather than hand-typed to avoid repeating
+# the mistake: Image.new("RGB", (1, 1), (255, 0, 0)) saved as PNG.
 PNG_1X1 = bytes.fromhex(
-    "89504e470d0a1a0a0000000d494844520000000100000001080600000"
-    "01f15c4890000000d4944415478da63f8cf00000301010018dd8db000"
+    "89504e470d0a1a0a0000000d4948445200000001000000010802000000"
+    "907753de0000000c49444154789c63f8cfc0000003010100c9fe92ef00"
     "00000049454e44ae426082"
 )
 
@@ -265,6 +271,144 @@ def test_offline_cache_miss_returns_503_with_a_helpful_hint(monkeypatch):
     body = response.json()
     assert body["error"] == "offline_cache_miss"
     assert "sample" in body["hint"].lower()
+
+
+def test_transcribe_with_garbage_bytes_is_a_4xx_not_a_500(monkeypatch):
+    def _must_not_be_called(**_):
+        raise AssertionError("the LLM must never be called for unreadable bytes")
+
+    monkeypatch.setattr(main, "transcribe", _must_not_be_called)
+
+    submission_id = _new_submission()
+    response = client.post(
+        f"/api/submissions/{submission_id}/transcribe",
+        files={"file": ("junk.png", io.BytesIO(b"not an image at all"), "image/png")},
+    )
+    assert 400 <= response.status_code < 500
+
+
+def test_transcribe_with_empty_file_is_a_4xx(monkeypatch):
+    submission_id = _new_submission()
+    response = client.post(
+        f"/api/submissions/{submission_id}/transcribe",
+        files={"file": ("empty.png", io.BytesIO(b""), "image/png")},
+    )
+    assert 400 <= response.status_code < 500
+
+
+def test_exif_rotation_is_corrected_before_reaching_the_model(monkeypatch):
+    from PIL import Image
+
+    captured = {}
+
+    def fake_transcribe(image_b64, media_type):
+        captured["b64"] = image_b64
+        captured["media_type"] = media_type
+        return Transcription(steps=[], notes="")
+
+    monkeypatch.setattr(main, "transcribe", fake_transcribe)
+
+    img = Image.new("RGB", (40, 20), color=(255, 0, 0))
+    buf = io.BytesIO()
+    exif = img.getexif()
+    exif[0x0112] = 6
+    img.save(buf, format="JPEG", exif=exif)
+
+    submission_id = _new_submission()
+    response = client.post(
+        f"/api/submissions/{submission_id}/transcribe",
+        files={"file": ("scan.jpg", buf.getvalue(), "image/jpeg")},
+    )
+
+    assert response.status_code == 200
+    import base64 as b64
+
+    sent = Image.open(io.BytesIO(b64.b64decode(captured["b64"])))
+    assert sent.size == (20, 40)
+    assert captured["media_type"] == "image/png"
+
+
+def test_transcribe_filename_traversal_is_neutralized(monkeypatch):
+    monkeypatch.setattr(
+        main,
+        "transcribe",
+        lambda image_b64, media_type: Transcription(steps=[], notes=""),
+    )
+    submission_id = _new_submission()
+    response = client.post(
+        f"/api/submissions/{submission_id}/transcribe",
+        files={"file": ("../../../evil.png", io.BytesIO(PNG_1X1), "image/png")},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["image_filename"] == f"{submission_id}.png"
+    assert ".." not in body["image_filename"]
+    written = list(main.IMAGES_DIR.iterdir())
+    assert len(written) == 1
+    assert written[0].name == f"{submission_id}.png"
+
+
+def test_inspect_upload_reports_pdf_page_count():
+    import fitz
+
+    doc = fitz.open()
+    doc.new_page()
+    doc.new_page()
+    pdf_bytes = doc.tobytes()
+
+    response = client.post(
+        "/api/uploads/inspect",
+        files={"file": ("scan.pdf", io.BytesIO(pdf_bytes), "application/pdf")},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source_type"] == "pdf"
+    assert body["page_count"] == 2
+
+
+def test_inspect_upload_rejects_garbage():
+    response = client.post(
+        "/api/uploads/inspect",
+        files={"file": ("junk.bin", io.BytesIO(b"garbage"), "application/octet-stream")},
+    )
+    assert 400 <= response.status_code < 500
+
+
+def test_preview_upload_of_an_out_of_range_page_is_rejected():
+    response = client.post(
+        "/api/uploads/preview",
+        files={"file": ("scan.png", io.BytesIO(PNG_1X1), "image/png")},
+        data={"page": "2"},
+    )
+    assert 400 <= response.status_code < 500
+
+
+def test_transcribe_a_specific_pdf_page(monkeypatch):
+    import fitz
+
+    monkeypatch.setattr(
+        main,
+        "transcribe",
+        lambda image_b64, media_type: Transcription(
+            steps=[Step(index=1, latex="x = 1", confidence="high")], notes=""
+        ),
+    )
+
+    doc = fitz.open()
+    doc.new_page()
+    doc.new_page()
+    pdf_bytes = doc.tobytes()
+
+    submission_id = _new_submission()
+    response = client.post(
+        f"/api/submissions/{submission_id}/transcribe",
+        files={"file": ("scan.pdf", io.BytesIO(pdf_bytes), "application/pdf")},
+        data={"page": "2"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["source_page"] == 2
+    assert body["source_page_count"] == 2
 
 
 def test_class_summary_is_available():

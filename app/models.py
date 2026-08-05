@@ -143,6 +143,8 @@ class Submission(BaseModel):
     id: str
     question_id: str
     image_filename: str | None = None
+    source_page: int | None = None
+    source_page_count: int | None = None
     transcription: Transcription | None = None
     confirmed_steps: list[Step] | None = None
     verification: VerificationReport | None = None

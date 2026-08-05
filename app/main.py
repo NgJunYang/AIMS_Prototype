@@ -2,11 +2,12 @@ import base64
 import json
 import uuid
 
-from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from app import uploads
 from app.config import IMAGES_DIR, SEEDS_DIR, STATIC_DIR
 from app.feedback import write as write_feedback
 from app.llm import OfflineCacheMiss
@@ -35,6 +36,17 @@ class UpdateSteps(BaseModel):
 class Override(BaseModel):
     criterion_id: str
     proposed: int
+
+
+class UploadInspection(BaseModel):
+    source_type: str
+    page_count: int
+
+
+class UploadPreview(BaseModel):
+    page: int
+    page_count: int
+    preview_b64: str
 
 
 # ---------- error handling ----------
@@ -95,24 +107,68 @@ def api_get_submission(submission_id: str) -> Submission:
 
 
 @app.post("/api/submissions/{submission_id}/transcribe")
-async def api_transcribe(submission_id: str, file: UploadFile = File(...)) -> Submission:
+async def api_transcribe(
+    submission_id: str, file: UploadFile = File(...), page: int = Form(1)
+) -> Submission:
     submission = _submission(submission_id)
-
     raw = await file.read()
-    filename = f"{submission_id}-{file.filename}"
-    (IMAGES_DIR / filename).write_bytes(raw)
+    if not raw:
+        raise HTTPException(status_code=400, detail="empty file")
+    try:
+        info = uploads.inspect(raw)
+        png = uploads.render_page(raw, page=page)
+    except (uploads.UnsupportedUpload, uploads.PageOutOfRange) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
+    # No client-supplied component in the filename at all: submission_id is
+    # already server-generated and validated by _submission() above, so this
+    # is safe on its own. The old f"{id}-{file.filename}" scheme joined an
+    # unsanitized client filename into a disk path before writing it.
+    filename = f"{submission_id}.png"
+    (IMAGES_DIR / filename).write_bytes(png)
     transcription = transcribe(
-        image_b64=base64.b64encode(raw).decode(),
-        media_type=file.content_type or "image/jpeg",
+        image_b64=base64.b64encode(png).decode(), media_type="image/png"
     )
 
     submission.image_filename = filename
+    submission.source_page = page
+    submission.source_page_count = info.page_count
     submission.transcription = transcription
     submission.confirmed_steps = list(transcription.steps)
     _invalidate_downstream(submission)
     save_submission(submission)
     return submission
+
+
+@app.post("/api/uploads/inspect")
+async def api_inspect_upload(file: UploadFile = File(...)) -> UploadInspection:
+    """Report an upload's type and page count. Stateless: touches no submission."""
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="empty file")
+    try:
+        info = uploads.inspect(raw)
+    except uploads.UnsupportedUpload as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return UploadInspection(source_type=info.source_type, page_count=info.page_count)
+
+
+@app.post("/api/uploads/preview")
+async def api_preview_upload(
+    file: UploadFile = File(...), page: int = Form(1)
+) -> UploadPreview:
+    """Render one page as a preview image, at zero cost to any submission or LLM."""
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="empty file")
+    try:
+        info = uploads.inspect(raw)
+        png = uploads.render_page(raw, page=page)
+    except (uploads.UnsupportedUpload, uploads.PageOutOfRange) as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return UploadPreview(
+        page=page, page_count=info.page_count, preview_b64=base64.b64encode(png).decode()
+    )
 
 
 @app.put("/api/submissions/{submission_id}/steps")
