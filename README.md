@@ -113,6 +113,33 @@ Use `python -m uvicorn`, not the bare `uvicorn` command — on Windows the
 correctly (PATH / shebang issues), while invoking it as a module through the
 venv's own Python always works.
 
+## Frontend
+
+The frontend source lives in `frontend/` (React + Vite + Tailwind + Framer
+Motion) and builds directly into `static/`, which the backend serves and
+which GitHub Pages deploys — `static/` is generated output now, not
+hand-edited.
+
+```
+cd frontend
+npm install
+```
+
+Two ways to run it locally:
+
+1. **Fast iteration** — Vite's dev server proxies `/api` to a separately
+   running backend:
+   ```
+   npm run dev                                          # in frontend/, port 5173
+   .venv/Scripts/python.exe -m uvicorn app.main:app --reload   # in another terminal, from repo root
+   ```
+2. **Production-path check** — build into `static/` and let uvicorn serve it
+   exactly as it will in production:
+   ```
+   npm run build                                         # in frontend/
+   .venv/Scripts/python.exe -m uvicorn app.main:app --reload   # from repo root, serves the build at http://localhost:8000
+   ```
+
 ## Run the demo with no API key at all
 
 This works today and is the fallback worth leading with if the venue Wi-Fi or
@@ -144,7 +171,7 @@ just seeded.
 .venv/Scripts/python.exe -m pytest -q
 ```
 
-392 tests currently pass. Notable groups:
+992 tests currently pass. Notable groups:
 
 - **`tests/test_seed_integrity.py`** — every model solution line in
   `app/seeds/questions.json` actually parses, and verifies as correct against
@@ -230,11 +257,12 @@ Do not edit `static/config.js`. Set the deployed backend URL once in GitHub:
 3. Re-run **Deploy static frontend to GitHub Pages** under **Actions**, or push
    a frontend change to `main`.
 
-During deployment, `.github/workflows/deploy-pages.yml` copies `static/` to an
-isolated Pages artifact and uses `scripts/build_pages_config.js` to generate
-that artifact's `config.js` with the configured URL. The committed
-`static/config.js` remains empty so local development continues to use the
-same FastAPI origin.
+During deployment, `.github/workflows/deploy-pages.yml` builds `frontend/`
+into `static/`, copies `static/` to an isolated Pages artifact, and uses
+`scripts/build_pages_config.js` to generate that artifact's `config.js` with
+the configured URL. `frontend/public/config.js` (copied verbatim into every
+build) stays empty so local development continues to use the same FastAPI
+origin.
 
 ### 3. Enable GitHub Pages
 
