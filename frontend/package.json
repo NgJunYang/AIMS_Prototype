@@ -18,6 +18,7 @@
     "@radix-ui/react-toast": "^1.2.23",
     "chart.js": "^4.5.1",
     "katex": "^0.18.4",
+    "lucide-react": "^1.31.0",
     "motion": "^13.1.0",
     "react": "^19.2.8",
     "react-chartjs-2": "^5.3.1",
