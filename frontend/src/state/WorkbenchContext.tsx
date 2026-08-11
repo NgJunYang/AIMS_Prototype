@@ -273,6 +273,8 @@ function useWorkbenchValue() {
     [loadQuestions, patch]
   );
 
+  const setSubmission = useCallback((submission: WorkbenchState["submission"]) => patch({ submission }), [patch]);
+
   return {
     state,
     loadQuestions,
@@ -281,6 +283,7 @@ function useWorkbenchValue() {
     beginManualEntry,
     loadPagePreview,
     transcribeStagedFile,
+    setSubmission,
     addStep,
     updateStepLatex,
     removeStep,

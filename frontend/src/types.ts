@@ -53,12 +53,12 @@ export interface CriterionMark {
   proposed: number;
   justification: string;
   evidence_step?: number | null;
-  overridden?: number | null;
+  overridden?: boolean;
 }
 
 export interface Marks {
   criteria: CriterionMark[];
-  total_awarded?: number;
+  total_proposed?: number;
   total_max?: number;
   [key: string]: unknown;
 }
