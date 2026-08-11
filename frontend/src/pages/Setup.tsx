@@ -77,13 +77,18 @@ export default function Setup({ onSubmissionCreated }: { onSubmissionCreated: ()
           <p className="mb-2 font-mono text-xs font-semibold uppercase tracking-wide text-text-muted">Setup</p>
           <h1 className="text-2xl font-semibold">Pick a question, then start marking</h1>
         </div>
-        <div className="flex items-end gap-3">
+        <div className="flex flex-wrap items-end gap-3">
           <div>
             <Label>Student (optional)</Label>
-            <Input value={studentName} onChange={(e) => setStudentName(e.target.value)} placeholder="e.g. Student A" className="w-44" />
+            <Input
+              value={studentName}
+              onChange={(e) => setStudentName(e.target.value)}
+              placeholder="e.g. Student A"
+              className="w-full sm:w-44"
+            />
           </div>
           <select
-            className="h-[38px] rounded-lg border border-border bg-surface-2 px-3 text-sm text-text outline-none focus:border-accent"
+            className="h-[38px] w-full rounded-lg border border-border bg-surface-2 px-3 text-sm text-text outline-none focus:border-accent sm:w-auto"
             value={q?.id || ""}
             onChange={(e) => e.target.value && wb.selectQuestion(e.target.value)}
           >
