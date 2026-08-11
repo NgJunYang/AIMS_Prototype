@@ -8,6 +8,7 @@ on:
       - ".github/workflows/deploy-pages.yml"
       - "scripts/build_pages_config.js"
       - "static/**"
+      - "frontend/**"
       - "tests/test_pages_deployment.js"
   workflow_dispatch:
 
@@ -29,6 +30,21 @@ jobs:
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
 
       - name: Test static deployment inputs
         run: node --test tests/test_pages_deployment.js

@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-sans/700.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+
+@theme {
+  --color-bg: #0e1116;
+  --color-surface: #171b22;
+  --color-surface-2: #1f242d;
+  --color-border: #2a313c;
+  --color-text: #f3f5f7;
+  --color-text-muted: #9aa4b2;
+
+  --color-accent: #4c7dff;
+  --color-accent-soft: #1b2a52;
+  --color-accent-hover: #6a94ff;
+
+  --color-success: #35c48f;
+  --color-success-soft: #123328;
+  --color-danger: #ff5c72;
+  --color-danger-soft: #3a1620;
+  --color-warning: #ffb454;
+  --color-warning-soft: #3a2a12;
+
+  --font-display: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-display);
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::selection {
+  background: var(--color-accent);
+  color: white;
+}
+
+* {
+  scrollbar-color: var(--color-border) transparent;
+}
+
+.katex-display {
+  margin: 0.4em 0 !important;
+}
