@@ -14,42 +14,78 @@ from typing import Literal
 
 from app.config import VISION_MODEL
 from app.llm import complete_json
-from app.models import Step, Transcription
+from app.models import IdentityExtraction, Step, Transcription
 
 Source = Literal["student", "model_solution"]
 
-_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "steps": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "latex": {
-                        "type": "string",
-                        "description": "The line exactly as written, as LaTeX.",
-                    },
-                    "confidence": {
-                        "type": "string",
-                        "enum": ["high", "low"],
-                        "description": "low if any character on this line is uncertain",
-                    },
+_STEP_PROPERTIES = {
+    "steps": {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "properties": {
+                "latex": {
+                    "type": "string",
+                    "description": "The line exactly as written, as LaTeX.",
                 },
-                "required": ["latex", "confidence"],
+                "confidence": {
+                    "type": "string",
+                    "enum": ["high", "low"],
+                    "description": "low if any character on this line is uncertain",
+                },
             },
-        },
-        "notes": {
-            "type": "string",
-            "description": "Anything the marker should know: crossings-out, illegible regions, work in margins.",
+            "required": ["latex", "confidence"],
         },
     },
+    "notes": {
+        "type": "string",
+        "description": "Anything the marker should know: crossings-out, illegible regions, work in margins.",
+    },
+}
+
+# Model solution photos carry no student identity to extract - this schema is
+# also used for `Question.solution_transcription`, which has no field for it.
+_BASE_SCHEMA = {
+    "type": "object",
+    "properties": _STEP_PROPERTIES,
     "required": ["steps", "notes"],
+}
+
+# Student submissions only: the same photo the student wrote their working on
+# often has their name and/or student id at the top, so one vision call
+# reports both rather than paying for a second call over the same image.
+_STUDENT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        **_STEP_PROPERTIES,
+        "student_name": {
+            "type": ["string", "null"],
+            "description": "The student's name exactly as handwritten on the page, or null if no name is visible or it cannot be read with confidence.",
+        },
+        "student_id": {
+            "type": ["string", "null"],
+            "description": "The student id exactly as handwritten on the page, or null if none is visible or it cannot be read with confidence.",
+        },
+        "identity_confidence": {
+            "type": "string",
+            "enum": ["high", "low"],
+            "description": "low if student_name or student_id is uncertain, illegible, or absent.",
+        },
+    },
+    "required": ["steps", "notes", "student_name", "student_id", "identity_confidence"],
 }
 
 
 _STUDENT_FRAMING = (
-    "You are transcribing a photograph of a student's handwritten mathematics."
+    "You are transcribing a photograph of a student's handwritten mathematics.\n"
+    "\n"
+    "The same page may also carry the student's name and/or student id, "
+    "usually near the top or in a margin. Report them exactly as handwritten "
+    "in student_name / student_id. If neither is visible, or you cannot read "
+    "one with confidence, report it as null rather than guessing - a wrong "
+    "name misattributes this work to the wrong student, which is worse than "
+    "leaving the field blank. Set identity_confidence to \"low\" whenever "
+    "either field is uncertain, illegible, or absent."
 )
 
 # The "transcribe exactly, do not correct" rule matters MORE here than on a
@@ -114,9 +150,22 @@ def build_prompt(source: Source = "student") -> str:
     return f"{_FRAMINGS[source]}\n\n{_FIDELITY_RULES}"
 
 
-def transcribe(image_b64: str, media_type: str = "image/jpeg") -> Transcription:
-    """Transcribe a student's handwritten working."""
-    return _transcribe(build_prompt("student"), image_b64, media_type)
+def transcribe(
+    image_b64: str, media_type: str = "image/jpeg"
+) -> tuple[Transcription, IdentityExtraction]:
+    """Transcribe a student's handwritten working, plus any visible identity.
+
+    One vision call reports both: the model already sees the full page, and a
+    second call over the same image to look for a name would double the cost
+    per submission for no real benefit.
+    """
+    payload = _call(build_prompt("student"), _STUDENT_SCHEMA, image_b64, media_type)
+    identity = IdentityExtraction(
+        name=payload.get("student_name") or None,
+        student_id=payload.get("student_id") or None,
+        confidence=payload.get("identity_confidence", "high"),
+    )
+    return _to_transcription(payload), identity
 
 
 def transcribe_model_solution(
@@ -126,20 +175,26 @@ def transcribe_model_solution(
 
     Same fidelity rules, different framing. A separate public function rather
     than a flag so that callers are greppable, and so `transcribe`'s signature
-    stays exactly as it was for every existing stub.
+    stays exactly as it was for every existing stub. No identity extraction:
+    this page carries no student to identify.
     """
-    return _transcribe(build_prompt("model_solution"), image_b64, media_type)
+    payload = _call(build_prompt("model_solution"), _BASE_SCHEMA, image_b64, media_type)
+    return _to_transcription(payload)
 
 
-def _transcribe(prompt: str, image_b64: str, media_type: str) -> Transcription:
-    payload = complete_json(
+def _call(
+    prompt: str, schema: dict, image_b64: str, media_type: str
+) -> dict:
+    return complete_json(
         model=VISION_MODEL,
         prompt=prompt,
-        schema=_SCHEMA,
+        schema=schema,
         image_b64=image_b64,
         image_media_type=media_type,
     )
 
+
+def _to_transcription(payload: dict) -> Transcription:
     steps: list[Step] = []
     for raw in payload.get("steps", []):
         latex = (raw.get("latex") or "").strip()

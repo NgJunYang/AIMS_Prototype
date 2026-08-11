@@ -7,7 +7,14 @@ from fastapi.testclient import TestClient
 
 from app import main, store
 from app.main import app
-from app.models import Feedback, MarkProposal, CriterionMark, Step, Transcription
+from app.models import (
+    Feedback,
+    IdentityExtraction,
+    MarkProposal,
+    CriterionMark,
+    Step,
+    Transcription,
+)
 
 client = TestClient(app)
 
@@ -124,8 +131,11 @@ def test_transcribe_endpoint_stores_the_image_and_seeds_confirmed_steps(monkeypa
     monkeypatch.setattr(
         main,
         "transcribe",
-        lambda image_b64, media_type: Transcription(
-            steps=[Step(index=1, latex="x^2 = 5x", confidence="low")], notes="faint"
+        lambda image_b64, media_type: (
+            Transcription(
+                steps=[Step(index=1, latex="x^2 = 5x", confidence="low")], notes="faint"
+            ),
+            IdentityExtraction(),
         ),
     )
     submission_id = _new_submission()
@@ -309,7 +319,7 @@ def test_exif_rotation_is_corrected_before_reaching_the_model(monkeypatch):
     def fake_transcribe(image_b64, media_type):
         captured["b64"] = image_b64
         captured["media_type"] = media_type
-        return Transcription(steps=[], notes="")
+        return Transcription(steps=[], notes=""), IdentityExtraction()
 
     monkeypatch.setattr(main, "transcribe", fake_transcribe)
 
@@ -337,7 +347,7 @@ def test_transcribe_filename_traversal_is_neutralized(monkeypatch):
     monkeypatch.setattr(
         main,
         "transcribe",
-        lambda image_b64, media_type: Transcription(steps=[], notes=""),
+        lambda image_b64, media_type: (Transcription(steps=[], notes=""), IdentityExtraction()),
     )
     submission_id = _new_submission()
     response = client.post(
@@ -394,8 +404,9 @@ def test_transcribe_a_specific_pdf_page(monkeypatch):
     monkeypatch.setattr(
         main,
         "transcribe",
-        lambda image_b64, media_type: Transcription(
-            steps=[Step(index=1, latex="x = 1", confidence="high")], notes=""
+        lambda image_b64, media_type: (
+            Transcription(steps=[Step(index=1, latex="x = 1", confidence="high")], notes=""),
+            IdentityExtraction(),
         ),
     )
 

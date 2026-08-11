@@ -17,7 +17,14 @@ from app.config import ALLOWED_ORIGINS, IMAGES_DIR, SEEDS_DIR, STATIC_DIR
 from app.feedback import write as write_feedback
 from app.llm import OfflineCacheMiss
 from app.marker import mark as mark_submission
-from app.models import ClassSummary, Question, Step, Submission, Transcription
+from app.models import (
+    ClassSummary,
+    IdentityExtraction,
+    Question,
+    Step,
+    Submission,
+    Transcription,
+)
 from app.practice import QUESTION_TYPES, generate_practice
 from app.store import (
     delete_question,
@@ -60,6 +67,11 @@ class CreateSubmission(BaseModel):
 
 class UpdateSteps(BaseModel):
     steps: list[Step]
+
+
+class UpdateIdentity(BaseModel):
+    name: str | None = None
+    student_id: str | None = None
 
 
 class Override(BaseModel):
@@ -337,7 +349,7 @@ async def api_transcribe(
     # unsanitized client filename into a disk path before writing it.
     filename = f"{submission_id}.png"
     (IMAGES_DIR / filename).write_bytes(png)
-    transcription = transcribe(
+    transcription, identity = transcribe(
         image_b64=base64.b64encode(png).decode(), media_type="image/png"
     )
 
@@ -346,6 +358,16 @@ async def api_transcribe(
     submission.source_page_count = info.page_count
     submission.transcription = transcription
     submission.confirmed_steps = list(transcription.steps)
+    submission.extracted_identity = identity
+    # Pre-fill the same way transcribed steps pre-fill confirmed_steps: the
+    # lecturer sees it immediately and can edit or overwrite it before
+    # Confirm & Mark writes anything final. Never overwrite with a null - an
+    # illegible/absent name should leave whatever was there (typed, or the
+    # "Student N" fallback) rather than blank the field.
+    if identity.name:
+        submission.student_pseudonym = identity.name
+    if identity.student_id:
+        submission.student_id = identity.student_id
     _invalidate_downstream(submission)
     save_submission(submission)
     return submission
@@ -400,6 +422,21 @@ def api_update_steps(submission_id: str, body: UpdateSteps) -> Submission:
         for i, step in enumerate(body.steps, start=1)
     ]
     _invalidate_downstream(submission)
+    save_submission(submission)
+    return submission
+
+
+@app.put("/api/submissions/{submission_id}/identity")
+def api_update_identity(submission_id: str, body: UpdateIdentity) -> Submission:
+    """Confirm (or overwrite) the student's name/id after Confirm-screen review.
+
+    Purely metadata about who the work belongs to - unlike /steps, this never
+    invalidates verification/marks/feedback, since editing a name doesn't
+    change whether the maths was correct.
+    """
+    submission = _submission(submission_id)
+    submission.student_pseudonym = body.name or submission.student_pseudonym
+    submission.student_id = body.student_id
     save_submission(submission)
     return submission
 

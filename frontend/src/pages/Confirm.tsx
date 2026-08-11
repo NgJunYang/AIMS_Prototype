@@ -2,11 +2,22 @@ import { Plus } from "lucide-react";
 import { useWorkbench } from "../state/WorkbenchContext";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
+import { Badge } from "../components/ui/Badge";
+import { Input, Label } from "../components/ui/Field";
 import { StepList } from "../components/StepList";
 
 export default function Confirm({ onMarked }: { onMarked: () => void }) {
-  const { state, addStep, updateStepLatex, removeStep, confirmAndMark, loadPagePreview, transcribeStagedFile } =
-    useWorkbench();
+  const {
+    state,
+    addStep,
+    updateStepLatex,
+    removeStep,
+    confirmAndMark,
+    loadPagePreview,
+    transcribeStagedFile,
+    setLocalName,
+    setLocalStudentId,
+  } = useWorkbench();
 
   if (!state.submissionId) {
     return (
@@ -20,13 +31,47 @@ export default function Confirm({ onMarked }: { onMarked: () => void }) {
 
   const hasTranscription = !!state.submission?.transcription;
   const notes = state.submission?.transcription?.notes;
+  const extractedIdentity = state.submission?.extracted_identity;
+  // An extraction attempt happening isn't the same as it finding anything -
+  // don't claim "read from photo" when both fields came back null.
+  const identityWasExtracted = !!(extractedIdentity && (extractedIdentity.name || extractedIdentity.student_id));
+  const identityLowConfidence = extractedIdentity?.confidence === "low";
+  const identityFoundNothing = !!extractedIdentity && !extractedIdentity.name && !extractedIdentity.student_id;
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <p className="mb-1 font-mono text-xs uppercase tracking-wide text-text-muted">Confirm</p>
-      <h1 className="mb-1 text-2xl font-semibold">
-        {state.currentQuestion?.id} — {state.submission?.student_pseudonym || "Student"}
-      </h1>
+      <h1 className="mb-4 text-2xl font-semibold">{state.currentQuestion?.id}</h1>
+
+      <Card className="mb-6">
+        <div className="flex flex-wrap items-end gap-3">
+          <div>
+            <Label>Name</Label>
+            <Input
+              value={state.localName}
+              onChange={(e) => setLocalName(e.target.value)}
+              placeholder="Student name"
+              className="w-56"
+            />
+          </div>
+          <div>
+            <Label>Student ID</Label>
+            <Input
+              value={state.localStudentId}
+              onChange={(e) => setLocalStudentId(e.target.value)}
+              placeholder="e.g. A1234567"
+              className="w-40"
+            />
+          </div>
+          {identityWasExtracted && (
+            <Badge tone={identityLowConfidence ? "warning" : "success"}>
+              {identityLowConfidence ? "⚠ read from photo — check this" : "read from photo"}
+            </Badge>
+          )}
+          {identityFoundNothing && <Badge tone="neutral">no name/ID visible on photo — enter manually</Badge>}
+        </div>
+      </Card>
+
       <p className="mb-8 max-w-2xl text-sm text-text-muted">
         This is the record of what the student wrote. Everything downstream — the symbolic verification, the marks,
         the feedback — is generated from what you confirm here, not from the raw machine transcription. Fix

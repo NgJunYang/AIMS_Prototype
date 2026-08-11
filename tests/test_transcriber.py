@@ -1,14 +1,18 @@
 import hashlib
 
 from app import transcriber
-from app.models import Transcription
+from app.models import IdentityExtraction, Transcription
 
 # The student prompt is hashed into llm.cache_key, so a one-character edit
 # invalidates every warmed transcription and turns the offline photo demo into
 # a 503. If this test fails you have changed the prompt: that may be correct,
 # but the cache must then be re-warmed and this hash updated deliberately.
+#
+# Updated deliberately: the student prompt now also asks the model to read a
+# name/student id off the page (see _STUDENT_FRAMING). The lecturer-page
+# prompt, and its cache key, are untouched.
 STUDENT_PROMPT_SHA256 = (
-    "bd6a1c41694eed0c4a96ffb2fe97f14bbd1c341354bb43f76e556069c090ea63"
+    "3bbe14236b77214c17da05c50437d25ecb3113448735914c55000ad905e28608"
 )
 
 
@@ -109,22 +113,84 @@ def test_transcribe_parses_a_cached_response(monkeypatch):
             {"latex": "x = 5", "confidence": "low"},
         ],
         "notes": "second line is faint",
+        "student_name": "Jamie Lee",
+        "student_id": "A1234567",
+        "identity_confidence": "high",
     }
     monkeypatch.setattr(transcriber, "complete_json", lambda **kwargs: fake)
 
-    result = transcriber.transcribe(image_b64="fake", media_type="image/jpeg")
+    result, identity = transcriber.transcribe(image_b64="fake", media_type="image/jpeg")
 
     assert isinstance(result, Transcription)
     assert [s.index for s in result.steps] == [1, 2]
     assert result.steps[1].confidence == "low"
     assert result.notes == "second line is faint"
+    assert isinstance(identity, IdentityExtraction)
+    assert identity.name == "Jamie Lee"
+    assert identity.student_id == "A1234567"
+    assert identity.confidence == "high"
 
 
 def test_transcribe_drops_empty_lines(monkeypatch):
-    fake = {"steps": [{"latex": "  ", "confidence": "high"}, {"latex": "x = 1"}], "notes": ""}
+    fake = {
+        "steps": [{"latex": "  ", "confidence": "high"}, {"latex": "x = 1"}],
+        "notes": "",
+        "student_name": None,
+        "student_id": None,
+        "identity_confidence": "low",
+    }
     monkeypatch.setattr(transcriber, "complete_json", lambda **kwargs: fake)
 
-    result = transcriber.transcribe(image_b64="fake", media_type="image/jpeg")
+    result, identity = transcriber.transcribe(image_b64="fake", media_type="image/jpeg")
 
     assert len(result.steps) == 1
     assert result.steps[0].index == 1
+
+
+def test_transcribe_never_fabricates_an_absent_identity(monkeypatch):
+    """Degrade-not-fabricate, the same standard applied to a mistranscribed
+    step: no name/id visible must come back null, never guessed - a wrong
+    name misattributes someone else's grade."""
+    fake = {
+        "steps": [{"latex": "x = 1", "confidence": "high"}],
+        "notes": "",
+        "student_name": None,
+        "student_id": None,
+        "identity_confidence": "low",
+    }
+    monkeypatch.setattr(transcriber, "complete_json", lambda **kwargs: fake)
+
+    _, identity = transcriber.transcribe(image_b64="fake", media_type="image/jpeg")
+
+    assert identity.name is None
+    assert identity.student_id is None
+    assert identity.confidence == "low"
+
+
+def test_transcribe_treats_blank_identity_strings_as_absent(monkeypatch):
+    """A model that answers "" instead of null must not save an empty-string
+    name over the lecturer's typed one or the "Student N" fallback."""
+    fake = {
+        "steps": [{"latex": "x = 1", "confidence": "high"}],
+        "notes": "",
+        "student_name": "",
+        "student_id": "",
+        "identity_confidence": "low",
+    }
+    monkeypatch.setattr(transcriber, "complete_json", lambda **kwargs: fake)
+
+    _, identity = transcriber.transcribe(image_b64="fake", media_type="image/jpeg")
+
+    assert identity.name is None
+    assert identity.student_id is None
+
+
+def test_transcribe_model_solution_return_type_is_unchanged(monkeypatch):
+    """No identity extraction on a lecturer's own page - still a bare
+    Transcription, not a tuple, so every existing caller keeps working."""
+    fake = {"steps": [{"latex": "x = 1", "confidence": "high"}], "notes": ""}
+    monkeypatch.setattr(transcriber, "complete_json", lambda **kwargs: fake)
+
+    result = transcriber.transcribe_model_solution(image_b64="fake")
+
+    assert isinstance(result, Transcription)

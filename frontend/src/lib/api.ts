@@ -65,6 +65,12 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ steps }),
     }),
+  updateIdentity: (submissionId: string, name: string | null, studentId: string | null) =>
+    apiFetch(`/api/submissions/${submissionId}/identity`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, student_id: studentId }),
+    }),
   mark: (submissionId: string) => apiFetch(`/api/submissions/${submissionId}/mark`, { method: "POST" }),
   regeneratePractice: (submissionId: string, questionType: string) =>
     apiFetch(`/api/submissions/${submissionId}/practice`, {

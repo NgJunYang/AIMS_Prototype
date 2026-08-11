@@ -63,10 +63,20 @@ export interface Marks {
   [key: string]: unknown;
 }
 
+export interface IdentityExtraction {
+  name: string | null;
+  student_id: string | null;
+  confidence: Confidence;
+}
+
 export interface Submission {
   id: string;
   question_id: string;
   student_pseudonym?: string;
+  student_id?: string | null;
+  /** Raw audit record of what the vision model read off the page, if a photo
+   * was uploaded. Never authoritative on its own — see student_pseudonym/student_id. */
+  extracted_identity?: IdentityExtraction | null;
   image_filename?: string | null;
   source_page?: number | null;
   source_page_count?: number | null;

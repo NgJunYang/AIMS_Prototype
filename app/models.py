@@ -38,6 +38,21 @@ class Transcription(BaseModel):
     notes: str = ""
 
 
+class IdentityExtraction(BaseModel):
+    """A name/student id read off a student's photographed page, if any.
+
+    Raw audit record only - never authoritative on its own. Mirrors the
+    transcription/confirmed_steps split: `Submission.student_pseudonym` and
+    `Submission.student_id` are what's actually used, and start out equal to
+    this extraction but remain lecturer-editable right up to confirmation,
+    the same trust boundary already applied to transcribed steps.
+    """
+
+    name: str | None = None
+    student_id: str | None = None
+    confidence: Confidence = "high"
+
+
 class Question(BaseModel):
     id: str
     prompt: str
@@ -236,3 +251,8 @@ class Submission(BaseModel):
     feedback: Feedback | None = None
     practice: list[PracticeQuestion] = Field(default_factory=list)
     student_pseudonym: str = "Student A"
+    student_id: str | None = None
+    # Raw audit record of what the vision model read off the page, if a photo
+    # was uploaded - see IdentityExtraction. None for manual entry (no photo)
+    # and for submissions created before this field existed.
+    extracted_identity: IdentityExtraction | None = None

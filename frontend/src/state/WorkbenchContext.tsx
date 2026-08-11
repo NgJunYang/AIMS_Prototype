@@ -22,6 +22,11 @@ interface WorkbenchState {
   confirmBusy: boolean;
   confirmBusyMessage: string;
   confirmError: string | null;
+  /** Editable identity fields shown on Confirm — pre-filled from whatever the
+   * vision model read off the photo (if any), same trust boundary as
+   * localSteps: nothing is authoritative until Confirm & Mark saves it. */
+  localName: string;
+  localStudentId: string;
 }
 
 const initialState: WorkbenchState = {
@@ -40,6 +45,8 @@ const initialState: WorkbenchState = {
   confirmBusy: false,
   confirmBusyMessage: "",
   confirmError: null,
+  localName: "",
+  localStudentId: "",
 };
 
 function problemsFrom(err: unknown): string[] {
@@ -100,6 +107,8 @@ function useWorkbenchValue() {
           submissionId: sub.id,
           submission: sub,
           localSteps: [],
+          localName: sub.student_pseudonym || "",
+          localStudentId: sub.student_id || "",
           uploadedImageUrl: url,
           pendingUploadFile: null,
           uploadSourceType: "image",
@@ -118,6 +127,8 @@ function useWorkbenchValue() {
             localSteps: ((updated.transcription && updated.transcription.steps) || []).map((st: Step) => ({
               ...st,
             })),
+            localName: updated.student_pseudonym || s.localName,
+            localStudentId: updated.student_id || s.localStudentId,
           }));
         } catch (err) {
           patch({ confirmError: confirmErrorMessage(err) });
@@ -131,6 +142,8 @@ function useWorkbenchValue() {
         submissionId: sub.id,
         submission: sub,
         localSteps: [],
+        localName: sub.student_pseudonym || "",
+        localStudentId: sub.student_id || "",
         uploadedImageUrl: null,
         pendingUploadFile: file,
         uploadSourceType: "pdf",
@@ -187,6 +200,8 @@ function useWorkbenchValue() {
         patch({
           submission: updated,
           localSteps: ((updated.transcription && updated.transcription.steps) || []).map((s: Step) => ({ ...s })),
+          localName: updated.student_pseudonym || state.localName,
+          localStudentId: updated.student_id || state.localStudentId,
         });
       } catch (err) {
         patch({ confirmError: confirmErrorMessage(err) });
@@ -194,7 +209,7 @@ function useWorkbenchValue() {
         patch({ confirmBusy: false });
       }
     },
-    [state.pendingUploadFile, state.submissionId, patch]
+    [state.pendingUploadFile, state.submissionId, state.localName, state.localStudentId, patch]
   );
 
   const beginManualEntry = useCallback(
@@ -214,10 +229,18 @@ function useWorkbenchValue() {
         localSteps: prefill.length
           ? prefill.map((s, i) => ({ index: i + 1, latex: s.latex, confidence: s.confidence || "high" }))
           : [{ index: 1, latex: "", confidence: "high" }],
+        localName: sub.student_pseudonym || "",
+        localStudentId: sub.student_id || "",
       });
       onNavigate();
     },
     [state.currentQuestion, patch, nextStudentPseudonym]
+  );
+
+  const setLocalName = useCallback((name: string) => setState((s) => ({ ...s, localName: name })), []);
+  const setLocalStudentId = useCallback(
+    (studentId: string) => setState((s) => ({ ...s, localStudentId: studentId })),
+    []
   );
 
   const addStep = useCallback(() => {
@@ -246,6 +269,7 @@ function useWorkbenchValue() {
       const payload = state.localSteps.map((s, i) => ({ index: i + 1, latex: s.latex, confidence: s.confidence || "high" }));
       try {
         await api.updateSteps(state.submissionId, payload);
+        await api.updateIdentity(state.submissionId, state.localName.trim() || null, state.localStudentId.trim() || null);
         patch({ confirmBusyMessage: "Marking — this can take several seconds…" });
         const marked = await api.mark(state.submissionId);
         patch({ submission: marked });
@@ -256,7 +280,7 @@ function useWorkbenchValue() {
         patch({ confirmBusy: false });
       }
     },
-    [state.submissionId, state.localSteps, patch]
+    [state.submissionId, state.localSteps, state.localName, state.localStudentId, patch]
   );
 
   const reloadQuestions = useCallback(
@@ -284,6 +308,8 @@ function useWorkbenchValue() {
     loadPagePreview,
     transcribeStagedFile,
     setSubmission,
+    setLocalName,
+    setLocalStudentId,
     addStep,
     updateStepLatex,
     removeStep,
