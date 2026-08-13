@@ -14,6 +14,11 @@ from PIL import Image, ImageOps
 
 SourceType = Literal["image", "pdf"]
 
+# Anthropic's documented sweet spot for vision input: legible for handwritten
+# maths, and quality plateaus above this while both request size and token
+# cost keep climbing. See the matching comment in render_page().
+_MAX_DIMENSION = 1568
+
 
 class UnsupportedUpload(ValueError):
     """Raised when bytes are neither a decodable image nor a PDF."""
@@ -95,6 +100,13 @@ def render_page(raw: bytes, page: int = 1, dpi: int = 200) -> bytes:
             # than crashing on .convert(None).
             corrected = ImageOps.exif_transpose(image) or image
             corrected = corrected.convert("RGB")
+            # A phone photo can be 3000-4000px on the long edge - Claude's
+            # vision input caps at 10 MB, and cost scales with pixel count
+            # regardless. 1568px is Anthropic's own documented sweet spot:
+            # comfortably legible for handwriting, quality plateaus above
+            # it. thumbnail() only ever shrinks, never enlarges, so smaller
+            # images (test fixtures, most PDF pages) pass through untouched.
+            corrected.thumbnail((_MAX_DIMENSION, _MAX_DIMENSION), Image.LANCZOS)
             buffer = BytesIO()
             corrected.save(buffer, format="PNG")
             return buffer.getvalue()

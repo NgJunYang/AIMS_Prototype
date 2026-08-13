@@ -61,6 +61,19 @@ def test_render_page_of_a_plain_image_round_trips_as_png():
     assert out.size == (10, 6)
 
 
+def test_render_page_downscales_a_phone_sized_photo():
+    """A modern phone photo (e.g. 4000x3000, ~12MP) must not pass through at
+    full resolution: Claude's vision input hard-caps at 10 MB, and cost
+    scales with pixel count regardless of whether the cap is hit."""
+    raw = _png_bytes(size=(4000, 3000), color=(120, 60, 200))
+    rendered = render_page(raw)
+    out = Image.open(io.BytesIO(rendered))
+    assert out.width <= 1568 and out.height <= 1568
+    # Aspect ratio preserved (4000x3000 is 4:3).
+    assert out.width / out.height == pytest.approx(4000 / 3000, rel=0.01)
+    assert len(rendered) < 10 * 1024 * 1024
+
+
 def test_render_page_of_a_pdf_page_produces_a_reasonably_sized_image():
     raw = _pdf_bytes(page_count=1)
     rendered = render_page(raw, page=1)
