@@ -9,26 +9,29 @@
 @import "@fontsource/ibm-plex-mono/600.css";
 
 @theme {
-  --color-bg: #0e1116;
-  --color-surface: #171b22;
-  --color-surface-2: #1f242d;
-  --color-border: #2a313c;
-  --color-text: #f3f5f7;
-  --color-text-muted: #9aa4b2;
+  /* Warm paper, parchment, ink, and softly desaturated annotation colours. */
+  --color-bg: #f5f0e6;
+  --color-surface: #fffdf8;
+  --color-surface-2: #eee7d9;
+  --color-border: #d4c8b4;
+  --color-text: #302b24;
+  --color-text-muted: #71685b;
 
-  --color-accent: #4c7dff;
-  --color-accent-soft: #1b2a52;
-  --color-accent-hover: #6a94ff;
+  --color-accent: #55756b;
+  --color-accent-soft: #dfe9e3;
+  --color-accent-hover: #3f5d55;
 
-  --color-success: #35c48f;
-  --color-success-soft: #123328;
-  --color-danger: #ff5c72;
-  --color-danger-soft: #3a1620;
-  --color-warning: #ffb454;
-  --color-warning-soft: #3a2a12;
+  --color-success: #3f6b50;
+  --color-success-soft: #e2ede3;
+  --color-danger: #a34f43;
+  --color-danger-soft: #f3e1dc;
+  --color-warning: #94652d;
+  --color-warning-soft: #f2e7cf;
 
-  --font-display: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-display: "IBM Plex Sans", -apple-system, BlinkMacSystemFont,
+    "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo,
+    Consolas, monospace;
 }
 
 html,
@@ -38,13 +41,29 @@ body {
   font-family: var(--font-display);
 }
 
+body {
+  background-image:
+    radial-gradient(
+      circle at 12% 8%,
+      rgb(255 253 248 / 0.75),
+      transparent 28rem
+    ),
+    linear-gradient(
+      135deg,
+      rgb(212 200 180 / 0.09) 25%,
+      transparent 25% 75%,
+      rgb(212 200 180 / 0.09) 75%
+    );
+  background-size: auto, 18px 18px;
+}
+
 #root {
   min-height: 100vh;
 }
 
 ::selection {
   background: var(--color-accent);
-  color: white;
+  color: var(--color-surface);
 }
 
 * {

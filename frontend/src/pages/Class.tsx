@@ -90,7 +90,7 @@ export default function Class() {
                   {
                     label: "Students affected",
                     data: counts.map((c) => c.count),
-                    backgroundColor: "#ff5c72",
+                    backgroundColor: "#a34f43",
                     borderRadius: 4,
                   },
                 ],
@@ -99,10 +99,36 @@ export default function Class() {
                 indexAxis: "y" as const,
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
+                plugins: {
+                  legend: {
+                    display: false,
+                  },
+                },
                 scales: {
-                  x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: "#2a313c" } },
-                  y: { grid: { display: false } },
+                  x: {
+                    beginAtZero: true,
+                    ticks: {
+                      precision: 0,
+                      color: "#71685b",
+                    },
+                    grid: {
+                      color: "#d4c8b4",
+                    },
+                    border: {
+                      color: "#d4c8b4",
+                    },
+                  },
+                  y: {
+                    ticks: {
+                      color: "#71685b",
+                    },
+                    grid: {
+                      display: false,
+                    },
+                    border: {
+                      color: "#d4c8b4",
+                    },
+                  },
                 },
               }}
             />

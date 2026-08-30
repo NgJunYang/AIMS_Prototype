@@ -46,7 +46,7 @@ export default function Landing({ onStart }: { onStart: () => void }) {
           className="pointer-events-none absolute inset-0 -z-10 opacity-40"
           style={{
             backgroundImage:
-              "radial-gradient(circle at 20% 20%, rgba(76,125,255,0.18), transparent 45%), radial-gradient(circle at 80% 0%, rgba(53,196,143,0.10), transparent 40%)",
+              "radial-gradient(circle at 20% 20%, rgba(85,117,107,0.20), transparent 45%), radial-gradient(circle at 80% 0%, rgba(148,101,45,0.12), transparent 40%)",
           }}
         />
         <motion.div
