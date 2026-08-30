@@ -5,9 +5,9 @@ import { Button } from "../components/ui/Button";
 const pipeline = [
   { icon: Camera, label: "Photographed" },
   { icon: PenLine, label: "Transcribed" },
-  { icon: CheckCircle2, label: "Confirmed" },
   { icon: ShieldCheck, label: "Verified" },
-  { icon: ClipboardCheck, label: "Marked" },
+  { icon: ClipboardCheck, label: "Drafted" },
+  { icon: CheckCircle2, label: "Reviewed" },
 ];
 
 const features = [
@@ -19,7 +19,7 @@ const features = [
   {
     icon: CheckCircle2,
     title: "You're always the last word",
-    body: "AIMS transcribes the handwriting, but nothing is ever marked from what the AI read. You confirm the transcription first — every time.",
+    body: "OCR can produce an immediate draft, but never a final decision. Correcting the transcription refreshes every score and comment before you approve it.",
   },
   {
     icon: Sparkles,
@@ -68,8 +68,8 @@ export default function Landing({ onStart }: { onStart: () => void }) {
             A mark you don't have to take on faith.
           </motion.h1>
           <motion.p variants={item} className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-text-muted">
-            Photograph a student's handwritten working. Claude transcribes it, you confirm it, an independent
-            symbolic solver verifies it — then AIMS marks against your rubric and writes the feedback.
+            Photograph a student's handwritten working. AIMS transcribes it, checks the mathematics, and prepares a
+            clearly labelled assessment draft — ready for you to correct, refresh, and approve.
           </motion.p>
           <motion.div variants={item} className="mt-10 flex items-center justify-center gap-3">
             <Button onClick={onStart} className="px-6 py-3 text-base">

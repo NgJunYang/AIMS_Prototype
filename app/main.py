@@ -19,6 +19,7 @@ from app.llm import OfflineCacheMiss
 from app.marker import mark as mark_submission
 from app.models import (
     ClassSummary,
+    Feedback,
     IdentityExtraction,
     Question,
     Step,
@@ -77,6 +78,12 @@ class UpdateIdentity(BaseModel):
 class Override(BaseModel):
     criterion_id: str
     proposed: int
+
+
+class UpdateFeedback(BaseModel):
+    what_went_well: str = Field(max_length=4000)
+    what_went_wrong: str = Field(max_length=4000)
+    how_to_improve: str = Field(max_length=4000)
 
 
 class QuestionCheck(BaseModel):
@@ -492,6 +499,28 @@ def api_override(submission_id: str, body: Override) -> Submission:
     raise HTTPException(status_code=404, detail=f"unknown criterion: {body.criterion_id}")
 
 
+@app.put("/api/submissions/{submission_id}/feedback")
+def api_update_feedback(submission_id: str, body: UpdateFeedback) -> Submission:
+    """Persist the lecturer's edits to the generated feedback draft.
+
+    References remain machine-generated provenance and are intentionally kept
+    separate from the editable prose. A submission must have been marked first:
+    otherwise there is no draft for the lecturer to review or amend.
+    """
+    submission = _submission(submission_id)
+    if submission.feedback is None:
+        raise HTTPException(status_code=409, detail="no feedback draft to edit yet")
+
+    submission.feedback = Feedback(
+        what_went_well=body.what_went_well,
+        what_went_wrong=body.what_went_wrong,
+        how_to_improve=body.how_to_improve,
+        references=submission.feedback.references,
+    )
+    save_submission(submission)
+    return submission
+
+
 @app.post("/api/submissions/{submission_id}/practice")
 def api_regenerate_practice(submission_id: str, body: RegeneratePractice) -> Submission:
     """Regenerate practice in a chosen framing, without re-marking.
@@ -525,16 +554,18 @@ def api_regenerate_practice(submission_id: str, body: RegeneratePractice) -> Sub
 
 
 @app.get("/api/class/summary")
-def api_class_summary() -> ClassSummary:
+def api_class_summary(sample: bool = False) -> ClassSummary:
     """The cohort view, computed from real submissions whenever any exist.
 
     Falls back to the seeded fixture only on a genuinely empty machine (a
     fresh clone has no submissions - data/submissions/ is gitignored), and
     labels it as sample data when it does. "Computed from 4 real submissions"
-    is worth far more than an unlabelled illustrative 31.
+    is worth far more than an unlabelled illustrative 31. ``sample=true`` is
+    the explicit pitch-safe preview: it keeps the six-student demonstration
+    available even after the live workflow has marked a single script.
     """
     submissions = list_submissions()
-    if submissions:
+    if submissions and not sample:
         return summarise(submissions)
 
     seeded = json.loads((SEEDS_DIR / "class_summary.json").read_text(encoding="utf-8"))

@@ -84,7 +84,16 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ criterion_id: criterionId, proposed }),
     }),
-  classSummary: () => apiFetch("/api/class/summary"),
+  updateFeedback: (
+    submissionId: string,
+    feedback: { what_went_well: string; what_went_wrong: string; how_to_improve: string }
+  ) =>
+    apiFetch(`/api/submissions/${submissionId}/feedback`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(feedback),
+    }),
+  classSummary: (sample = false) => apiFetch(`/api/class/summary${sample ? "?sample=true" : ""}`),
   questionTemplate: () => apiFetch("/api/question-template"),
   validateQuestion: (question: any) =>
     apiFetch("/api/questions/validate", {

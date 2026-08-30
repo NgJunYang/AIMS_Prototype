@@ -268,6 +268,42 @@ def test_override_unknown_criterion_returns_404(monkeypatch):
     assert response.status_code == 404
 
 
+def test_feedback_edit_persists_lecturer_prose(monkeypatch):
+    _stub_llm(monkeypatch)
+    submission_id = _new_submission()
+    client.put(
+        f"/api/submissions/{submission_id}/steps",
+        json={"steps": [{"index": 1, "latex": "x^2 = 5x"}]},
+    )
+    client.post(f"/api/submissions/{submission_id}/mark")
+
+    body = client.put(
+        f"/api/submissions/{submission_id}/feedback",
+        json={
+            "what_went_well": "Clear first step.",
+            "what_went_wrong": "One solution was lost.",
+            "how_to_improve": "Factor before solving.",
+        },
+    ).json()
+
+    assert body["feedback"]["what_went_well"] == "Clear first step."
+    assert body["feedback"]["what_went_wrong"] == "One solution was lost."
+    assert body["feedback"]["how_to_improve"] == "Factor before solving."
+
+
+def test_feedback_edit_before_marking_returns_409():
+    submission_id = _new_submission()
+    response = client.put(
+        f"/api/submissions/{submission_id}/feedback",
+        json={
+            "what_went_well": "",
+            "what_went_wrong": "",
+            "how_to_improve": "",
+        },
+    )
+    assert response.status_code == 409
+
+
 def test_offline_cache_miss_returns_503_with_a_helpful_hint(monkeypatch):
     from app.llm import OfflineCacheMiss
 
@@ -929,6 +965,20 @@ def test_class_summary_computes_from_real_submissions(monkeypatch):
     assert sorted(row["pseudonym"] for row in body["students"]) == ["Ann", "Ben"]
     assert body["misconception_counts"][0]["count"] == 2
     assert "2 of 2" in body["recommendation"]
+
+
+def test_class_summary_can_force_the_demo_cohort_when_real_submissions_exist(monkeypatch):
+    _stub_llm(monkeypatch)
+    created = client.post(
+        "/api/submissions", json={"question_id": "q2", "student_pseudonym": "Live student"}
+    ).json()
+    client.post(f"/api/submissions/{created['id']}/mark")
+
+    body = client.get("/api/class/summary?sample=true").json()
+
+    assert body["source"] == "sample"
+    assert body["cohort_size"] == 6
+    assert all(row["pseudonym"] != "Live student" for row in body["students"])
 
 
 def test_class_summary_skips_a_corrupt_submission_file(monkeypatch):

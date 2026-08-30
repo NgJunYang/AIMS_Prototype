@@ -1,5 +1,4 @@
 import { useRef, useState } from "react";
-import { motion } from "motion/react";
 import { AlertTriangle } from "lucide-react";
 import { useWorkbench } from "../state/WorkbenchContext";
 import { useToast } from "../components/ui/Toast";

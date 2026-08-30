@@ -63,7 +63,8 @@ export default function Setup({ onSubmissionCreated }: { onSubmissionCreated: ()
           { latex: "x = 5", confidence: "high" },
         ],
         studentName,
-        onSubmissionCreated
+        onSubmissionCreated,
+        q2
       );
     } catch (err) {
       toast.error(wb.problemsFrom(err).join(" "));

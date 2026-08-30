@@ -9,6 +9,7 @@ import {
 } from "chart.js";
 import { Card } from "../components/ui/Card";
 import { Badge } from "../components/ui/Badge";
+import { Button } from "../components/ui/Button";
 import { api } from "../lib/api";
 import { humanizeTag } from "../lib/katex";
 
@@ -28,13 +29,16 @@ interface ClassSummary {
 export default function Class() {
   const [summary, setSummary] = useState<ClassSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showSample, setShowSample] = useState(false);
 
   useEffect(() => {
+    setSummary(null);
+    setError(null);
     api
-      .classSummary()
+      .classSummary(showSample)
       .then(setSummary)
       .catch((err) => setError("Could not load class summary: " + (err instanceof Error ? err.message : String(err))));
-  }, []);
+  }, [showSample]);
 
   if (error) {
     return (
@@ -56,12 +60,19 @@ export default function Class() {
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
       <p className="mb-1 font-mono text-xs uppercase tracking-wide text-text-muted">Class</p>
-      <div className="mb-6 flex items-center gap-3">
-        <h1 className="text-2xl font-semibold">Cohort overview</h1>
-        {summary.source_note && (
-          <Badge tone={summary.source === "computed" ? "success" : "warning"}>
-            {summary.source === "computed" ? "Live data" : "Sample data"}
-          </Badge>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-semibold">Cohort overview</h1>
+          {summary.source_note && (
+            <Badge tone={summary.source === "computed" ? "success" : "warning"}>
+              {summary.source === "computed" ? "Live data" : "Demo cohort"}
+            </Badge>
+          )}
+        </div>
+        {(summary.source === "computed" || showSample) && (
+          <Button variant="secondary" className="px-3 py-1.5 text-xs" onClick={() => setShowSample((value) => !value)}>
+            {showSample ? "Return to live data" : "View demo cohort"}
+          </Button>
         )}
       </div>
       {summary.source_note && <p className="-mt-4 mb-6 text-sm text-text-muted">{summary.source_note}</p>}

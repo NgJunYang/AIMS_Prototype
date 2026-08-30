@@ -5,16 +5,14 @@ import { WorkbenchProvider, useWorkbench } from "./state/WorkbenchContext";
 import Landing from "./pages/Landing";
 import Setup from "./pages/Setup";
 import Confirm from "./pages/Confirm";
-import Review from "./pages/Review";
 import Class from "./pages/Class";
 
-export type Screen = "landing" | "setup" | "confirm" | "review" | "class";
+export type Screen = "landing" | "setup" | "confirm" | "class";
 
 const APP_SCREENS: { id: Screen; label: string }[] = [
   { id: "setup", label: "Setup" },
-  { id: "confirm", label: "Confirm" },
-  { id: "review", label: "Review" },
-  { id: "class", label: "Class" },
+  { id: "confirm", label: "Workbench" },
+  { id: "class", label: "Analytics" },
 ];
 
 function Shell() {
@@ -25,7 +23,7 @@ function Shell() {
     <div className="min-h-screen bg-bg text-text">
       {screen !== "landing" && (
         <header className="sticky top-0 z-30 border-b border-border bg-bg/90 backdrop-blur">
-          <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
+          <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-3">
             <button
               onClick={() => setScreen("landing")}
               className="font-mono text-sm font-semibold tracking-tight text-text hover:text-accent transition-colors"
@@ -34,7 +32,7 @@ function Shell() {
             </button>
             <nav className="flex gap-1">
               {APP_SCREENS.map((s) => {
-                const disabled = (s.id === "confirm" || s.id === "review") && !state.submissionId;
+                const disabled = s.id === "confirm" && !state.submissionId;
                 return (
                   <button
                     key={s.id}
@@ -69,8 +67,7 @@ function Shell() {
       >
         {screen === "landing" && <Landing onStart={() => setScreen("setup")} />}
         {screen === "setup" && <Setup onSubmissionCreated={() => setScreen("confirm")} />}
-        {screen === "confirm" && <Confirm onMarked={() => setScreen("review")} />}
-        {screen === "review" && <Review />}
+        {screen === "confirm" && <Confirm />}
         {screen === "class" && <Class />}
       </motion.main>
     </div>

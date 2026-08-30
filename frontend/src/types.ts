@@ -51,6 +51,7 @@ export interface Verification {
 export interface CriterionMark {
   criterion_id: string;
   proposed: number;
+  max: number;
   justification: string;
   evidence_step?: number | null;
   overridden?: boolean;
@@ -60,7 +61,16 @@ export interface Marks {
   criteria: CriterionMark[];
   total_proposed?: number;
   total_max?: number;
+  misconceptions?: string[];
+  warnings?: string[];
   [key: string]: unknown;
+}
+
+export interface Feedback {
+  what_went_well: string;
+  what_went_wrong: string;
+  how_to_improve: string;
+  references: string[];
 }
 
 export interface IdentityExtraction {
@@ -84,7 +94,7 @@ export interface Submission {
   confirmed_steps?: Step[] | null;
   verification?: Verification | null;
   marks?: Marks | null;
-  feedback?: string | null;
+  feedback?: Feedback | null;
   misconceptions?: string[] | null;
   practice?: unknown;
   [key: string]: unknown;

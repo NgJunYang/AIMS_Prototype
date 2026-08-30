@@ -115,6 +115,7 @@ function useWorkbenchValue() {
           uploadPageCount: 1,
           uploadSelectedPage: 1,
           uploadPreviewB64: null,
+          confirmError: null,
         });
         onNavigate();
         // fire and forget-ish: transcribe immediately, mirroring the old flow
@@ -130,6 +131,11 @@ function useWorkbenchValue() {
             localName: updated.student_pseudonym || s.localName,
             localStudentId: updated.student_id || s.localStudentId,
           }));
+          if ((updated.confirmed_steps || []).length) {
+            patch({ confirmBusyMessage: "Generating draft score and feedback…" });
+            const marked = await api.mark(sub.id);
+            patch({ submission: marked });
+          }
         } catch (err) {
           patch({ confirmError: confirmErrorMessage(err) });
         } finally {
@@ -150,6 +156,7 @@ function useWorkbenchValue() {
         uploadPageCount: 1,
         uploadSelectedPage: 1,
         uploadPreviewB64: null,
+        confirmError: null,
       });
       onNavigate();
       setState((s) => ({ ...s, confirmBusy: true, confirmBusyMessage: "Reading PDF…" }));
@@ -203,6 +210,11 @@ function useWorkbenchValue() {
           localName: updated.student_pseudonym || state.localName,
           localStudentId: updated.student_id || state.localStudentId,
         });
+        if ((updated.confirmed_steps || []).length) {
+          patch({ confirmBusyMessage: "Generating draft score and feedback…" });
+          const marked = await api.mark(state.submissionId);
+          patch({ submission: marked });
+        }
       } catch (err) {
         patch({ confirmError: confirmErrorMessage(err) });
       } finally {
@@ -213,8 +225,17 @@ function useWorkbenchValue() {
   );
 
   const beginManualEntry = useCallback(
-    async (prefill: { latex: string; confidence?: "high" | "low" }[], studentName: string, onNavigate: () => void) => {
-      const question = state.currentQuestion;
+    async (
+      prefill: { latex: string; confidence?: "high" | "low" }[],
+      studentName: string,
+      onNavigate: () => void,
+      questionOverride?: Question
+    ) => {
+      // The sample flow may switch the selected question and start immediately.
+      // React state updates are asynchronous, so accept the already-resolved
+      // question instead of accidentally creating a submission against the
+      // previously selected one.
+      const question = questionOverride || state.currentQuestion;
       if (!question) return;
       const sub: Submission = await api.createSubmission(question.id, nextStudentPseudonym(studentName));
       patch({
@@ -231,8 +252,24 @@ function useWorkbenchValue() {
           : [{ index: 1, latex: "", confidence: "high" }],
         localName: sub.student_pseudonym || "",
         localStudentId: sub.student_id || "",
+        confirmError: null,
       });
       onNavigate();
+      if (prefill.length) {
+        patch({ confirmBusy: true, confirmBusyMessage: "Generating draft score and feedback…" });
+        try {
+          await api.updateSteps(
+            sub.id,
+            prefill.map((s, i) => ({ index: i + 1, latex: s.latex, confidence: s.confidence || "high" }))
+          );
+          const marked = await api.mark(sub.id);
+          patch({ submission: marked });
+        } catch (err) {
+          patch({ confirmError: confirmErrorMessage(err) });
+        } finally {
+          patch({ confirmBusy: false });
+        }
+      }
     },
     [state.currentQuestion, patch, nextStudentPseudonym]
   );
@@ -263,17 +300,17 @@ function useWorkbenchValue() {
   }, []);
 
   const confirmAndMark = useCallback(
-    async (onDone: () => void) => {
+    async (onDone?: () => void) => {
       if (!state.submissionId) return;
       patch({ confirmError: null, confirmBusy: true, confirmBusyMessage: "Saving confirmed steps…" });
       const payload = state.localSteps.map((s, i) => ({ index: i + 1, latex: s.latex, confidence: s.confidence || "high" }));
       try {
         await api.updateSteps(state.submissionId, payload);
         await api.updateIdentity(state.submissionId, state.localName.trim() || null, state.localStudentId.trim() || null);
-        patch({ confirmBusyMessage: "Marking — this can take several seconds…" });
+        patch({ confirmBusyMessage: "Refreshing draft score and feedback…" });
         const marked = await api.mark(state.submissionId);
         patch({ submission: marked });
-        onDone();
+        onDone?.();
       } catch (err) {
         patch({ confirmError: confirmErrorMessage(err) });
       } finally {
