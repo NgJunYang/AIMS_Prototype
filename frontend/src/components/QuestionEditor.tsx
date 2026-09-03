@@ -69,10 +69,8 @@ export function QuestionEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Steps become editable once a transcription exists, or when editing a
-  // question that already has a model solution — a new question's model
-  // solution originates from a photograph, not from typing.
-  const stepsUnlocked = editingId !== null || solutionTranscription !== null;
+  // A model solution can be entered manually or transcribed from a photo.
+  const stepsUnlocked = true;
   const lowConfidence = new Set(
     (solutionTranscription?.steps || []).filter((s) => s.confidence === "low").map((s) => s.latex)
   );
@@ -278,19 +276,17 @@ export function QuestionEditor({
           </p>
         </div>
 
-        {!stepsUnlocked && (
+        {!steps.length && (
           <p className="rounded-lg border border-dashed border-border p-4 text-center text-sm text-text-muted">
-            No model solution yet — photograph your handwritten working to begin.
+            Add model-solution steps manually, or photograph your handwritten working.
           </p>
         )}
-        {stepsUnlocked && (
-          <StepList
-            steps={steps.map((latex) => ({ latex }))}
-            onChange={(idx, latex) => setSteps((s) => s.map((v, i) => (i === idx ? latex : v)))}
-            onRemove={(idx) => setSteps((s) => s.filter((_, i) => i !== idx))}
-            lowConfidenceSet={lowConfidence}
-          />
-        )}
+        <StepList
+          steps={steps.map((latex) => ({ latex }))}
+          onChange={(idx, latex) => setSteps((s) => s.map((v, i) => (i === idx ? latex : v)))}
+          onRemove={(idx) => setSteps((s) => s.filter((_, i) => i !== idx))}
+          lowConfidenceSet={lowConfidence}
+        />
       </div>
 
       <div className="mb-4">
