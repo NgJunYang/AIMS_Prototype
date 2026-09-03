@@ -227,6 +227,31 @@ def test_override_updates_the_mark_and_flags_it(monkeypatch):
     assert body["marks"]["total_proposed"] == 2
 
 
+def test_override_persists_and_can_reset_to_the_latest_suggestion(monkeypatch):
+    _stub_llm(monkeypatch)
+    submission_id = _new_submission()
+    client.put(
+        f"/api/submissions/{submission_id}/steps",
+        json={"steps": [{"index": 1, "latex": "x^2 = 5x"}]},
+    )
+    marked = client.post(f"/api/submissions/{submission_id}/mark").json()
+    suggested = next(c["suggested"] for c in marked["marks"]["criteria"] if c["criterion_id"] == "C1")
+
+    edited = client.post(
+        f"/api/submissions/{submission_id}/override",
+        json={"criterion_id": "C1", "proposed": 2},
+    ).json()
+    assert next(c for c in edited["marks"]["criteria"] if c["criterion_id"] == "C1")["overridden"] is True
+
+    persisted = client.get(f"/api/submissions/{submission_id}").json()
+    assert next(c for c in persisted["marks"]["criteria"] if c["criterion_id"] == "C1")["proposed"] == 2
+
+    reset = client.post(f"/api/submissions/{submission_id}/reset-overrides").json()
+    c1 = next(c for c in reset["marks"]["criteria"] if c["criterion_id"] == "C1")
+    assert c1["proposed"] == suggested
+    assert c1["overridden"] is False
+
+
 def test_override_above_the_maximum_is_rejected(monkeypatch):
     _stub_llm(monkeypatch)
     submission_id = _new_submission()

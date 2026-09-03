@@ -7,6 +7,7 @@ import {
   FileSearch,
   Plus,
   RefreshCw,
+  RotateCcw,
   Save,
   ScanLine,
   Sparkles,
@@ -53,6 +54,7 @@ export default function Confirm() {
   const identityFoundNothing = !!extractedIdentity && !extractedIdentity.name && !extractedIdentity.student_id;
   const total = marks?.total_proposed ?? marks?.criteria.reduce((sum, c) => sum + c.proposed, 0) ?? 0;
   const totalMax = marks?.total_max ?? marks?.criteria.reduce((sum, c) => sum + c.max, 0) ?? 0;
+  const hasOverrides = !!marks?.criteria.some((criterion) => criterion.overridden);
   const verified = sub?.verification?.steps.filter((step) => step.parsed).length ?? 0;
   const savedLatex = (sub?.confirmed_steps || []).map((step) => step.latex);
   const localLatex = state.localSteps.map((step) => step.latex);
@@ -92,7 +94,7 @@ export default function Confirm() {
               <p className="font-mono text-xl font-semibold tabular-nums">
                 {total} <span className="text-sm font-normal text-text-muted">/ {totalMax}</span>
               </p>
-              <p className="text-[10px] uppercase tracking-wider text-text-muted">suggested total</p>
+              <p className="text-[10px] uppercase tracking-wider text-text-muted">{hasOverrides ? "manually adjusted total" : "suggested total"}</p>
             </div>
           )}
         </div>
@@ -211,8 +213,14 @@ export default function Confirm() {
               )}
               <div className="mb-3 flex items-center justify-between gap-2">
                 <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Rubric suggestions</p>
-                <Badge tone="warning">Lecturer review required</Badge>
+                <div className="flex items-center gap-2">
+                  {hasOverrides && <Badge tone="accent">manual edits</Badge>}
+                  <Badge tone="warning">Lecturer review required</Badge>
+                </div>
               </div>
+              {hasOverrides && (
+                <ResetRubricButton submissionId={state.submissionId!} onUpdated={wb.setSubmission} />
+              )}
               {!!marks.warnings?.length && (
                 <div className="mb-3 flex flex-col gap-2">
                   {marks.warnings.map((warning, index) => (
@@ -359,6 +367,34 @@ function RubricCriterion({ criterion, submissionId, onUpdated, onEvidence }: {
         </button>
       )}
     </div>
+  );
+}
+
+function ResetRubricButton({ submissionId, onUpdated }: {
+  submissionId: string;
+  onUpdated: (submission: any) => void;
+}) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  async function reset() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      onUpdated(await api.resetOverrides(submissionId));
+      toast.success("Rubric edits reset to the latest suggestions.");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? String(error.body?.detail || error.message) : "Could not reset rubric edits.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Button variant="secondary" className="mb-3 w-full" disabled={busy} onClick={reset}>
+      {busy ? <RefreshCw className="animate-spin" size={14} /> : <RotateCcw size={14} />}
+      Reset rubric edits to AI suggestions
+    </Button>
   );
 }
 

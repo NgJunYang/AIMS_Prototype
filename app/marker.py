@@ -139,6 +139,7 @@ def mark(
                 CriterionMark(
                     criterion_id=criterion.id,
                     proposed=0,
+                    suggested=0,
                     max=criterion.max,
                     justification="No judgement returned for this criterion — please review.",
                 )
@@ -155,6 +156,7 @@ def mark(
             CriterionMark(
                 criterion_id=criterion.id,
                 proposed=proposed,
+                suggested=proposed,
                 max=criterion.max,
                 justification=item.get("justification", ""),
                 evidence_step=item.get("evidence_step"),

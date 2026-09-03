@@ -302,10 +302,18 @@ function useWorkbenchValue() {
   const confirmAndMark = useCallback(
     async (onDone?: () => void) => {
       if (!state.submissionId) return;
-      patch({ confirmError: null, confirmBusy: true, confirmBusyMessage: "Saving confirmed steps…" });
+      patch({
+        confirmError: null,
+        confirmBusy: true,
+        confirmBusyMessage: "Saving confirmed steps…",
+        submission: state.submission
+          ? { ...state.submission, verification: null, marks: null, feedback: null, practice: [] }
+          : null,
+      });
       const payload = state.localSteps.map((s, i) => ({ index: i + 1, latex: s.latex, confidence: s.confidence || "high" }));
       try {
-        await api.updateSteps(state.submissionId, payload);
+        const saved = await api.updateSteps(state.submissionId, payload);
+        patch({ submission: saved });
         await api.updateIdentity(state.submissionId, state.localName.trim() || null, state.localStudentId.trim() || null);
         patch({ confirmBusyMessage: "Refreshing draft score and feedback…" });
         const marked = await api.mark(state.submissionId);

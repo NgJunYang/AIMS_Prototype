@@ -120,6 +120,7 @@ class VerificationReport(BaseModel):
 class CriterionMark(BaseModel):
     criterion_id: str
     proposed: int = Field(ge=0)
+    suggested: int | None = Field(default=None, ge=0)
     max: int = Field(ge=0)
     justification: str
     evidence_step: int | None = None

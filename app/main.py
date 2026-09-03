@@ -469,6 +469,9 @@ def api_mark(submission_id: str) -> Submission:
         submission.verification = verify(steps, question.model_solution_steps, question.variable)
 
     submission.marks = mark_submission(question, steps, submission.verification)
+    for criterion in submission.marks.criteria:
+        if criterion.suggested is None:
+            criterion.suggested = criterion.proposed
     submission.feedback = write_feedback(question, steps, submission.marks, submission.verification)
     submission.practice = generate_practice(
         submission.marks.misconceptions,
@@ -497,6 +500,20 @@ def api_override(submission_id: str, body: Override) -> Submission:
             return submission
 
     raise HTTPException(status_code=404, detail=f"unknown criterion: {body.criterion_id}")
+
+
+@app.post("/api/submissions/{submission_id}/reset-overrides")
+def api_reset_overrides(submission_id: str) -> Submission:
+    submission = _submission(submission_id)
+    if submission.marks is None:
+        raise HTTPException(status_code=409, detail="nothing to reset yet")
+
+    for criterion in submission.marks.criteria:
+        if criterion.suggested is not None:
+            criterion.proposed = criterion.suggested
+            criterion.overridden = False
+    save_submission(submission)
+    return submission
 
 
 @app.put("/api/submissions/{submission_id}/feedback")

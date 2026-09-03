@@ -84,6 +84,8 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ criterion_id: criterionId, proposed }),
     }),
+  resetOverrides: (submissionId: string) =>
+    apiFetch(`/api/submissions/${submissionId}/reset-overrides`, { method: "POST" }),
   updateFeedback: (
     submissionId: string,
     feedback: { what_went_well: string; what_went_wrong: string; how_to_improve: string }

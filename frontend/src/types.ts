@@ -51,6 +51,7 @@ export interface Verification {
 export interface CriterionMark {
   criterion_id: string;
   proposed: number;
+  suggested?: number | null;
   max: number;
   justification: string;
   evidence_step?: number | null;
