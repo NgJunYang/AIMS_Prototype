@@ -304,28 +304,37 @@ export function QuestionEditor({
             <Plus size={12} /> Add criterion
           </Button>
         </div>
+        <div className="mb-1.5 grid grid-cols-[minmax(0,1fr)_4rem_4rem_1.5rem] items-center gap-2 px-1 text-[10px] font-medium uppercase tracking-wide text-text-muted">
+          <span>Criterion description</span>
+          <span>ID</span>
+          <span>Max marks</span>
+          <span />
+        </div>
         <div className="flex flex-col gap-2">
           {criteria.map((c, idx) => (
-            <div key={idx} className="flex items-center gap-2">
-              <Input
-                value={c.id}
-                onChange={(e) => setCriteria((cs) => cs.map((v, i) => (i === idx ? { ...v, id: e.target.value } : v)))}
-                className="w-16 font-mono text-xs"
-              />
+            <div key={idx} className="grid grid-cols-[minmax(0,1fr)_4rem_4rem_1.5rem] items-center gap-2">
               <Input
                 value={c.description}
                 placeholder="What this criterion rewards"
+                aria-label={`Description for criterion ${idx + 1}`}
                 onChange={(e) => setCriteria((cs) => cs.map((v, i) => (i === idx ? { ...v, description: e.target.value } : v)))}
-                className="min-w-0 flex-1"
+                className="min-w-0"
               />
-              <input
+              <Input
+                value={c.id}
+                aria-label={`ID for criterion ${idx + 1}`}
+                onChange={(e) => setCriteria((cs) => cs.map((v, i) => (i === idx ? { ...v, id: e.target.value } : v)))}
+                className="w-full font-mono text-xs"
+              />
+              <Input
                 type="number"
                 min={0}
-                value={c.max}
+                value={String(c.max)}
+                aria-label={`Maximum marks for criterion ${idx + 1}`}
                 onChange={(e) =>
                   setCriteria((cs) => cs.map((v, i) => (i === idx ? { ...v, max: Number(e.target.value) || 0 } : v)))
                 }
-                className="w-16 rounded-lg border border-border bg-surface-2 px-2 py-2 text-right text-sm tabular-nums"
+                className="w-full px-2 text-right tabular-nums"
               />
               <button
                 type="button"
