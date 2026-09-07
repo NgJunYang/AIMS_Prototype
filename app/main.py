@@ -49,7 +49,7 @@ from app.tutor import answer as tutor_answer
 from app.tutor import draft_email as tutor_draft_email
 from app.verifier import verify
 
-app = FastAPI(title="AIMS")
+app = FastAPI(title="SAINT")
 
 # Only needed when the frontend is served from a different origin than this
 # API - e.g. a static build on GitHub Pages calling a backend deployed

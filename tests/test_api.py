@@ -1219,4 +1219,4 @@ def test_updating_an_assignment_keeps_its_roster():
 def test_static_index_is_served_at_root():
     response = client.get("/")
     assert response.status_code == 200
-    assert "AIMS" in response.text
+    assert "SAINT" in response.text

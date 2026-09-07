@@ -1,4 +1,4 @@
-# AIMS — AI Marking Support
+# SAINT — AI Marking Support
 
 A tool that helps a lecturer mark handwritten algebra scripts (quadratics, at
 present): a photo goes in, a lecturer-confirmed transcription, a symbolically

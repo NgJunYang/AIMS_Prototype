@@ -69,7 +69,7 @@ export default function Landing({ onStart }: { onStart: (role: Role) => void }) 
             A mark you don't have to take on faith.
           </motion.h1>
           <motion.p variants={item} className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-text-muted">
-            Photograph a student's handwritten working. AIMS transcribes it, checks the mathematics, and prepares a
+            Photograph a student's handwritten working. SAINT transcribes it, checks the mathematics, and prepares a
             clearly labelled assessment draft — ready for you to correct, refresh, and approve.
           </motion.p>
           <motion.div variants={item} className="mt-10 flex flex-wrap items-center justify-center gap-3">

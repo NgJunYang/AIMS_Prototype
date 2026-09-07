@@ -52,7 +52,7 @@ function Shell() {
               onClick={() => setScreen("landing")}
               className="font-mono text-sm font-semibold tracking-tight text-text hover:text-accent transition-colors"
             >
-              AIMS
+              SAINT
             </button>
             <nav className="flex items-center gap-1">
               {screen !== "student" &&
