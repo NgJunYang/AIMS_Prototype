@@ -8,6 +8,16 @@
     { "tag": "dropped_plus_minus", "name": "Taking only the positive square root", "count": 1 },
     { "tag": "no_working_shown", "name": "Answer given with no working", "count": 1 }
   ],
+  "criterion_performance": [
+    { "criterion_id": "C2", "label": "Applied a valid solution method without losing or gaining solutions", "mean_percentage": 44, "n": 6 },
+    { "criterion_id": "C3", "label": "Carried out the algebra and arithmetic correctly", "mean_percentage": 58, "n": 6 },
+    { "criterion_id": "C4", "label": "Stated all solutions", "mean_percentage": 61, "n": 6 },
+    { "criterion_id": "C1", "label": "Recognised the equation is in, or rearranged it to, a form suitable for solving", "mean_percentage": 75, "n": 6 },
+    { "criterion_id": "C5", "label": "Working is clear and logically ordered", "mean_percentage": 83, "n": 3 }
+  ],
+  "topic_performance": [
+    { "topic": "quadratics", "mean_percentage": 56, "n": 6 }
+  ],
   "students": [
     { "pseudonym": "Student A", "question_id": "q2", "mark": 4, "max": 8, "top_misconception": "divided_by_variable_lost_root" },
     { "pseudonym": "Student B", "question_id": "q1", "mark": 8, "max": 8, "top_misconception": null },

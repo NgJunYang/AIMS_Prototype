@@ -191,6 +191,27 @@ class ClassStudentRow(BaseModel):
     mark: int = Field(ge=0)
     max: int = Field(ge=0)
     top_misconception: str | None = None
+    # Present for computed rows so the analytics table can open the full
+    # per-criterion breakdown; absent on the seeded sample fixture.
+    submission_id: str | None = None
+
+
+class ClassCriterionStat(BaseModel):
+    """How the cohort did on one rubric criterion, across every question it
+    appears on. This is the "strong / weak concepts" view."""
+
+    criterion_id: str
+    label: str
+    mean_percentage: int = Field(ge=0, le=100)
+    n: int = Field(ge=0)
+
+
+class ClassTopicStat(BaseModel):
+    """How the cohort did on one topic, by total marks on its questions."""
+
+    topic: str
+    mean_percentage: int = Field(ge=0, le=100)
+    n: int = Field(ge=0)
 
 
 class ClassSummary(BaseModel):
@@ -209,6 +230,8 @@ class ClassSummary(BaseModel):
     marked: int = Field(default=0, ge=0)
     mean_percentage: int = Field(default=0, ge=0, le=100)
     misconception_counts: list[ClassMisconceptionCount] = Field(default_factory=list)
+    criterion_performance: list[ClassCriterionStat] = Field(default_factory=list)
+    topic_performance: list[ClassTopicStat] = Field(default_factory=list)
     students: list[ClassStudentRow] = Field(default_factory=list)
     recommendation: str = ""
 

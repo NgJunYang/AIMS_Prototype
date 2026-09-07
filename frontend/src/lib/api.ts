@@ -36,6 +36,7 @@ export async function apiFetch<T = any>(path: string, options?: RequestInit): Pr
 export const api = {
   listQuestions: () => apiFetch("/api/questions"),
   getQuestion: (id: string) => apiFetch(`/api/questions/${encodeURIComponent(id)}`),
+  getSubmission: (id: string) => apiFetch(`/api/submissions/${encodeURIComponent(id)}`),
   createSubmission: (questionId: string, studentPseudonym: string) =>
     apiFetch("/api/submissions", {
       method: "POST",

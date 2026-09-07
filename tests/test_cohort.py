@@ -186,6 +186,60 @@ def test_every_computed_summary_satisfies_the_invariant():
         assert summary.marked <= summary.cohort_size
 
 
+# ---------- concept- and topic-level performance ----------
+
+
+def test_criterion_performance_is_the_mean_percentage_weakest_first():
+    stats = summarise(_cohort()).criterion_performance
+    assert len(stats) == 1
+    c1 = stats[0]
+    assert c1.criterion_id == "C1"
+    assert c1.n == 3
+    # 50% + 100% + 37.5% = 187.5 / 3 -> 63 (half-up)
+    assert c1.mean_percentage == 63
+    # labelled with the rubric wording, not the bare id
+    from app.store import get_question
+
+    assert c1.label == get_question("q2").criteria[0].description
+
+
+def test_criterion_performance_sorts_weakest_concept_first():
+    submissions = [
+        Submission(
+            id="x",
+            question_id="q2",
+            student_pseudonym="X",
+            marks=MarkProposal(
+                criteria=[
+                    CriterionMark(criterion_id="C1", proposed=1, max=2, justification="s"),
+                    CriterionMark(criterion_id="C2", proposed=0, max=3, justification="s"),
+                ]
+            ),
+        )
+    ]
+    stats = summarise(submissions).criterion_performance
+    assert [s.criterion_id for s in stats] == ["C2", "C1"]
+    assert stats[0].mean_percentage == 0
+
+
+def test_topic_performance_groups_by_topic_tag():
+    stats = summarise(_cohort()).topic_performance
+    assert [s.topic for s in stats] == ["quadratics"]
+    assert stats[0].mean_percentage == 63
+    assert stats[0].n == 3
+
+
+def test_student_rows_carry_their_submission_id_for_drilldown():
+    rows = summarise(_cohort()).students
+    assert {row.submission_id for row in rows} == {"a", "b", "c"}
+
+
+def test_empty_cohort_has_no_criterion_or_topic_stats():
+    summary = summarise([_unmarked("a")])
+    assert summary.criterion_performance == []
+    assert summary.topic_performance == []
+
+
 def test_humanise_tag_matches_the_frontend_helper():
     assert humanise_tag("divided_by_variable_lost_root") == (
         "Divided By Variable Lost Root"

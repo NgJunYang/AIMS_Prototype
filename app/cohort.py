@@ -15,12 +15,14 @@ import math
 from collections import Counter
 
 from app.models import (
+    ClassCriterionStat,
     ClassMisconceptionCount,
     ClassStudentRow,
     ClassSummary,
+    ClassTopicStat,
     Submission,
 )
-from app.store import get_misconception
+from app.store import get_misconception, get_question
 
 # Templated, never generated. Each is a factual statement about counts.
 _NO_SUBMISSIONS = (
@@ -79,6 +81,82 @@ def misconception_counts(
         ClassMisconceptionCount(tag=tag, name=_display_name(tag), count=count)
         for tag, count in sorted(counter.items(), key=lambda item: (-item[1], item[0]))
     ]
+
+
+def _half_up(value: float) -> int:
+    return math.floor(value + 0.5)
+
+
+def _question_of(submission: Submission):
+    try:
+        return get_question(submission.question_id)
+    except KeyError:
+        return None
+
+
+def criterion_performance(
+    submissions: list[Submission],
+) -> list[ClassCriterionStat]:
+    """Mean score, as a percentage of the available marks, for each rubric
+    criterion across every marked submission it appears on. Weakest first, so
+    the concept most worth reteaching is at the top."""
+    percentages: dict[str, list[float]] = {}
+    labels: dict[str, Counter[str]] = {}
+
+    for submission in submissions:
+        if submission.marks is None:
+            continue
+        question = _question_of(submission)
+        descriptions = (
+            {c.id: c.description for c in question.criteria} if question else {}
+        )
+        for criterion in submission.marks.criteria:
+            if criterion.max <= 0:
+                continue
+            percentages.setdefault(criterion.criterion_id, []).append(
+                100 * criterion.proposed / criterion.max
+            )
+            label = descriptions.get(criterion.criterion_id)
+            if label:
+                labels.setdefault(criterion.criterion_id, Counter())[label] += 1
+
+    stats = [
+        ClassCriterionStat(
+            criterion_id=criterion_id,
+            label=(
+                labels[criterion_id].most_common(1)[0][0]
+                if labels.get(criterion_id)
+                else criterion_id
+            ),
+            mean_percentage=_half_up(sum(values) / len(values)),
+            n=len(values),
+        )
+        for criterion_id, values in percentages.items()
+    ]
+    return sorted(stats, key=lambda s: (s.mean_percentage, s.criterion_id))
+
+
+def topic_performance(submissions: list[Submission]) -> list[ClassTopicStat]:
+    """Mean total-mark percentage per topic tag, weakest first."""
+    percentages: dict[str, list[float]] = {}
+    for submission in submissions:
+        if submission.marks is None or submission.marks.total_max <= 0:
+            continue
+        question = _question_of(submission)
+        topic = question.topic_tag if question else "unknown"
+        percentages.setdefault(topic, []).append(
+            100 * submission.marks.total_proposed / submission.marks.total_max
+        )
+
+    stats = [
+        ClassTopicStat(
+            topic=topic,
+            mean_percentage=_half_up(sum(values) / len(values)),
+            n=len(values),
+        )
+        for topic, values in percentages.items()
+    ]
+    return sorted(stats, key=lambda s: (s.mean_percentage, s.topic))
 
 
 def _top_misconception(
@@ -155,6 +233,7 @@ def summarise(submissions: list[Submission]) -> ClassSummary:
             mark=s.marks.total_proposed,
             max=s.marks.total_max,
             top_misconception=_top_misconception(s, cohort_counter),
+            submission_id=s.id,
         )
         for s in sorted(
             marked_submissions,
@@ -175,6 +254,8 @@ def summarise(submissions: list[Submission]) -> ClassSummary:
         marked=marked,
         mean_percentage=mean_percentage,
         misconception_counts=counts,
+        criterion_performance=criterion_performance(marked_submissions),
+        topic_performance=topic_performance(marked_submissions),
         students=students,
         recommendation=_recommendation(cohort_size, marked, mean_percentage, counts),
     )
