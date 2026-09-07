@@ -252,6 +252,36 @@ def test_override_persists_and_can_reset_to_the_latest_suggestion(monkeypatch):
     assert c1["overridden"] is False
 
 
+def test_a_re_mark_keeps_manual_score_edits_but_refreshes_the_suggestion(monkeypatch):
+    """Amending the transcription re-runs marking automatically in the UI. The
+    model's suggestion should refresh, but an explicit override is a decision,
+    not a suggestion - it must survive the re-mark."""
+    _stub_llm(monkeypatch)  # every criterion suggested at 0
+    submission_id = _new_submission()
+    client.put(
+        f"/api/submissions/{submission_id}/steps",
+        json={"steps": [{"index": 1, "latex": "x^2 = 5x"}]},
+    )
+    client.post(f"/api/submissions/{submission_id}/mark")
+    client.post(
+        f"/api/submissions/{submission_id}/override",
+        json={"criterion_id": "C1", "proposed": 1},
+    )
+
+    re_marked = client.post(f"/api/submissions/{submission_id}/mark").json()
+
+    c1 = next(c for c in re_marked["marks"]["criteria"] if c["criterion_id"] == "C1")
+    assert c1["proposed"] == 1
+    assert c1["overridden"] is True
+    assert c1["suggested"] == 0
+    # And an untouched criterion follows the fresh suggestion.
+    c2 = next(c for c in re_marked["marks"]["criteria"] if c["criterion_id"] == "C2")
+    assert c2["proposed"] == 0 and c2["overridden"] is False
+
+    reset = client.post(f"/api/submissions/{submission_id}/reset-overrides").json()
+    assert next(c for c in reset["marks"]["criteria"] if c["criterion_id"] == "C1")["proposed"] == 0
+
+
 def test_override_above_the_maximum_is_rejected(monkeypatch):
     _stub_llm(monkeypatch)
     submission_id = _new_submission()

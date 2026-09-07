@@ -468,10 +468,25 @@ def api_mark(submission_id: str) -> Submission:
     if submission.verification is None:
         submission.verification = verify(steps, question.model_solution_steps, question.variable)
 
+    # Carry the lecturer's manual score edits across an automatic re-mark. When
+    # the transcription is amended the suggestions should refresh, but an
+    # explicit override is a decision, not a suggestion - keep its value and
+    # just update what the model now suggests alongside it. "Reset rubric edits
+    # to AI suggestions" (api_reset_overrides) is the one path that discards it.
+    prior_overrides = {
+        c.criterion_id: c.proposed
+        for c in (submission.marks.criteria if submission.marks else [])
+        if c.overridden
+    }
+
     submission.marks = mark_submission(question, steps, submission.verification)
     for criterion in submission.marks.criteria:
         if criterion.suggested is None:
             criterion.suggested = criterion.proposed
+        if criterion.criterion_id in prior_overrides:
+            kept = min(prior_overrides[criterion.criterion_id], criterion.max)
+            criterion.proposed = kept
+            criterion.overridden = True
     submission.feedback = write_feedback(question, steps, submission.marks, submission.verification)
     submission.practice = generate_practice(
         submission.marks.misconceptions,

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../lib/api";
 import type { Question, Step, Submission } from "../types";
 
@@ -22,6 +22,10 @@ interface WorkbenchState {
   confirmBusy: boolean;
   confirmBusyMessage: string;
   confirmError: string | null;
+  /** A quiet re-mark triggered automatically a beat after the lecturer stops
+   * editing the transcription — distinct from confirmBusy, which is the loud
+   * manual path that blanks the panel while it runs. */
+  autoRefreshing: boolean;
   /** Editable identity fields shown on Confirm — pre-filled from whatever the
    * vision model read off the photo (if any), same trust boundary as
    * localSteps: nothing is authoritative until Confirm & Mark saves it. */
@@ -45,6 +49,7 @@ const initialState: WorkbenchState = {
   confirmBusy: false,
   confirmBusyMessage: "",
   confirmError: null,
+  autoRefreshing: false,
   localName: "",
   localStudentId: "",
 };
@@ -300,33 +305,65 @@ function useWorkbenchValue() {
   }, []);
 
   const confirmAndMark = useCallback(
-    async (onDone?: () => void) => {
+    async (onDone?: () => void, opts?: { silent?: boolean }) => {
       if (!state.submissionId) return;
-      patch({
-        confirmError: null,
-        confirmBusy: true,
-        confirmBusyMessage: "Saving confirmed steps…",
-        submission: state.submission
-          ? { ...state.submission, verification: null, marks: null, feedback: null, practice: [] }
-          : null,
-      });
+      const silent = opts?.silent ?? false;
+      // Silent (auto) runs leave the last suggestions on screen with a quiet
+      // "updating" hint; the manual path blanks the panel and narrates.
+      patch(
+        silent
+          ? { confirmError: null, autoRefreshing: true }
+          : {
+              confirmError: null,
+              confirmBusy: true,
+              confirmBusyMessage: "Saving confirmed steps…",
+              submission: state.submission
+                ? { ...state.submission, verification: null, marks: null, feedback: null, practice: [] }
+                : null,
+            }
+      );
       const payload = state.localSteps.map((s, i) => ({ index: i + 1, latex: s.latex, confidence: s.confidence || "high" }));
       try {
         const saved = await api.updateSteps(state.submissionId, payload);
-        patch({ submission: saved });
+        if (!silent) patch({ submission: saved });
         await api.updateIdentity(state.submissionId, state.localName.trim() || null, state.localStudentId.trim() || null);
-        patch({ confirmBusyMessage: "Refreshing draft score and feedback…" });
+        if (!silent) patch({ confirmBusyMessage: "Refreshing draft score and feedback…" });
         const marked = await api.mark(state.submissionId);
         patch({ submission: marked });
         onDone?.();
       } catch (err) {
         patch({ confirmError: confirmErrorMessage(err) });
       } finally {
-        patch({ confirmBusy: false });
+        patch(silent ? { autoRefreshing: false } : { confirmBusy: false });
       }
     },
-    [state.submissionId, state.localSteps, state.localName, state.localStudentId, patch]
+    [state.submissionId, state.localSteps, state.localName, state.localStudentId, state.submission, patch]
   );
+
+  // Instant suggestions: a beat after the lecturer stops amending the digital
+  // record, re-run verify → mark → feedback so the assessment draft always
+  // describes what is currently on screen. The manual "Refresh suggestions"
+  // button stays as an explicit fallback.
+  const confirmRef = useRef(confirmAndMark);
+  confirmRef.current = confirmAndMark;
+  const autoTimer = useRef<number | null>(null);
+  const savedLatexSig = JSON.stringify((state.submission?.confirmed_steps || []).map((s) => s.latex));
+  const localLatexSig = JSON.stringify(state.localSteps.map((s) => s.latex));
+
+  useEffect(() => {
+    if (!state.submissionId) return;
+    if (savedLatexSig === localLatexSig) return; // record matches suggestions
+    if (!state.localSteps.some((s) => s.latex.trim())) return; // nothing to mark
+    if (state.confirmBusy || state.autoRefreshing) return; // a run is in flight; it re-checks on finish
+    if (autoTimer.current) window.clearTimeout(autoTimer.current);
+    autoTimer.current = window.setTimeout(() => {
+      void confirmRef.current(undefined, { silent: true });
+    }, 900);
+    return () => {
+      if (autoTimer.current) window.clearTimeout(autoTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedLatexSig, localLatexSig, state.submissionId, state.confirmBusy, state.autoRefreshing]);
 
   const reloadQuestions = useCallback(
     async (preferredId: string | null) => {
