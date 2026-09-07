@@ -269,7 +269,7 @@ origin.
 Open **Settings → Pages** and, under **Build and deployment**, set **Source**
 to **GitHub Actions**. Do not select a branch folder: `/static` is not a valid
 branch-based Pages source. The workflow deploys on relevant pushes to `branch3`
-and can also be started manually from the Actions tab.
+or `improv2.0` and can also be started manually from the Actions tab.
 
 After the workflow succeeds, the frontend is available at
 `https://<owner>.github.io/<repository>/`. Its local CSS and JavaScript paths

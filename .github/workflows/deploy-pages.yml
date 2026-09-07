@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - branch3
+      - improv2.0
     paths:
       - ".github/workflows/deploy-pages.yml"
       - "scripts/build_pages_config.js"
