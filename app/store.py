@@ -4,8 +4,8 @@ import json
 from functools import lru_cache
 from typing import Any
 
-from app.config import QUESTIONS_FILE, SEEDS_DIR, SUBMISSIONS_DIR
-from app.models import Question, Submission
+from app.config import ASSIGNMENTS_DIR, QUESTIONS_FILE, SEEDS_DIR, SUBMISSIONS_DIR
+from app.models import Assignment, Question, Submission
 
 
 @lru_cache(maxsize=1)
@@ -140,3 +140,35 @@ def list_submissions() -> list[Submission]:
             # ValidationError, which both subclass it.
             continue
     return submissions
+
+
+# ---------- assignments ----------
+
+
+def save_assignment(assignment: Assignment) -> None:
+    path = ASSIGNMENTS_DIR / f"{assignment.id}.json"
+    path.write_text(assignment.model_dump_json(indent=2), encoding="utf-8")
+
+
+def load_assignment(assignment_id: str) -> Assignment:
+    path = ASSIGNMENTS_DIR / f"{assignment_id}.json"
+    if not path.exists():
+        raise KeyError(f"unknown assignment id: {assignment_id}")
+    return Assignment.model_validate_json(path.read_text(encoding="utf-8"))
+
+
+def delete_assignment(assignment_id: str) -> None:
+    (ASSIGNMENTS_DIR / f"{assignment_id}.json").unlink(missing_ok=True)
+
+
+def list_assignments() -> list[Assignment]:
+    """Every assignment on disk, newest first. A bad file is skipped, not fatal."""
+    assignments: list[Assignment] = []
+    for path in sorted(ASSIGNMENTS_DIR.glob("*.json")):
+        try:
+            assignments.append(
+                Assignment.model_validate_json(path.read_text(encoding="utf-8"))
+            )
+        except (OSError, ValueError):
+            continue
+    return sorted(assignments, key=lambda a: a.created_at, reverse=True)

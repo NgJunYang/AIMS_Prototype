@@ -286,3 +286,32 @@ class Submission(BaseModel):
     # every submission saved before this field existed still validates.
     channel: Literal["tutorial", "test"] = "tutorial"
     published: bool = False
+    assignment_id: str | None = None
+
+
+# ---------- Assignments (roster + question set) ----------
+
+
+class RosterEntry(BaseModel):
+    name: str
+    student_id: str = ""
+
+
+class Assignment(BaseModel):
+    """A named activity: a set of questions and (optionally) a class roster.
+
+    ``kind`` drives the marking channel - a tutorial is student-self-serve,
+    a ca/exam is instructor-marked and published. Persisted one JSON file per
+    assignment in data/assignments/, like submissions.
+    """
+
+    id: str
+    title: str
+    kind: Literal["tutorial", "ca", "exam"] = "tutorial"
+    question_ids: list[str] = Field(default_factory=list)
+    roster: list[RosterEntry] = Field(default_factory=list)
+    created_at: str = ""
+
+    @property
+    def channel(self) -> Literal["tutorial", "test"]:
+        return "tutorial" if self.kind == "tutorial" else "test"

@@ -40,13 +40,33 @@ export const api = {
   createSubmission: (
     questionId: string,
     studentPseudonym: string,
-    channel: "tutorial" | "test" = "tutorial"
+    channel: "tutorial" | "test" = "tutorial",
+    assignmentId?: string | null
   ) =>
     apiFetch("/api/submissions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question_id: questionId, student_pseudonym: studentPseudonym, channel }),
+      body: JSON.stringify({
+        question_id: questionId,
+        student_pseudonym: studentPseudonym,
+        channel,
+        assignment_id: assignmentId || null,
+      }),
     }),
+  listAssignments: () => apiFetch("/api/assignments"),
+  createAssignment: (a: { id: string; title: string; kind: string; question_ids: string[] }) =>
+    apiFetch("/api/assignments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(a),
+    }),
+  deleteAssignment: (id: string) =>
+    apiFetch(`/api/assignments/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  uploadRoster: (id: string, file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return apiFetch(`/api/assignments/${encodeURIComponent(id)}/roster`, { method: "POST", body: form });
+  },
   transcribe: (submissionId: string, file: File, page = 1) => {
     const form = new FormData();
     form.append("file", file);

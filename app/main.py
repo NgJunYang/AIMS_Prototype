@@ -3,6 +3,7 @@ import hashlib
 import json
 import re
 import uuid
+from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
@@ -12,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app import uploads
+from app.assignments import parse_roster_csv, validate_assignment
 from app.authoring import default_criteria, validate_question
 from app.cohort import summarise
 from app.config import ALLOWED_ORIGINS, IMAGES_DIR, SEEDS_DIR, STATIC_DIR
@@ -19,6 +21,7 @@ from app.feedback import write as write_feedback
 from app.llm import OfflineCacheMiss
 from app.marker import mark as mark_submission
 from app.models import (
+    Assignment,
     ClassSummary,
     Feedback,
     IdentityExtraction,
@@ -29,11 +32,15 @@ from app.models import (
 )
 from app.practice import QUESTION_TYPES, generate_practice
 from app.store import (
+    delete_assignment,
     delete_question,
     get_question,
+    list_assignments,
     list_questions,
     list_submissions,
+    load_assignment,
     load_submission,
+    save_assignment,
     save_question,
     save_submission,
 )
@@ -68,6 +75,14 @@ class CreateSubmission(BaseModel):
     question_id: str
     student_pseudonym: str = "Student A"
     channel: Literal["tutorial", "test"] = "tutorial"
+    assignment_id: str | None = None
+
+
+class CreateAssignment(BaseModel):
+    id: str
+    title: str
+    kind: Literal["tutorial", "ca", "exam"] = "tutorial"
+    question_ids: list[str] = Field(default_factory=list)
 
 
 class UpdateSteps(BaseModel):
@@ -377,11 +392,18 @@ def api_delete_question(question_id: str) -> dict[str, str]:
 @app.post("/api/submissions")
 def api_create_submission(body: CreateSubmission) -> Submission:
     _question(body.question_id)
+    channel = body.channel
+    if body.assignment_id:
+        assignment = _assignment(body.assignment_id)
+        # The assignment's kind is authoritative for the channel: a CA or exam
+        # script must be published, a tutorial is visible straight away.
+        channel = assignment.channel
     submission = Submission(
         id=uuid.uuid4().hex[:12],
         question_id=body.question_id,
         student_pseudonym=body.student_pseudonym,
-        channel=body.channel,
+        channel=channel,
+        assignment_id=body.assignment_id,
     )
     save_submission(submission)
     return submission
@@ -749,6 +771,80 @@ def api_draft_email(submission_id: str, body: DraftEmailRequest) -> EmailDraft:
     return EmailDraft(**draft)
 
 
+# ---------- assignments ----------
+
+
+@app.get("/api/assignments")
+def api_list_assignments() -> list[Assignment]:
+    return list_assignments()
+
+
+@app.get("/api/assignments/{assignment_id}")
+def api_get_assignment(assignment_id: str) -> Assignment:
+    return _assignment(assignment_id)
+
+
+@app.post("/api/assignments")
+def api_create_assignment(body: CreateAssignment) -> Assignment:
+    if any(a.id == body.id for a in list_assignments()):
+        raise HTTPException(
+            status_code=409, detail=f"an assignment with id {body.id!r} already exists"
+        )
+    assignment = Assignment(
+        id=body.id,
+        title=body.title,
+        kind=body.kind,
+        question_ids=body.question_ids,
+        created_at=datetime.now(timezone.utc).isoformat(),
+    )
+    problems = validate_assignment(assignment, {q.id for q in list_questions()})
+    if problems:
+        raise HTTPException(status_code=400, detail=problems)
+    save_assignment(assignment)
+    return assignment
+
+
+@app.put("/api/assignments/{assignment_id}")
+def api_update_assignment(assignment_id: str, body: Assignment) -> Assignment:
+    existing = _assignment(assignment_id)
+    if body.id != assignment_id:
+        raise HTTPException(status_code=400, detail="an assignment's id cannot be changed")
+    # The roster is managed through its own endpoint; created_at is immutable.
+    merged = body.model_copy(
+        update={"roster": existing.roster, "created_at": existing.created_at}
+    )
+    problems = validate_assignment(merged, {q.id for q in list_questions()})
+    if problems:
+        raise HTTPException(status_code=400, detail=problems)
+    save_assignment(merged)
+    return merged
+
+
+@app.delete("/api/assignments/{assignment_id}")
+def api_delete_assignment(assignment_id: str) -> dict[str, str]:
+    _assignment(assignment_id)
+    delete_assignment(assignment_id)
+    return {"deleted": assignment_id}
+
+
+@app.post("/api/assignments/{assignment_id}/roster")
+async def api_upload_roster(
+    assignment_id: str, file: UploadFile = File(...)
+) -> Assignment:
+    """Attach a class roster from a `name,student_id` CSV (a header row is fine)."""
+    assignment = _assignment(assignment_id)
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(status_code=400, detail="empty file")
+    assignment.roster = parse_roster_csv(raw)
+    if not assignment.roster:
+        raise HTTPException(
+            status_code=400, detail="no names could be read from that file"
+        )
+    save_assignment(assignment)
+    return assignment
+
+
 # ---------- class view ----------
 
 
@@ -791,6 +887,13 @@ def _submission(submission_id: str) -> Submission:
         return load_submission(submission_id)
     except KeyError:
         raise HTTPException(status_code=404, detail=f"unknown submission: {submission_id}")
+
+
+def _assignment(assignment_id: str) -> Assignment:
+    try:
+        return load_assignment(assignment_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"unknown assignment: {assignment_id}")
 
 
 def _seed_from_id(submission_id: str) -> int:

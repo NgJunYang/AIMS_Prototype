@@ -29,6 +29,8 @@ interface WorkbenchState {
   /** Which usage scenario this marking session is for. A tutorial submission is
    * visible to the student straight away; a graded test must be published. */
   channel: "tutorial" | "test";
+  /** The assignment this marking session belongs to, if any. */
+  assignmentId: string | null;
   /** Editable identity fields shown on Confirm — pre-filled from whatever the
    * vision model read off the photo (if any), same trust boundary as
    * localSteps: nothing is authoritative until Confirm & Mark saves it. */
@@ -54,6 +56,7 @@ const initialState: WorkbenchState = {
   confirmError: null,
   autoRefreshing: false,
   channel: "test",
+  assignmentId: null,
   localName: "",
   localStudentId: "",
 };
@@ -108,7 +111,12 @@ function useWorkbenchValue() {
       if (!question) return;
 
       const looksLikePdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
-      const sub: Submission = await api.createSubmission(question.id, nextStudentPseudonym(studentName), state.channel);
+      const sub: Submission = await api.createSubmission(
+        question.id,
+        nextStudentPseudonym(studentName),
+        state.channel,
+        state.assignmentId
+      );
 
       if (!looksLikePdf) {
         const url = URL.createObjectURL(file);
@@ -179,7 +187,7 @@ function useWorkbenchValue() {
         patch({ confirmBusy: false });
       }
     },
-    [state.currentQuestion, state.channel, patch, nextStudentPseudonym]
+    [state.currentQuestion, state.channel, state.assignmentId, patch, nextStudentPseudonym]
   );
 
   const loadPagePreviewInner = async (file: File, page: number) => {
@@ -246,7 +254,12 @@ function useWorkbenchValue() {
       // previously selected one.
       const question = questionOverride || state.currentQuestion;
       if (!question) return;
-      const sub: Submission = await api.createSubmission(question.id, nextStudentPseudonym(studentName), state.channel);
+      const sub: Submission = await api.createSubmission(
+        question.id,
+        nextStudentPseudonym(studentName),
+        state.channel,
+        state.assignmentId
+      );
       patch({
         submissionId: sub.id,
         submission: sub,
@@ -280,11 +293,16 @@ function useWorkbenchValue() {
         }
       }
     },
-    [state.currentQuestion, state.channel, patch, nextStudentPseudonym]
+    [state.currentQuestion, state.channel, state.assignmentId, patch, nextStudentPseudonym]
   );
 
   const setChannel = useCallback(
     (channel: "tutorial" | "test") => setState((s) => ({ ...s, channel })),
+    []
+  );
+  const setAssignment = useCallback(
+    (assignmentId: string | null, channel?: "tutorial" | "test") =>
+      setState((s) => ({ ...s, assignmentId, channel: channel ?? s.channel })),
     []
   );
   const setLocalName = useCallback((name: string) => setState((s) => ({ ...s, localName: name })), []);
@@ -355,16 +373,22 @@ function useWorkbenchValue() {
   const confirmRef = useRef(confirmAndMark);
   confirmRef.current = confirmAndMark;
   const autoTimer = useRef<number | null>(null);
+  // The last record content an auto-run was fired for. Guards against a failed
+  // silent run (e.g. an offline cache miss) re-triggering itself forever: we
+  // only auto-attempt each distinct set of lines once, success or failure.
+  const autoAttemptedSig = useRef<string | null>(null);
   const savedLatexSig = JSON.stringify((state.submission?.confirmed_steps || []).map((s) => s.latex));
   const localLatexSig = JSON.stringify(state.localSteps.map((s) => s.latex));
 
   useEffect(() => {
     if (!state.submissionId) return;
     if (savedLatexSig === localLatexSig) return; // record matches suggestions
+    if (autoAttemptedSig.current === localLatexSig) return; // already tried these lines
     if (!state.localSteps.some((s) => s.latex.trim())) return; // nothing to mark
     if (state.confirmBusy || state.autoRefreshing) return; // a run is in flight; it re-checks on finish
     if (autoTimer.current) window.clearTimeout(autoTimer.current);
     autoTimer.current = window.setTimeout(() => {
+      autoAttemptedSig.current = localLatexSig;
       void confirmRef.current(undefined, { silent: true });
     }, 900);
     return () => {
@@ -399,6 +423,7 @@ function useWorkbenchValue() {
     transcribeStagedFile,
     setSubmission,
     setChannel,
+    setAssignment,
     setLocalName,
     setLocalStudentId,
     addStep,

@@ -30,10 +30,13 @@ def isolate_disk_writes(tmp_path, monkeypatch):
     """
     images = tmp_path / "images"
     submissions = tmp_path / "submissions"
+    assignments = tmp_path / "assignments"
     images.mkdir()
     submissions.mkdir()
+    assignments.mkdir()
     monkeypatch.setattr(main, "IMAGES_DIR", images)
     monkeypatch.setattr(store, "SUBMISSIONS_DIR", submissions)
+    monkeypatch.setattr(store, "ASSIGNMENTS_DIR", assignments)
     # Question authoring writes an overlay file; without this, tests would
     # add and delete questions in the developer's real bank.
     monkeypatch.setattr(store, "QUESTIONS_FILE", tmp_path / "questions.json")
@@ -1142,6 +1145,75 @@ def test_class_summary_skips_a_corrupt_submission_file(monkeypatch):
     # The good submission still counts; the broken file is skipped, not fatal.
     assert body["source"] == "computed"
     assert body["cohort_size"] == 1
+
+
+NEW_ASSIGNMENT = {"id": "week5", "title": "Week 5 Tutorial", "kind": "tutorial", "question_ids": ["q1", "q2"]}
+
+
+def test_create_list_and_delete_an_assignment():
+    created = client.post("/api/assignments", json=NEW_ASSIGNMENT)
+    assert created.status_code == 200
+    assert created.json()["created_at"]
+
+    assert "week5" in [a["id"] for a in client.get("/api/assignments").json()]
+    assert client.delete("/api/assignments/week5").status_code == 200
+    assert client.get("/api/assignments/week5").status_code == 404
+
+
+def test_an_assignment_referencing_an_unknown_question_is_refused():
+    bad = {**NEW_ASSIGNMENT, "question_ids": ["q1", "nope"]}
+    response = client.post("/api/assignments", json=bad)
+    assert response.status_code == 400
+    assert any("nope" in p for p in response.json()["detail"])
+
+
+def test_duplicate_assignment_id_is_409():
+    client.post("/api/assignments", json=NEW_ASSIGNMENT)
+    assert client.post("/api/assignments", json=NEW_ASSIGNMENT).status_code == 409
+
+
+def test_roster_csv_is_parsed_tolerantly():
+    client.post("/api/assignments", json=NEW_ASSIGNMENT)
+    csv_bytes = b"Name,Student ID\nAlex Tan,A0001\nBea Lim,A0002\n\nCa Ng\n"
+
+    body = client.post(
+        "/api/assignments/week5/roster",
+        files={"file": ("roster.csv", io.BytesIO(csv_bytes), "text/csv")},
+    ).json()
+
+    assert [r["name"] for r in body["roster"]] == ["Alex Tan", "Bea Lim", "Ca Ng"]
+    assert body["roster"][0]["student_id"] == "A0001"
+    assert body["roster"][2]["student_id"] == ""
+
+
+def test_a_submission_started_from_a_graded_assignment_is_a_test_channel():
+    client.post("/api/assignments", json={**NEW_ASSIGNMENT, "id": "ca1", "kind": "ca"})
+    created = client.post(
+        "/api/submissions", json={"question_id": "q1", "assignment_id": "ca1"}
+    ).json()
+    assert created["channel"] == "test"
+    assert created["assignment_id"] == "ca1"
+
+
+def test_a_submission_for_an_unknown_assignment_is_404():
+    response = client.post(
+        "/api/submissions", json={"question_id": "q1", "assignment_id": "ghost"}
+    )
+    assert response.status_code == 404
+
+
+def test_updating_an_assignment_keeps_its_roster():
+    client.post("/api/assignments", json=NEW_ASSIGNMENT)
+    client.post(
+        "/api/assignments/week5/roster",
+        files={"file": ("r.csv", io.BytesIO(b"Alex,A1\n"), "text/csv")},
+    )
+    updated = client.put(
+        "/api/assignments/week5",
+        json={**NEW_ASSIGNMENT, "title": "Week 5 (revised)", "roster": []},
+    ).json()
+    assert updated["title"] == "Week 5 (revised)"
+    assert [r["name"] for r in updated["roster"]] == ["Alex"]
 
 
 def test_static_index_is_served_at_root():

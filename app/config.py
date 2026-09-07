@@ -11,6 +11,7 @@ FIXTURES_DIR = BASE_DIR / "fixtures"
 LLM_CACHE_DIR = FIXTURES_DIR / "llm_cache"
 IMAGES_DIR = FIXTURES_DIR / "images"
 SUBMISSIONS_DIR = BASE_DIR / "data" / "submissions"
+ASSIGNMENTS_DIR = BASE_DIR / "data" / "assignments"
 # Lecturer-authored questions, layered over the read-only seeded bank so the
 # seed file stays pristine and a fresh clone still starts with six questions.
 QUESTIONS_FILE = BASE_DIR / "data" / "questions.json"
@@ -38,5 +39,5 @@ MARKING_MODEL = "claude-opus-5"
 # grounded context, so they never assert mathematical fact.
 TUTOR_MODEL = "claude-sonnet-5"
 
-for directory in (LLM_CACHE_DIR, IMAGES_DIR, SUBMISSIONS_DIR):
+for directory in (LLM_CACHE_DIR, IMAGES_DIR, SUBMISSIONS_DIR, ASSIGNMENTS_DIR):
     directory.mkdir(parents=True, exist_ok=True)

@@ -8,11 +8,13 @@ import Setup from "./pages/Setup";
 import Confirm from "./pages/Confirm";
 import Class from "./pages/Class";
 import Student from "./pages/Student";
+import Assignments from "./pages/Assignments";
 
-export type Screen = "landing" | "setup" | "confirm" | "class" | "student";
+export type Screen = "landing" | "setup" | "confirm" | "class" | "student" | "assignments";
 export type Role = "instructor" | "student";
 
 const INSTRUCTOR_SCREENS: { id: Screen; label: string }[] = [
+  { id: "assignments", label: "Assignments" },
   { id: "setup", label: "Setup" },
   { id: "confirm", label: "Workbench" },
   { id: "class", label: "Analytics" },
@@ -101,6 +103,7 @@ function Shell() {
         {screen === "confirm" && <Confirm />}
         {screen === "class" && <Class />}
         {screen === "student" && <Student />}
+        {screen === "assignments" && <Assignments />}
       </motion.main>
     </div>
   );

@@ -8,7 +8,16 @@ import { Button } from "../components/ui/Button";
 import { Input, Label } from "../components/ui/Field";
 import { Mixed, Katex } from "../components/Math";
 import { QuestionEditor } from "../components/QuestionEditor";
+import { api } from "../lib/api";
 import type { Question } from "../types";
+
+interface AssignmentLite {
+  id: string;
+  title: string;
+  kind: "tutorial" | "ca" | "exam";
+  question_ids: string[];
+  roster: { name: string }[];
+}
 
 export default function Setup({ onSubmissionCreated }: { onSubmissionCreated: () => void }) {
   const wb = useWorkbench();
@@ -18,16 +27,31 @@ export default function Setup({ onSubmissionCreated }: { onSubmissionCreated: ()
   const [notice, setNotice] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorQuestion, setEditorQuestion] = useState<Question | null | undefined>(undefined);
+  const [assignments, setAssignments] = useState<AssignmentLite[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     wb.loadQuestions().then((questions) => {
       if (questions.length) wb.selectQuestion(questions[0].id);
     });
+    api.listAssignments().then(setAssignments).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const q = state.currentQuestion;
+  const activeAssignment = assignments.find((a) => a.id === state.assignmentId) || null;
+  const visibleQuestions = activeAssignment
+    ? state.questions.filter((qq) => activeAssignment.question_ids.includes(qq.id))
+    : state.questions;
+  const rosterNames = activeAssignment ? activeAssignment.roster.map((r) => r.name) : [];
+
+  function pickAssignment(id: string) {
+    const a = assignments.find((x) => x.id === id) || null;
+    wb.setAssignment(a ? a.id : null, a ? (a.kind === "tutorial" ? "tutorial" : "test") : undefined);
+    if (a && a.question_ids.length && !a.question_ids.includes(state.currentQuestion?.id || "")) {
+      wb.selectQuestion(a.question_ids[0]);
+    }
+  }
 
   async function handleFile(file: File) {
     if (!state.currentQuestion) return;
@@ -79,6 +103,23 @@ export default function Setup({ onSubmissionCreated }: { onSubmissionCreated: ()
           <h1 className="text-2xl font-semibold">Pick a question, then start marking</h1>
         </div>
         <div className="flex flex-wrap items-end gap-3">
+          {assignments.length > 0 && (
+            <div>
+              <Label>Assignment</Label>
+              <select
+                className="h-[38px] w-full rounded-lg border border-border bg-surface-2 px-3 text-sm text-text outline-none focus:border-accent sm:w-auto"
+                value={state.assignmentId || ""}
+                onChange={(e) => pickAssignment(e.target.value)}
+              >
+                <option value="">None</option>
+                {assignments.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <Label>Assessment type</Label>
             <div className="flex rounded-lg border border-border bg-surface-2 p-0.5 text-sm">
@@ -86,7 +127,8 @@ export default function Setup({ onSubmissionCreated }: { onSubmissionCreated: ()
                 <button
                   key={c}
                   onClick={() => wb.setChannel(c)}
-                  className={`rounded-md px-3 py-1.5 font-medium capitalize transition-colors ${
+                  disabled={!!activeAssignment}
+                  className={`rounded-md px-3 py-1.5 font-medium capitalize transition-colors disabled:opacity-50 ${
                     state.channel === c ? "bg-accent text-white" : "text-text-muted hover:text-text"
                   }`}
                 >
@@ -102,7 +144,15 @@ export default function Setup({ onSubmissionCreated }: { onSubmissionCreated: ()
               onChange={(e) => setStudentName(e.target.value)}
               placeholder="e.g. Student A"
               className="w-full sm:w-44"
+              list={rosterNames.length ? "roster-names" : undefined}
             />
+            {rosterNames.length > 0 && (
+              <datalist id="roster-names">
+                {rosterNames.map((n) => (
+                  <option key={n} value={n} />
+                ))}
+              </datalist>
+            )}
           </div>
           <select
             className="h-[38px] w-full rounded-lg border border-border bg-surface-2 px-3 text-sm text-text outline-none focus:border-accent sm:w-auto"
@@ -110,7 +160,7 @@ export default function Setup({ onSubmissionCreated }: { onSubmissionCreated: ()
             onChange={(e) => e.target.value && wb.selectQuestion(e.target.value)}
           >
             <option value="">Choose a question…</option>
-            {state.questions.map((qq) => (
+            {visibleQuestions.map((qq) => (
               <option key={qq.id} value={qq.id}>
                 {qq.id} — {qq.prompt.replace(/\$/g, "")}
               </option>
