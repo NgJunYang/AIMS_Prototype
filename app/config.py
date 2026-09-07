@@ -33,6 +33,10 @@ ALLOWED_ORIGINS = [
 
 VISION_MODEL = "claude-sonnet-5"
 MARKING_MODEL = "claude-opus-5"
+# The student-facing tutor chatbot and email drafter. Sonnet keeps replies
+# snappy; both are strictly downstream of the verifier and constrained to the
+# grounded context, so they never assert mathematical fact.
+TUTOR_MODEL = "claude-sonnet-5"
 
 for directory in (LLM_CACHE_DIR, IMAGES_DIR, SUBMISSIONS_DIR):
     directory.mkdir(parents=True, exist_ok=True)

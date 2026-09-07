@@ -11,6 +11,7 @@ import {
   RotateCcw,
   Save,
   ScanLine,
+  Send,
   Sparkles,
   Trash2,
   X,
@@ -272,6 +273,16 @@ export default function Confirm() {
 
               <div className="my-5 h-px bg-border" />
               <FeedbackEditor submissionId={state.submissionId!} feedback={sub?.feedback ?? null} onUpdated={wb.setSubmission} />
+
+              {!editingRubric && (
+                <PublishControl
+                  submissionId={state.submissionId!}
+                  channel={sub?.channel ?? "test"}
+                  published={!!sub?.published}
+                  disabled={suggestionsStale}
+                  onUpdated={wb.setSubmission}
+                />
+              )}
 
               {!!marks.misconceptions?.length && (
                 <div className="mt-5 border-t border-border pt-4">
@@ -636,6 +647,67 @@ function ImagePane({ uploadSourceType, hasTranscription, uploadedImageUrl, uploa
         <p className="text-sm font-medium">Manual entry</p>
         <p className="mt-1 text-xs text-text-muted">No source image was uploaded for this submission.</p>
       </div>
+    </div>
+  );
+}
+
+function PublishControl({
+  submissionId,
+  channel,
+  published,
+  disabled,
+  onUpdated,
+}: {
+  submissionId: string;
+  channel: "tutorial" | "test";
+  published: boolean;
+  disabled: boolean;
+  onUpdated: (submission: any) => void;
+}) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  async function toggle(next: boolean) {
+    if (busy) return;
+    setBusy(true);
+    try {
+      onUpdated(await (next ? api.publish(submissionId) : api.unpublish(submissionId)));
+      toast.success(next ? "Published — the student can now see this." : "Unpublished.");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? String(error.body?.detail || error.message) : "Could not update.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (channel === "tutorial") {
+    return (
+      <div className="mt-5 flex items-center gap-2 rounded-lg border border-border bg-surface-2/50 p-3 text-xs text-text-muted">
+        <Check size={14} className="shrink-0 text-success" />
+        Tutorial submission — visible to the student as soon as it's marked. No publishing step.
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-5 rounded-lg border border-border bg-surface-2/50 p-3">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Release to student</p>
+        {published && <Badge tone="success">published</Badge>}
+      </div>
+      <p className="mb-3 text-xs leading-relaxed text-text-muted">
+        A graded-test script stays hidden from the student until you publish it. Publish once you're happy with the
+        score and feedback.
+      </p>
+      <Button
+        variant={published ? "secondary" : "primary"}
+        className="w-full"
+        disabled={busy || disabled}
+        onClick={() => toggle(!published)}
+      >
+        {busy ? <RefreshCw className="animate-spin" size={14} /> : <Send size={14} />}
+        {published ? "Unpublish" : "Publish to student"}
+      </Button>
     </div>
   );
 }

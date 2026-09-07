@@ -280,3 +280,9 @@ class Submission(BaseModel):
     # was uploaded - see IdentityExtraction. None for manual entry (no photo)
     # and for submissions created before this field existed.
     extracted_identity: IdentityExtraction | None = None
+    # Which usage scenario this submission belongs to. A "tutorial" script is
+    # self-marked and visible to the student straight away; a "test" script is
+    # only visible once the instructor has vetted and published it. Defaulted so
+    # every submission saved before this field existed still validates.
+    channel: Literal["tutorial", "test"] = "tutorial"
+    published: bool = False

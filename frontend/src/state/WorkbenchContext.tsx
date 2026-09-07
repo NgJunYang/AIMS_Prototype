@@ -26,6 +26,9 @@ interface WorkbenchState {
    * editing the transcription — distinct from confirmBusy, which is the loud
    * manual path that blanks the panel while it runs. */
   autoRefreshing: boolean;
+  /** Which usage scenario this marking session is for. A tutorial submission is
+   * visible to the student straight away; a graded test must be published. */
+  channel: "tutorial" | "test";
   /** Editable identity fields shown on Confirm — pre-filled from whatever the
    * vision model read off the photo (if any), same trust boundary as
    * localSteps: nothing is authoritative until Confirm & Mark saves it. */
@@ -50,6 +53,7 @@ const initialState: WorkbenchState = {
   confirmBusyMessage: "",
   confirmError: null,
   autoRefreshing: false,
+  channel: "test",
   localName: "",
   localStudentId: "",
 };
@@ -104,7 +108,7 @@ function useWorkbenchValue() {
       if (!question) return;
 
       const looksLikePdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
-      const sub: Submission = await api.createSubmission(question.id, nextStudentPseudonym(studentName));
+      const sub: Submission = await api.createSubmission(question.id, nextStudentPseudonym(studentName), state.channel);
 
       if (!looksLikePdf) {
         const url = URL.createObjectURL(file);
@@ -175,7 +179,7 @@ function useWorkbenchValue() {
         patch({ confirmBusy: false });
       }
     },
-    [state.currentQuestion, patch, nextStudentPseudonym]
+    [state.currentQuestion, state.channel, patch, nextStudentPseudonym]
   );
 
   const loadPagePreviewInner = async (file: File, page: number) => {
@@ -242,7 +246,7 @@ function useWorkbenchValue() {
       // previously selected one.
       const question = questionOverride || state.currentQuestion;
       if (!question) return;
-      const sub: Submission = await api.createSubmission(question.id, nextStudentPseudonym(studentName));
+      const sub: Submission = await api.createSubmission(question.id, nextStudentPseudonym(studentName), state.channel);
       patch({
         submissionId: sub.id,
         submission: sub,
@@ -276,9 +280,13 @@ function useWorkbenchValue() {
         }
       }
     },
-    [state.currentQuestion, patch, nextStudentPseudonym]
+    [state.currentQuestion, state.channel, patch, nextStudentPseudonym]
   );
 
+  const setChannel = useCallback(
+    (channel: "tutorial" | "test") => setState((s) => ({ ...s, channel })),
+    []
+  );
   const setLocalName = useCallback((name: string) => setState((s) => ({ ...s, localName: name })), []);
   const setLocalStudentId = useCallback(
     (studentId: string) => setState((s) => ({ ...s, localStudentId: studentId })),
@@ -390,6 +398,7 @@ function useWorkbenchValue() {
     loadPagePreview,
     transcribeStagedFile,
     setSubmission,
+    setChannel,
     setLocalName,
     setLocalStudentId,
     addStep,

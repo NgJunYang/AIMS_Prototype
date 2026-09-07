@@ -3,6 +3,7 @@ import hashlib
 import json
 import re
 import uuid
+from typing import Literal
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,6 +38,8 @@ from app.store import (
     save_submission,
 )
 from app.transcriber import transcribe, transcribe_model_solution
+from app.tutor import answer as tutor_answer
+from app.tutor import draft_email as tutor_draft_email
 from app.verifier import verify
 
 app = FastAPI(title="AIMS")
@@ -64,6 +67,7 @@ _SOLUTION_IMAGE_PATTERN = re.compile(r"^solution-[0-9a-f]{12}\.png$")
 class CreateSubmission(BaseModel):
     question_id: str
     student_pseudonym: str = "Student A"
+    channel: Literal["tutorial", "test"] = "tutorial"
 
 
 class UpdateSteps(BaseModel):
@@ -107,6 +111,57 @@ class SolutionTranscription(BaseModel):
 class RegeneratePractice(BaseModel):
     question_type: str = "bare"
     count: int = Field(default=3, ge=1, le=10)
+
+
+class ChatMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str = Field(max_length=4000)
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage] = Field(min_length=1, max_length=40)
+
+
+class ChatReply(BaseModel):
+    answer: str
+
+
+class DraftEmailRequest(BaseModel):
+    concern: str = Field(max_length=2000)
+
+
+class EmailDraft(BaseModel):
+    subject: str
+    body: str
+
+
+class StudentCriterion(BaseModel):
+    criterion_id: str
+    proposed: int
+    max: int
+    justification: str
+
+
+class StudentView(BaseModel):
+    """What a student is allowed to see about their own marked script.
+
+    Deliberately omits the instructor-only internals - the AI's original
+    suggestion, which criteria were manually adjusted, the raw transcription.
+    The student sees the final numbers and the feedback, nothing about how the
+    sausage was made.
+    """
+
+    question_id: str
+    question_prompt: str
+    student_pseudonym: str
+    channel: Literal["tutorial", "test"]
+    total_proposed: int
+    total_max: int
+    criteria: list[StudentCriterion]
+    feedback: Feedback | None
+    practice: list = Field(default_factory=list)
+    final_answer_correct: bool = False
+    final_answer_verified: bool = False
 
 
 class UploadInspection(BaseModel):
@@ -326,6 +381,7 @@ def api_create_submission(body: CreateSubmission) -> Submission:
         id=uuid.uuid4().hex[:12],
         question_id=body.question_id,
         student_pseudonym=body.student_pseudonym,
+        channel=body.channel,
     )
     save_submission(submission)
     return submission
@@ -580,6 +636,117 @@ def api_regenerate_practice(submission_id: str, body: RegeneratePractice) -> Sub
     )
     save_submission(submission)
     return submission
+
+
+# ---------- student-facing view ----------
+
+
+def _marked_submission(submission_id: str) -> Submission:
+    submission = _submission(submission_id)
+    if submission.marks is None or submission.feedback is None:
+        raise HTTPException(
+            status_code=409, detail="this submission has not been marked yet"
+        )
+    return submission
+
+
+@app.post("/api/submissions/{submission_id}/publish")
+def api_publish(submission_id: str) -> Submission:
+    """Release a graded-test script to the student. Tutorial scripts are visible
+    without this; a test script is not, until the instructor has vetted it."""
+    submission = _marked_submission(submission_id)
+    submission.published = True
+    save_submission(submission)
+    return submission
+
+
+@app.post("/api/submissions/{submission_id}/unpublish")
+def api_unpublish(submission_id: str) -> Submission:
+    submission = _submission(submission_id)
+    submission.published = False
+    save_submission(submission)
+    return submission
+
+
+@app.get("/api/submissions/{submission_id}/student-view")
+def api_student_view(submission_id: str) -> StudentView:
+    submission = _marked_submission(submission_id)
+    if submission.channel == "test" and not submission.published:
+        raise HTTPException(
+            status_code=403,
+            detail="These results have not been published by your instructor yet.",
+        )
+    question = _question(submission.question_id)
+    report = submission.verification
+    return StudentView(
+        question_id=question.id,
+        question_prompt=question.prompt,
+        student_pseudonym=submission.student_pseudonym,
+        channel=submission.channel,
+        total_proposed=submission.marks.total_proposed,
+        total_max=submission.marks.total_max,
+        criteria=[
+            StudentCriterion(
+                criterion_id=c.criterion_id,
+                proposed=c.proposed,
+                max=c.max,
+                justification=c.justification,
+            )
+            for c in submission.marks.criteria
+        ],
+        feedback=submission.feedback,
+        practice=[p.model_dump() for p in submission.practice],
+        final_answer_correct=bool(report and report.final_answer_correct),
+        final_answer_verified=bool(report and report.final_answer_verified),
+    )
+
+
+@app.post("/api/submissions/{submission_id}/chat")
+def api_chat(submission_id: str, body: ChatRequest) -> ChatReply:
+    """A grounded tutor: answers the student's question about their own marked
+    work, constrained to the marks and checks already settled."""
+    submission = _marked_submission(submission_id)
+    question = _question(submission.question_id)
+    report = submission.verification or verify(
+        submission.confirmed_steps or [],
+        question.model_solution_steps,
+        question.variable,
+    )
+    reply = tutor_answer(
+        question,
+        submission.confirmed_steps or [],
+        submission.marks,
+        submission.feedback,
+        report,
+        [m.model_dump() for m in body.messages],
+    )
+    return ChatReply(answer=reply)
+
+
+@app.post("/api/submissions/{submission_id}/draft-email")
+def api_draft_email(submission_id: str, body: DraftEmailRequest) -> EmailDraft:
+    """Draft an email from the student to their instructor about this question.
+
+    Returns text only. Nothing is sent - the student reviews, edits and sends
+    it from their own mail client.
+    """
+    submission = _marked_submission(submission_id)
+    question = _question(submission.question_id)
+    report = submission.verification or verify(
+        submission.confirmed_steps or [],
+        question.model_solution_steps,
+        question.variable,
+    )
+    draft = tutor_draft_email(
+        question,
+        submission.confirmed_steps or [],
+        submission.marks,
+        submission.feedback,
+        report,
+        submission.student_pseudonym,
+        body.concern,
+    )
+    return EmailDraft(**draft)
 
 
 # ---------- class view ----------

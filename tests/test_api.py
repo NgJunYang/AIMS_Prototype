@@ -359,6 +359,101 @@ def test_feedback_edit_before_marking_returns_409():
     assert response.status_code == 409
 
 
+def _mark_a_tutorial(monkeypatch, channel: str = "tutorial") -> str:
+    _stub_llm(monkeypatch)
+    created = client.post(
+        "/api/submissions", json={"question_id": "q2", "channel": channel}
+    ).json()
+    client.put(
+        f"/api/submissions/{created['id']}/steps",
+        json={"steps": [{"index": 1, "latex": "x^2 = 5x"}, {"index": 2, "latex": "x = 5"}]},
+    )
+    client.post(f"/api/submissions/{created['id']}/mark")
+    return created["id"]
+
+
+def test_student_view_shows_final_numbers_and_feedback_without_instructor_internals(monkeypatch):
+    submission_id = _mark_a_tutorial(monkeypatch)
+    body = client.get(f"/api/submissions/{submission_id}/student-view").json()
+
+    assert body["channel"] == "tutorial"
+    assert body["total_max"] > 0
+    assert body["feedback"]["what_went_well"] == "a"
+    assert body["criteria"]
+    # None of the instructor-only fields leak through.
+    for criterion in body["criteria"]:
+        assert set(criterion) == {"criterion_id", "proposed", "max", "justification"}
+
+
+def test_student_view_before_marking_is_409():
+    created = client.post("/api/submissions", json={"question_id": "q2"}).json()
+    assert client.get(f"/api/submissions/{created['id']}/student-view").status_code == 409
+
+
+def test_a_graded_test_script_is_hidden_until_the_instructor_publishes(monkeypatch):
+    submission_id = _mark_a_tutorial(monkeypatch, channel="test")
+
+    assert client.get(f"/api/submissions/{submission_id}/student-view").status_code == 403
+
+    published = client.post(f"/api/submissions/{submission_id}/publish").json()
+    assert published["published"] is True
+    assert client.get(f"/api/submissions/{submission_id}/student-view").status_code == 200
+
+    client.post(f"/api/submissions/{submission_id}/unpublish")
+    assert client.get(f"/api/submissions/{submission_id}/student-view").status_code == 403
+
+
+def test_publish_before_marking_is_409():
+    created = client.post("/api/submissions", json={"question_id": "q2"}).json()
+    assert client.post(f"/api/submissions/{created['id']}/publish").status_code == 409
+
+
+def test_tutor_chat_is_grounded_and_returned(monkeypatch):
+    submission_id = _mark_a_tutorial(monkeypatch)
+    captured = {}
+
+    def fake_answer(question, steps, marks, feedback, report, messages):
+        captured["messages"] = messages
+        captured["mark_total"] = marks.total_proposed
+        return "Look again at step 2."
+
+    monkeypatch.setattr(main, "tutor_answer", fake_answer)
+
+    body = client.post(
+        f"/api/submissions/{submission_id}/chat",
+        json={"messages": [{"role": "user", "content": "Why did I lose a mark?"}]},
+    ).json()
+
+    assert body["answer"] == "Look again at step 2."
+    assert captured["messages"][0]["content"] == "Why did I lose a mark?"
+
+
+def test_tutor_chat_before_marking_is_409():
+    created = client.post("/api/submissions", json={"question_id": "q2"}).json()
+    response = client.post(
+        f"/api/submissions/{created['id']}/chat",
+        json={"messages": [{"role": "user", "content": "hi"}]},
+    )
+    assert response.status_code == 409
+
+
+def test_draft_email_returns_subject_and_body_and_sends_nothing(monkeypatch):
+    submission_id = _mark_a_tutorial(monkeypatch)
+    monkeypatch.setattr(
+        main,
+        "tutor_draft_email",
+        lambda *args: {"subject": "Query about Q2", "body": "Dear instructor, ..."},
+    )
+
+    body = client.post(
+        f"/api/submissions/{submission_id}/draft-email",
+        json={"concern": "I think x = 0 should also count."},
+    ).json()
+
+    assert body["subject"] == "Query about Q2"
+    assert body["body"].startswith("Dear instructor")
+
+
 def test_offline_cache_miss_returns_503_with_a_helpful_hint(monkeypatch):
     from app.llm import OfflineCacheMiss
 

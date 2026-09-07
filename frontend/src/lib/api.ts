@@ -37,11 +37,15 @@ export const api = {
   listQuestions: () => apiFetch("/api/questions"),
   getQuestion: (id: string) => apiFetch(`/api/questions/${encodeURIComponent(id)}`),
   getSubmission: (id: string) => apiFetch(`/api/submissions/${encodeURIComponent(id)}`),
-  createSubmission: (questionId: string, studentPseudonym: string) =>
+  createSubmission: (
+    questionId: string,
+    studentPseudonym: string,
+    channel: "tutorial" | "test" = "tutorial"
+  ) =>
     apiFetch("/api/submissions", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question_id: questionId, student_pseudonym: studentPseudonym }),
+      body: JSON.stringify({ question_id: questionId, student_pseudonym: studentPseudonym, channel }),
     }),
   transcribe: (submissionId: string, file: File, page = 1) => {
     const form = new FormData();
@@ -87,6 +91,24 @@ export const api = {
     }),
   resetOverrides: (submissionId: string) =>
     apiFetch(`/api/submissions/${submissionId}/reset-overrides`, { method: "POST" }),
+  publish: (submissionId: string) =>
+    apiFetch(`/api/submissions/${submissionId}/publish`, { method: "POST" }),
+  unpublish: (submissionId: string) =>
+    apiFetch(`/api/submissions/${submissionId}/unpublish`, { method: "POST" }),
+  studentView: (submissionId: string) =>
+    apiFetch(`/api/submissions/${submissionId}/student-view`),
+  chat: (submissionId: string, messages: { role: "user" | "assistant"; content: string }[]) =>
+    apiFetch(`/api/submissions/${submissionId}/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+    }),
+  draftEmail: (submissionId: string, concern: string) =>
+    apiFetch(`/api/submissions/${submissionId}/draft-email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ concern }),
+    }),
   updateFeedback: (
     submissionId: string,
     feedback: { what_went_well: string; what_went_wrong: string; how_to_improve: string }

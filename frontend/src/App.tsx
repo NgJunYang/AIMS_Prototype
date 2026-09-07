@@ -1,23 +1,45 @@
 import { useState } from "react";
 import { motion } from "motion/react";
+import { GraduationCap, PenSquare } from "lucide-react";
 import { ToastProvider } from "./components/ui/Toast";
 import { WorkbenchProvider, useWorkbench } from "./state/WorkbenchContext";
 import Landing from "./pages/Landing";
 import Setup from "./pages/Setup";
 import Confirm from "./pages/Confirm";
 import Class from "./pages/Class";
+import Student from "./pages/Student";
 
-export type Screen = "landing" | "setup" | "confirm" | "class";
+export type Screen = "landing" | "setup" | "confirm" | "class" | "student";
+export type Role = "instructor" | "student";
 
-const APP_SCREENS: { id: Screen; label: string }[] = [
+const INSTRUCTOR_SCREENS: { id: Screen; label: string }[] = [
   { id: "setup", label: "Setup" },
   { id: "confirm", label: "Workbench" },
   { id: "class", label: "Analytics" },
 ];
 
+function readRole(): Role {
+  try {
+    return localStorage.getItem("aims_role") === "student" ? "student" : "instructor";
+  } catch {
+    return "instructor";
+  }
+}
+
 function Shell() {
   const [screen, setScreen] = useState<Screen>("landing");
+  const [role, setRoleState] = useState<Role>(readRole);
   const { state } = useWorkbench();
+
+  function setRole(next: Role) {
+    setRoleState(next);
+    try {
+      localStorage.setItem("aims_role", next);
+    } catch {
+      /* private mode — the switch still works for this session */
+    }
+    setScreen(next === "student" ? "student" : "setup");
+  }
 
   return (
     <div className="min-h-screen bg-bg text-text">
@@ -30,22 +52,31 @@ function Shell() {
             >
               AIMS
             </button>
-            <nav className="flex gap-1">
-              {APP_SCREENS.map((s) => {
-                const disabled = s.id === "confirm" && !state.submissionId;
-                return (
-                  <button
-                    key={s.id}
-                    disabled={disabled}
-                    onClick={() => setScreen(s.id)}
-                    className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-30 disabled:pointer-events-none ${
-                      screen === s.id ? "bg-accent-soft text-accent-hover" : "text-text-muted hover:text-text"
-                    }`}
-                  >
-                    {s.label}
-                  </button>
-                );
-              })}
+            <nav className="flex items-center gap-1">
+              {screen !== "student" &&
+                INSTRUCTOR_SCREENS.map((s) => {
+                  const disabled = s.id === "confirm" && !state.submissionId;
+                  return (
+                    <button
+                      key={s.id}
+                      disabled={disabled}
+                      onClick={() => setScreen(s.id)}
+                      className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-30 disabled:pointer-events-none ${
+                        screen === s.id ? "bg-accent-soft text-accent-hover" : "text-text-muted hover:text-text"
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  );
+                })}
+              <button
+                onClick={() => setRole(role === "student" ? "instructor" : "student")}
+                className="ml-2 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-sm font-medium text-text-muted hover:border-accent/50 hover:text-text"
+                title={role === "student" ? "Switch to instructor view" : "Switch to student view"}
+              >
+                {role === "student" ? <PenSquare size={14} /> : <GraduationCap size={14} />}
+                {role === "student" ? "Instructor" : "Student"}
+              </button>
             </nav>
           </div>
         </header>
@@ -65,10 +96,11 @@ function Shell() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2 }}
       >
-        {screen === "landing" && <Landing onStart={() => setScreen("setup")} />}
+        {screen === "landing" && <Landing onStart={(r) => setRole(r)} />}
         {screen === "setup" && <Setup onSubmissionCreated={() => setScreen("confirm")} />}
         {screen === "confirm" && <Confirm />}
         {screen === "class" && <Class />}
+        {screen === "student" && <Student />}
       </motion.main>
     </div>
   );

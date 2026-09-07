@@ -85,6 +85,8 @@ export interface Submission {
   question_id: string;
   student_pseudonym?: string;
   student_id?: string | null;
+  channel?: "tutorial" | "test";
+  published?: boolean;
   /** Raw audit record of what the vision model read off the page, if a photo
    * was uploaded. Never authoritative on its own — see student_pseudonym/student_id. */
   extracted_identity?: IdentityExtraction | null;

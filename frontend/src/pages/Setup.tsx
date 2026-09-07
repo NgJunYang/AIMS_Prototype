@@ -80,6 +80,22 @@ export default function Setup({ onSubmissionCreated }: { onSubmissionCreated: ()
         </div>
         <div className="flex flex-wrap items-end gap-3">
           <div>
+            <Label>Assessment type</Label>
+            <div className="flex rounded-lg border border-border bg-surface-2 p-0.5 text-sm">
+              {(["test", "tutorial"] as const).map((c) => (
+                <button
+                  key={c}
+                  onClick={() => wb.setChannel(c)}
+                  className={`rounded-md px-3 py-1.5 font-medium capitalize transition-colors ${
+                    state.channel === c ? "bg-accent text-white" : "text-text-muted hover:text-text"
+                  }`}
+                >
+                  {c === "test" ? "Graded test" : "Tutorial"}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
             <Label>Student (optional)</Label>
             <Input
               value={studentName}

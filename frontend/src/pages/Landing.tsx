@@ -1,6 +1,7 @@
 import { motion } from "motion/react";
-import { Camera, PenLine, ShieldCheck, CheckCircle2, ClipboardCheck, ArrowRight, Sparkles } from "lucide-react";
+import { Camera, PenLine, ShieldCheck, CheckCircle2, ClipboardCheck, ArrowRight, Sparkles, GraduationCap } from "lucide-react";
 import { Button } from "../components/ui/Button";
+import type { Role } from "../App";
 
 const pipeline = [
   { icon: Camera, label: "Photographed" },
@@ -37,7 +38,7 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.4 } },
 };
 
-export default function Landing({ onStart }: { onStart: () => void }) {
+export default function Landing({ onStart }: { onStart: (role: Role) => void }) {
   return (
     <div className="overflow-x-hidden">
       {/* Hero */}
@@ -71,9 +72,12 @@ export default function Landing({ onStart }: { onStart: () => void }) {
             Photograph a student's handwritten working. AIMS transcribes it, checks the mathematics, and prepares a
             clearly labelled assessment draft — ready for you to correct, refresh, and approve.
           </motion.p>
-          <motion.div variants={item} className="mt-10 flex items-center justify-center gap-3">
-            <Button onClick={onStart} className="px-6 py-3 text-base">
-              Start marking <ArrowRight size={16} />
+          <motion.div variants={item} className="mt-10 flex flex-wrap items-center justify-center gap-3">
+            <Button onClick={() => onStart("instructor")} className="px-6 py-3 text-base">
+              <PenLine size={16} /> I'm marking
+            </Button>
+            <Button onClick={() => onStart("student")} variant="secondary" className="px-6 py-3 text-base">
+              <GraduationCap size={16} /> I'm a student
             </Button>
           </motion.div>
         </motion.div>
@@ -129,13 +133,19 @@ export default function Landing({ onStart }: { onStart: () => void }) {
 
       {/* Final CTA */}
       <section className="border-t border-border px-6 py-16 text-center">
-        <h2 className="text-2xl font-semibold">Ready to mark?</h2>
+        <h2 className="text-2xl font-semibold">Ready when you are.</h2>
         <p className="mx-auto mt-2 max-w-md text-text-muted">
-          Pick a question, upload a script, and see the full pipeline run in under a minute.
+          Instructors mark a script and publish results. Students upload their working, check the digitised
+          version, and get a score, feedback, and targeted practice.
         </p>
-        <Button onClick={onStart} className="mt-6 px-6 py-3 text-base">
-          Start marking <ArrowRight size={16} />
-        </Button>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <Button onClick={() => onStart("instructor")} className="px-6 py-3 text-base">
+            Start marking <ArrowRight size={16} />
+          </Button>
+          <Button onClick={() => onStart("student")} variant="secondary" className="px-6 py-3 text-base">
+            I'm a student <ArrowRight size={16} />
+          </Button>
+        </div>
       </section>
     </div>
   );
