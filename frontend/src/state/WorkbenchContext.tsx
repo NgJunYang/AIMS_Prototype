@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { api, ApiError } from "../lib/api";
+import { api, apiUrl, ApiError } from "../lib/api";
 import type { FeedbackDraft, Question, Step, Submission } from "../types";
 
 /** Ported from static/app.js's `state` object — the fields shared between
@@ -461,8 +461,46 @@ function useWorkbenchValue() {
 
   const setSubmission = useCallback((submission: WorkbenchState["submission"]) => patch({ submission }), [patch]);
 
+  const resumeSubmission = useCallback(async (id: string) => {
+    if (mutationBusy.current || state.confirmBusy || state.autoRefreshing) {
+      throw new Error("Wait for the current save or marking run to finish.");
+    }
+    if (id === state.submissionId) return true; // Keep this session's pending edits.
+    const dirty = state.submissionId && (
+      JSON.stringify(state.localSteps.map((s) => s.latex)) !== JSON.stringify((state.submission?.confirmed_steps || []).map((s) => s.latex)) ||
+      state.localName.trim() !== state.submission?.student_pseudonym ||
+      state.localStudentId.trim() !== (state.submission?.student_id || "") ||
+      state.feedbackDraft !== null || state.pendingUploadFile !== null
+    );
+    if (dirty && !window.confirm("Open another submission and discard the current unsaved edits? Saved work will remain available.")) return false;
+    mutationBusy.current = true;
+    patch({ reviewBusy: true });
+    try {
+      const [sub, questions]: [Submission, Question[]] = await Promise.all([api.getSubmission(id), api.listQuestions()]);
+      if (autoTimer.current) window.clearTimeout(autoTimer.current);
+      autoAttemptedSig.current = null;
+      setState({
+        ...initialState, questions,
+        currentQuestion: questions.find((q) => q.id === sub.question_id) || null,
+        submissionId: sub.id, submission: sub,
+        localName: sub.student_pseudonym || "", localStudentId: sub.student_id || "",
+        localSteps: (sub.confirmed_steps ?? sub.transcription?.steps ?? []).map((s) => ({ ...s })),
+        channel: sub.channel || "tutorial", assignmentId: sub.assignment_id || null,
+        uploadedImageUrl: sub.image_filename ? apiUrl(`/api/submissions/${encodeURIComponent(sub.id)}/image`) : null,
+        // Only the chosen rendered page is saved; the original PDF is not retained.
+        uploadSourceType: sub.image_filename ? "image" : null,
+        uploadSelectedPage: sub.source_page || 1,
+      });
+      return true;
+    } finally {
+      mutationBusy.current = false;
+      patch({ reviewBusy: false });
+    }
+  }, [state, patch]);
+
   return {
     state,
+    resumeSubmission,
     loadQuestions,
     selectQuestion,
     beginWithUpload,

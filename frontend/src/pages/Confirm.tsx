@@ -27,6 +27,7 @@ import { Katex, Mixed } from "../components/Math";
 import { api, ApiError } from "../lib/api";
 import { divergenceMessage, formatRootList, humanizeTag } from "../lib/katex";
 import type { Criterion, CriterionMark, Question, StepVerification } from "../types";
+import { StudentResultLink } from "../components/StudentResultLink";
 
 type PanelTone = "scan" | "record" | "assess";
 
@@ -225,9 +226,9 @@ export default function Confirm() {
                   Catching up to your latest edit — these will refresh in a moment.
                 </div>
               )}
-              <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                 <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Rubric suggestions</p>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   {hasOverrides && <Badge tone="accent">manual edits</Badge>}
                   {!editingRubric && submissionQuestion && (
                     <button
@@ -705,9 +706,10 @@ function PublishControl({
 
   if (channel === "tutorial") {
     return (
-      <div className="mt-5 flex items-center gap-2 rounded-lg border border-border bg-surface-2/50 p-3 text-xs text-text-muted">
+      <div className="mt-5 rounded-lg border border-border bg-surface-2/50 p-3 text-xs text-text-muted">
         <Check size={14} className="shrink-0 text-success" />
         Tutorial submission — visible to the student as soon as it's marked. No publishing step.
+        <StudentResultLink id={submissionId} />
       </div>
     );
   }
@@ -731,6 +733,7 @@ function PublishControl({
         {busy ? <RefreshCw className="animate-spin" size={14} /> : <Send size={14} />}
         {published ? "Unpublish" : "Publish to student"}
       </Button>
+      {published && <StudentResultLink id={submissionId} />}
     </div>
   );
 }

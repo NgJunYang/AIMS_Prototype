@@ -1333,3 +1333,47 @@ def test_static_index_is_served_at_root():
     response = client.get("/")
     assert response.status_code == 200
     assert "SAINT" in response.text
+
+
+def test_resume_index_includes_unmarked_and_marked_without_review_payloads(monkeypatch):
+    _stub_llm(monkeypatch)
+    assert client.get("/api/submissions").json() == []
+    unmarked = _new_submission()
+    marked = _new_submission()
+    client.post(f"/api/submissions/{marked}/mark")
+    rows = {r["id"]: r for r in client.get("/api/submissions").json()}
+    assert set(rows) == {marked, unmarked}
+    assert rows[unmarked]["marked"] is False
+    assert rows[unmarked]["total_proposed"] is None
+    assert rows[marked]["marked"] is True
+    assert "feedback" not in rows[marked]
+    assert "transcription" not in rows[marked]
+    assert client.get(f"/api/submissions/{marked}").json()["marks"] is not None
+
+
+def test_saved_scan_endpoint_only_returns_the_submissions_own_png():
+    sid = _new_submission()
+    assert client.get(f"/api/submissions/{sid}/image").status_code == 404
+    sub = store.load_submission(sid)
+    sub.image_filename = f"{sid}.png"
+    (main.IMAGES_DIR / sub.image_filename).write_bytes(PNG_1X1)
+    store.save_submission(sub)
+    response = client.get(f"/api/submissions/{sid}/image")
+    assert response.status_code == 200
+    assert response.content == PNG_1X1
+    for filename in ("../../.env", "aaaaaaaaaaaa.png"):
+        sub.image_filename = filename
+        store.save_submission(sub)
+        assert client.get(f"/api/submissions/{sid}/image").status_code == 404
+
+
+def test_roster_reversed_headers_and_invalid_replacement_are_atomic():
+    client.post("/api/assignments", json=NEW_ASSIGNMENT)
+    response = client.post("/api/assignments/week5/roster", files={"file": ("r.csv", b"student_id,name\nA1,Alex\nB2,Bea")})
+    assert response.status_code == 200
+    expected = [{"name": "Alex", "student_id": "A1"}, {"name": "Bea", "student_id": "B2"}]
+    assert response.json()["roster"] == expected
+    for csv in (b"student_id,full_name\nC3,Ca", b"name,student_id\nCa,C3\n,broken", b"name,student_id\n"):
+        response = client.post("/api/assignments/week5/roster", files={"file": ("bad.csv", csv)})
+        assert response.status_code == 400
+        assert client.get("/api/assignments/week5").json()["roster"] == expected

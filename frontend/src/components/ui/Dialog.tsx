@@ -28,7 +28,7 @@ export function Dialog({
             </RadixDialog.Overlay>
             <RadixDialog.Content asChild forceMount>
               <motion.div
-                className="fixed left-1/2 top-1/2 z-50 w-[92vw] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-surface p-6 shadow-2xl"
+                className="fixed left-1/2 top-1/2 z-50 max-h-[90dvh] w-[92vw] max-w-lg overflow-y-auto -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border bg-surface p-6 shadow-2xl"
                 initial={{ opacity: 0, scale: 0.96, y: 8 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.96, y: 8 }}

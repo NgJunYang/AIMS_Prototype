@@ -1,0 +1,20 @@
+{
+  "id": "test-round-trip",
+  "question_id": "q1",
+  "image_filename": null,
+  "source_page": null,
+  "source_page_count": null,
+  "transcription": null,
+  "confirmed_steps": null,
+  "verification": null,
+  "marks": null,
+  "manual_score_overrides": {},
+  "feedback": null,
+  "practice": [],
+  "student_pseudonym": "Student A",
+  "student_id": null,
+  "extracted_identity": null,
+  "channel": "tutorial",
+  "published": false,
+  "assignment_id": null
+}

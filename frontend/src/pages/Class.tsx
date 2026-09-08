@@ -14,6 +14,8 @@ import { Dialog } from "../components/ui/Dialog";
 import { api } from "../lib/api";
 import { humanizeTag } from "../lib/katex";
 import type { Submission } from "../types";
+import { useWorkbench } from "../state/WorkbenchContext";
+import { StudentResultLink } from "../components/StudentResultLink";
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip);
 
@@ -56,7 +58,7 @@ function bandBar(pct: number): string {
   return "bg-success";
 }
 
-export default function Class() {
+export default function Class({ onResume }: { onResume: () => void }) {
   const [summary, setSummary] = useState<ClassSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showSample, setShowSample] = useState(false);
@@ -94,7 +96,7 @@ export default function Class() {
     <div className="mx-auto max-w-6xl px-6 py-10">
       <p className="mb-1 font-mono text-xs uppercase tracking-wide text-text-muted">Analytics</p>
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <h1 className="text-2xl font-semibold">Cohort overview</h1>
           {summary.source_note && (
             <Badge tone={summary.source === "computed" ? "success" : "warning"}>
@@ -110,7 +112,7 @@ export default function Class() {
       </div>
       {summary.source_note && <p className="-mt-4 mb-6 text-sm text-text-muted">{summary.source_note}</p>}
 
-      <div className="mb-6 grid grid-cols-3 gap-4">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Stat label="Cohort size" value={summary.cohort_size} />
         <Stat label="Marked" value={summary.marked} />
         <Stat label="Mean %" value={`${summary.mean_percentage}%`} />
@@ -123,7 +125,7 @@ export default function Class() {
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <p className="mb-1 font-mono text-xs uppercase tracking-wide text-text-muted">Strengths &amp; weaknesses</p>
           <p className="mb-4 text-xs text-text-muted">Mean score on each rubric concept, weakest first.</p>
@@ -215,6 +217,7 @@ export default function Class() {
 
       <Card className="mt-6">
         <p className="mb-3 font-mono text-xs uppercase tracking-wide text-text-muted">Students</p>
+        <div className="overflow-x-auto" role="region" aria-label="Student marks" tabIndex={0}>
         <table className="w-full text-sm">
           <tbody>
             {(summary.students || []).map((s, i) => {
@@ -225,7 +228,7 @@ export default function Class() {
                   onClick={() => clickable && setOpenStudent(s)}
                   className={`border-b border-border last:border-0 ${clickable ? "cursor-pointer hover:bg-surface-2" : ""}`}
                 >
-                  <td className="py-2 pr-2">{s.pseudonym}</td>
+                  <td className="py-2 pr-2">{clickable ? <button className="text-left underline underline-offset-4" onClick={(e) => { e.stopPropagation(); setOpenStudent(s); }}>{s.pseudonym}</button> : s.pseudonym}</td>
                   <td className="py-2 pr-2 font-mono text-xs text-text-muted">{s.question_id}</td>
                   <td className="py-2 pr-2 text-right font-mono tabular-nums">
                     {s.mark} / {s.max}
@@ -238,17 +241,20 @@ export default function Class() {
             })}
           </tbody>
         </table>
+        </div>
         {(summary.students || []).some((s) => s.submission_id) && (
           <p className="mt-3 text-xs text-text-muted">Select a student to see their per-concept breakdown and feedback.</p>
         )}
       </Card>
 
-      <StudentDetail row={openStudent} onClose={() => setOpenStudent(null)} />
+      <StudentDetail row={openStudent} onClose={() => setOpenStudent(null)} onResume={onResume} />
     </div>
   );
 }
 
-function StudentDetail({ row, onClose }: { row: StudentRow | null; onClose: () => void }) {
+function StudentDetail({ row, onClose, onResume }: { row: StudentRow | null; onClose: () => void; onResume: () => void }) {
+  const wb = useWorkbench();
+  const [opening, setOpening] = useState(false);
   const [sub, setSub] = useState<Submission | null>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -324,6 +330,16 @@ function StudentDetail({ row, onClose }: { row: StudentRow | null; onClose: () =
           )}
         </div>
       )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        {sub && <Button disabled={opening || wb.state.confirmBusy || wb.state.autoRefreshing || wb.state.reviewBusy} onClick={async () => {
+          setOpening(true);
+          try { if (await wb.resumeSubmission(sub.id)) { onClose(); onResume(); } }
+          catch (e) { setErr(e instanceof Error ? e.message : "Could not resume marking."); }
+          finally { setOpening(false); }
+        }}>{opening ? "Opening…" : "Resume marking"}</Button>}
+        <Button variant="secondary" onClick={onClose}>Close</Button>
+      </div>
+      {sub && sub.marks && (sub.published || sub.channel === "tutorial") && <StudentResultLink id={sub.id} />}
     </Dialog>
   );
 }

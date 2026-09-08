@@ -34,6 +34,7 @@ interface StudentCriterion {
   justification: string;
 }
 interface StudentView {
+  channel: "tutorial" | "test";
   question_id: string;
   question_prompt: string;
   student_pseudonym: string;
@@ -68,6 +69,38 @@ export default function Student() {
   const [busyMsg, setBusyMsg] = useState("");
   const [view, setView] = useState<StudentView | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [resultCode, setResultCode] = useState(() => new URLSearchParams(window.location.search).get("result") || "");
+  const [resultError, setResultError] = useState("");
+
+  async function openResult(id: string) {
+    if (!id.trim() || busy) return;
+    setBusy(true);
+    setBusyMsg("Loading your released result…");
+    setResultError("");
+    setView(null);
+    try {
+      const result = await api.studentView(id.trim());
+      setSubmissionId(id.trim());
+      setView(result);
+      setStage("result");
+      const url = new URL(window.location.href);
+      url.searchParams.set("result", id.trim());
+      window.history.replaceState(null, "", url);
+    } catch (err) {
+      setResultError(err instanceof ApiError && err.status === 403
+        ? "This result has not been released, or the instructor has unpublished it."
+        : err instanceof ApiError && err.status === 404
+          ? "No result was found for that code. Check the code with your instructor."
+          : problem(err));
+      setStage("pick");
+    } finally { setBusy(false); }
+  }
+
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("result");
+    if (id) void openResult(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     api
@@ -144,6 +177,10 @@ export default function Student() {
   }
 
   function restart() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("result");
+    window.history.replaceState(null, "", url);
+    setResultError("");
     setStage("pick");
     setSubmissionId(null);
     setScanUrl(null);
@@ -155,6 +192,18 @@ export default function Student() {
     <div className="mx-auto max-w-4xl px-6 py-10">
       <p className="mb-1 font-mono text-xs uppercase tracking-wide text-text-muted">Student</p>
       <h1 className="mb-6 text-2xl font-semibold">Check your working and get feedback</h1>
+
+      {stage === "pick" && (
+        <Card className="mb-6">
+          <h2 className="mb-2 text-lg font-semibold">Open an instructor-released result</h2>
+          <p className="mb-3 text-sm text-text-muted">Use the result link from your instructor, or enter its result code below.</p>
+          <form className="flex flex-col gap-3 sm:flex-row sm:items-end" onSubmit={(e) => { e.preventDefault(); void openResult(resultCode); }}>
+            <div className="min-w-0 flex-1"><Label htmlFor="result-code">Result code</Label><Input id="result-code" value={resultCode} onChange={(e) => setResultCode(e.target.value)} /></div>
+            <Button type="submit" disabled={busy || !resultCode.trim()}>Open result</Button>
+          </form>
+          {resultError && <p role="alert" className="mt-3 text-sm text-danger">{resultError}</p>}
+        </Card>
+      )}
 
       {stage === "pick" && (
         <Card className="flex flex-col gap-5">
@@ -286,7 +335,9 @@ function ResultCard({ view }: { view: StudentView }) {
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="font-mono text-xs uppercase tracking-wide text-text-muted">{view.question_id}</p>
-          <p className="mt-1 text-sm text-text-muted">Marked automatically — no instructor review needed for tutorials.</p>
+          <p className="mt-1 text-sm font-medium">{view.student_pseudonym}</p>
+          <p className="mt-1 text-sm text-text-muted">{view.channel === "test" ? "Reviewed and released by your instructor." : "Marked automatically — no instructor review needed for tutorials."}</p>
+          <Mixed text={view.question_prompt} className="mt-2 text-sm" />
         </div>
         <div className="flex items-center gap-2">
           {view.final_answer_verified && (

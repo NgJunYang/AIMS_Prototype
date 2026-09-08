@@ -1,0 +1,19 @@
+{
+  "id": "qa-medium-0909",
+  "title": "QA Medium Roster",
+  "kind": "tutorial",
+  "question_ids": [
+    "q2"
+  ],
+  "roster": [
+    {
+      "name": "QA Alex",
+      "student_id": "QA-M01"
+    },
+    {
+      "name": "QA Bea",
+      "student_id": "QA-M02"
+    }
+  ],
+  "created_at": "2026-09-08T16:19:21.797698+00:00"
+}

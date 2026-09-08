@@ -10,6 +10,7 @@ import { Mixed, Katex } from "../components/Math";
 import { QuestionEditor } from "../components/QuestionEditor";
 import { api } from "../lib/api";
 import type { Question } from "../types";
+import { SavedSubmissions } from "../components/SavedSubmissions";
 
 interface AssignmentLite {
   id: string;
@@ -271,6 +272,8 @@ export default function Setup({ onSubmissionCreated }: { onSubmissionCreated: ()
           </Card>
         </motion.div>
       )}
+
+      <SavedSubmissions onOpened={onSubmissionCreated} />
 
       {editorOpen && (
         <QuestionEditor

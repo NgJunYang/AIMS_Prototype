@@ -414,6 +414,33 @@ def api_create_submission(body: CreateSubmission) -> Submission:
     return submission
 
 
+@app.get("/api/submissions")
+def api_list_submissions() -> list[dict]:
+    """Instructor resume index; omit scans, working and feedback from the list."""
+    return [
+        {"id": s.id, "question_id": s.question_id,
+         "student_pseudonym": s.student_pseudonym, "student_id": s.student_id,
+         "assignment_id": s.assignment_id, "channel": s.channel,
+         "published": s.published, "marked": s.marks is not None,
+         "total_proposed": s.marks.total_proposed if s.marks else None,
+         "total_max": s.marks.total_max if s.marks else None}
+        for s in sorted(list_submissions(), key=lambda s: (s.student_pseudonym.casefold(), s.id))
+    ]
+
+
+@app.get("/api/submissions/{submission_id}/image")
+def api_submission_image(submission_id: str) -> FileResponse:
+    """Restore the saved, rendered scan for the instructor's resumed review."""
+    submission = _submission(submission_id)
+    name = submission.image_filename
+    if not re.fullmatch(r"[0-9a-f]{12}", submission_id) or name != f"{submission_id}.png":
+        raise HTTPException(status_code=404, detail="no saved scan for this submission")
+    path = (IMAGES_DIR / name).resolve()
+    if not path.is_relative_to(IMAGES_DIR.resolve()) or not path.is_file():
+        raise HTTPException(status_code=404, detail="no saved scan for this submission")
+    return FileResponse(path, media_type="image/png")
+
+
 @app.get("/api/submissions/{submission_id}")
 def api_get_submission(submission_id: str) -> Submission:
     return _submission(submission_id)
@@ -867,7 +894,10 @@ async def api_upload_roster(
     raw = await file.read()
     if not raw:
         raise HTTPException(status_code=400, detail="empty file")
-    assignment.roster = parse_roster_csv(raw)
+    try:
+        assignment.roster = parse_roster_csv(raw)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not assignment.roster:
         raise HTTPException(
             status_code=400, detail="no names could be read from that file"

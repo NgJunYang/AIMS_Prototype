@@ -57,7 +57,7 @@ export default function Assignments() {
 
   return (
     <div className="mx-auto max-w-4xl px-6 py-10">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="mb-1 font-mono text-xs uppercase tracking-wide text-text-muted">Assignments</p>
           <h1 className="text-2xl font-semibold">Activities &amp; rosters</h1>
@@ -152,7 +152,7 @@ function CreateForm({
       </div>
       <div>
         <Label>Type</Label>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {(["tutorial", "ca", "exam"] as const).map((k) => (
             <button
               key={k}
@@ -224,7 +224,7 @@ function AssignmentCard({ assignment, onChanged }: { assignment: Assignment; onC
     <Card>
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <h2 className="font-semibold">{assignment.title}</h2>
             <Badge tone={assignment.kind === "tutorial" ? "success" : "accent"}>{KIND_LABEL[assignment.kind]}</Badge>
           </div>
@@ -237,7 +237,8 @@ function AssignmentCard({ assignment, onChanged }: { assignment: Assignment; onC
         </button>
       </div>
 
-      <div className="flex items-center gap-3">
+      <p className="mb-3 text-xs text-text-muted">CSV format: name,student_id headers in either order (Student Name and Student ID also work). Without headers, put names first and IDs second. Uploading replaces the current roster; invalid files leave it unchanged.</p>
+      <div className="flex flex-wrap items-center gap-3">
         <input
           ref={fileRef}
           type="file"

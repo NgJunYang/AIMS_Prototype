@@ -165,6 +165,15 @@ The full verify → mark → feedback → practice pipeline runs end to end with
 no network call and no API key, served entirely from the cache this script
 just seeded.
 
+## Resume marking and open released results
+
+- **Setup → Resume saved marking** lists marked and unmarked submissions. Search by name, student ID, question or assignment, then choose **Resume marking**. Analytics student details also include a resume button.
+- Resuming loads the last saved identity, confirmed working, marks, feedback and publication status. It does not recover unsaved browser edits. For a PDF, only the rendered page used for transcription is retained, not the original multi-page file.
+- After publishing, use **Open student result** or **Copy result link**. The Student screen also accepts the result code. Reloading that link rechecks publication; unpublished test results are unavailable.
+- Roster CSV headers can be `name,student_id` or `student_id,name`; `Student Name` and `Student ID` are accepted too. Headerless files must be name-first. Invalid rows, ambiguous recognised headers, and duplicate IDs reject the entire upload without replacing the existing roster.
+
+This remains a trusted-demo prototype, not an authenticated student portal. Instructor APIs are not role-protected. Use synthetic data until authentication and authorisation are implemented. A localhost result link works only on the computer running the server.
+
 ## Tests
 
 ```

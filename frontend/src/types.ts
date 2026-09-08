@@ -83,6 +83,7 @@ export interface IdentityExtraction {
 export interface Submission {
   id: string;
   question_id: string;
+  assignment_id?: string | null;
   student_pseudonym?: string;
   student_id?: string | null;
   channel?: "tutorial" | "test";
@@ -101,6 +102,19 @@ export interface Submission {
   misconceptions?: string[] | null;
   practice?: unknown;
   [key: string]: unknown;
+}
+
+export interface SubmissionSummary {
+  id: string;
+  question_id: string;
+  student_pseudonym: string;
+  student_id: string | null;
+  assignment_id: string | null;
+  channel: "test" | "tutorial";
+  published: boolean;
+  marked: boolean;
+  total_proposed: number | null;
+  total_max: number | null;
 }
 
 export type FeedbackDraft = Pick<Feedback, "what_went_well" | "what_went_wrong" | "how_to_improve">;

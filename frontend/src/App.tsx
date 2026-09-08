@@ -29,11 +29,17 @@ function readRole(): Role {
 }
 
 function Shell() {
-  const [screen, setScreen] = useState<Screen>("landing");
-  const [role, setRoleState] = useState<Role>(readRole);
+  const [screen, setScreen] = useState<Screen>(() => new URLSearchParams(window.location.search).has("result") ? "student" : "landing");
+  const [role, setRoleState] = useState<Role>(() => new URLSearchParams(window.location.search).has("result") ? "student" : readRole());
   const { state } = useWorkbench();
 
   function setRole(next: Role) {
+    // Leaving a result link must not reopen that old result on a later reload.
+    if (next === "instructor") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("result");
+      window.history.replaceState(null, "", url);
+    }
     setRoleState(next);
     try {
       localStorage.setItem("aims_role", next);
@@ -47,14 +53,14 @@ function Shell() {
     <div className="min-h-screen bg-bg text-text">
       {screen !== "landing" && (
         <header className="sticky top-0 z-30 border-b border-border bg-bg/90 backdrop-blur">
-          <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-3">
+          <div className="mx-auto flex max-w-[1600px] flex-wrap items-center justify-between gap-2 px-4 py-3 sm:px-6">
             <button
               onClick={() => setScreen("landing")}
               className="font-mono text-sm font-semibold tracking-tight text-text hover:text-accent transition-colors"
             >
               SAINT
             </button>
-            <nav className="flex items-center gap-1">
+            <nav aria-label="Main navigation" className="flex min-w-0 flex-wrap items-center gap-1">
               {screen !== "student" &&
                 INSTRUCTOR_SCREENS.map((s) => {
                   const disabled = s.id === "confirm" && !state.submissionId;
@@ -101,7 +107,7 @@ function Shell() {
         {screen === "landing" && <Landing onStart={(r) => setRole(r)} />}
         {screen === "setup" && <Setup onSubmissionCreated={() => setScreen("confirm")} />}
         {screen === "confirm" && <Confirm />}
-        {screen === "class" && <Class />}
+        {screen === "class" && <Class onResume={() => setScreen("confirm")} />}
         {screen === "student" && <Student />}
         {screen === "assignments" && <Assignments />}
       </motion.main>

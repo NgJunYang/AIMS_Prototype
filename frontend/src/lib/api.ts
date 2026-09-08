@@ -1,4 +1,4 @@
-import type { PublishReview } from "../types";
+import type { PublishReview, SubmissionSummary } from "../types";
 
 // Mechanical port of static/app.js's `apiUrl`/`apiFetch`/`api` — same
 // endpoints, same signatures. Fidelity matters more than idiomatic-ness here.
@@ -36,6 +36,7 @@ export async function apiFetch<T = any>(path: string, options?: RequestInit): Pr
 }
 
 export const api = {
+  listSubmissions: () => apiFetch<SubmissionSummary[]>("/api/submissions"),
   listQuestions: () => apiFetch("/api/questions"),
   getQuestion: (id: string) => apiFetch(`/api/questions/${encodeURIComponent(id)}`),
   getSubmission: (id: string) => apiFetch(`/api/submissions/${encodeURIComponent(id)}`),
@@ -122,7 +123,7 @@ export const api = {
   unpublish: (submissionId: string) =>
     apiFetch(`/api/submissions/${submissionId}/unpublish`, { method: "POST" }),
   studentView: (submissionId: string) =>
-    apiFetch(`/api/submissions/${submissionId}/student-view`),
+    apiFetch(`/api/submissions/${encodeURIComponent(submissionId)}/student-view`),
   chat: (submissionId: string, messages: { role: "user" | "assistant"; content: string }[]) =>
     apiFetch(`/api/submissions/${submissionId}/chat`, {
       method: "POST",
