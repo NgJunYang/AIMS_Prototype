@@ -1,0 +1,19 @@
+{
+  "id": "f915a135a7d9",
+  "question_id": "q1",
+  "image_filename": null,
+  "source_page": null,
+  "source_page_count": null,
+  "transcription": null,
+  "confirmed_steps": null,
+  "verification": null,
+  "marks": null,
+  "feedback": null,
+  "practice": [],
+  "student_pseudonym": "QA Image Upload",
+  "student_id": null,
+  "extracted_identity": null,
+  "channel": "test",
+  "published": false,
+  "assignment_id": null
+}

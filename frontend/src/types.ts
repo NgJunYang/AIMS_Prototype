@@ -103,6 +103,13 @@ export interface Submission {
   [key: string]: unknown;
 }
 
+export type FeedbackDraft = Pick<Feedback, "what_went_well" | "what_went_wrong" | "how_to_improve">;
+
+export interface PublishReview {
+  identity: { name: string; student_id: string | null };
+  feedback: FeedbackDraft;
+}
+
 export interface ApiErrorLike {
   message: string;
   status?: number;

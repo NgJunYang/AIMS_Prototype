@@ -272,6 +272,9 @@ class Submission(BaseModel):
     confirmed_steps: list[Step] | None = None
     verification: VerificationReport | None = None
     marks: MarkProposal | None = None
+    # Instructor decisions survive invalidation of generated marks after a
+    # transcription edit. Older submissions start empty and migrate on edit.
+    manual_score_overrides: dict[str, int] = Field(default_factory=dict)
     feedback: Feedback | None = None
     practice: list[PracticeQuestion] = Field(default_factory=list)
     student_pseudonym: str = "Student A"

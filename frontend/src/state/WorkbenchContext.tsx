@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { api, ApiError } from "../lib/api";
-import type { Question, Step, Submission } from "../types";
+import type { FeedbackDraft, Question, Step, Submission } from "../types";
 
 /** Ported from static/app.js's `state` object — the fields shared between
  * Setup and Confirm (question authoring's `qe*` fields live in
@@ -36,6 +36,8 @@ interface WorkbenchState {
    * localSteps: nothing is authoritative until Confirm & Mark saves it. */
   localName: string;
   localStudentId: string;
+  feedbackDraft: FeedbackDraft | null;
+  reviewBusy: boolean;
 }
 
 const initialState: WorkbenchState = {
@@ -59,6 +61,8 @@ const initialState: WorkbenchState = {
   assignmentId: null,
   localName: "",
   localStudentId: "",
+  feedbackDraft: null,
+  reviewBusy: false,
 };
 
 function problemsFrom(err: unknown): string[] {
@@ -83,12 +87,17 @@ function confirmErrorMessage(err: unknown): string {
 function useWorkbenchValue() {
   const [state, setState] = useState<WorkbenchState>(initialState);
   const sessionCount = useRef(0);
+  const mutationBusy = useRef(false);
 
   const patch = useCallback((p: Partial<WorkbenchState>) => setState((s) => ({ ...s, ...p })), []);
 
   const loadQuestions = useCallback(async () => {
     const questions: Question[] = await api.listQuestions();
-    setState((s) => ({ ...s, questions }));
+    setState((s) => ({
+      ...s,
+      questions,
+      currentQuestion: questions.find((q) => q.id === s.currentQuestion?.id) || questions[0] || null,
+    }));
     return questions;
   }, []);
 
@@ -123,6 +132,7 @@ function useWorkbenchValue() {
         patch({
           submissionId: sub.id,
           submission: sub,
+          feedbackDraft: null,
           localSteps: [],
           localName: sub.student_pseudonym || "",
           localStudentId: sub.student_id || "",
@@ -164,6 +174,7 @@ function useWorkbenchValue() {
       patch({
         submissionId: sub.id,
         submission: sub,
+        feedbackDraft: null,
         localSteps: [],
         localName: sub.student_pseudonym || "",
         localStudentId: sub.student_id || "",
@@ -263,6 +274,7 @@ function useWorkbenchValue() {
       patch({
         submissionId: sub.id,
         submission: sub,
+        feedbackDraft: null,
         uploadedImageUrl: null,
         pendingUploadFile: null,
         uploadSourceType: null,
@@ -311,6 +323,40 @@ function useWorkbenchValue() {
     []
   );
 
+  const setFeedbackDraft = useCallback((draft: FeedbackDraft) => patch({ feedbackDraft: draft }), [patch]);
+
+  // Keep pending review edits separate from responses returned by score,
+  // practice and publication operations. Those responses must not erase text.
+  const saveReview = useCallback(async (action: "identity" | "feedback" | "publish") => {
+    if (!state.submissionId || mutationBusy.current) return false;
+    const id = state.submissionId;
+    const feedback = state.feedbackDraft || state.submission?.feedback;
+    const name = state.localName.trim();
+    if (action !== "feedback" && !name) throw new Error("Enter a student name before saving.");
+    if (action !== "identity" && !feedback) throw new Error("Generate feedback before saving the review.");
+    mutationBusy.current = true;
+    patch({ reviewBusy: true });
+    try {
+      const updated: Submission = action === "publish"
+        ? await api.publish(id, {
+            identity: { name, student_id: state.localStudentId.trim() || null },
+            feedback: feedback!,
+          })
+        : action === "feedback"
+          ? await api.updateFeedback(id, feedback!)
+          : await api.updateIdentity(id, name, state.localStudentId.trim() || null);
+      setState((s) => s.submissionId !== id ? s : {
+        ...s,
+        submission: updated,
+        feedbackDraft: action !== "identity" && s.feedbackDraft === state.feedbackDraft ? null : s.feedbackDraft,
+      });
+      return true;
+    } finally {
+      mutationBusy.current = false;
+      patch({ reviewBusy: false });
+    }
+  }, [state.submissionId, state.submission, state.feedbackDraft, state.localName, state.localStudentId, patch]);
+
   const addStep = useCallback(() => {
     setState((s) => ({
       ...s,
@@ -332,7 +378,8 @@ function useWorkbenchValue() {
 
   const confirmAndMark = useCallback(
     async (onDone?: () => void, opts?: { silent?: boolean }) => {
-      if (!state.submissionId) return;
+      if (!state.submissionId || mutationBusy.current) return;
+      mutationBusy.current = true;
       const silent = opts?.silent ?? false;
       // Silent (auto) runs leave the last suggestions on screen with a quiet
       // "updating" hint; the manual path blanks the panel and narrates.
@@ -360,6 +407,7 @@ function useWorkbenchValue() {
       } catch (err) {
         patch({ confirmError: confirmErrorMessage(err) });
       } finally {
+        mutationBusy.current = false;
         patch(silent ? { autoRefreshing: false } : { confirmBusy: false });
       }
     },
@@ -385,7 +433,7 @@ function useWorkbenchValue() {
     if (savedLatexSig === localLatexSig) return; // record matches suggestions
     if (autoAttemptedSig.current === localLatexSig) return; // already tried these lines
     if (!state.localSteps.some((s) => s.latex.trim())) return; // nothing to mark
-    if (state.confirmBusy || state.autoRefreshing) return; // a run is in flight; it re-checks on finish
+    if (state.confirmBusy || state.autoRefreshing || state.reviewBusy) return;
     if (autoTimer.current) window.clearTimeout(autoTimer.current);
     autoTimer.current = window.setTimeout(() => {
       autoAttemptedSig.current = localLatexSig;
@@ -395,7 +443,7 @@ function useWorkbenchValue() {
       if (autoTimer.current) window.clearTimeout(autoTimer.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedLatexSig, localLatexSig, state.submissionId, state.confirmBusy, state.autoRefreshing]);
+  }, [savedLatexSig, localLatexSig, state.submissionId, state.confirmBusy, state.autoRefreshing, state.reviewBusy]);
 
   const reloadQuestions = useCallback(
     async (preferredId: string | null) => {
@@ -426,6 +474,8 @@ function useWorkbenchValue() {
     setAssignment,
     setLocalName,
     setLocalStudentId,
+    setFeedbackDraft,
+    saveReview,
     addStep,
     updateStepLatex,
     removeStep,

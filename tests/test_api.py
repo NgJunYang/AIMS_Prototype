@@ -301,6 +301,61 @@ def test_override_above_the_maximum_is_rejected(monkeypatch):
     assert response.status_code == 400
 
 
+@pytest.mark.parametrize("latex", ["x^2 = 5x", "x^2 - 5x = 0"])
+def test_browser_save_steps_then_remark_preserves_overrides(monkeypatch, latex):
+    _stub_llm(monkeypatch)
+    sid = _new_submission()
+    client.put(f"/api/submissions/{sid}/steps", json={"steps": [{"index": 1, "latex": "x^2 = 5x"}]})
+    client.post(f"/api/submissions/{sid}/mark")
+    client.post(f"/api/submissions/{sid}/override", json={"criterion_id": "C1", "proposed": 2})
+
+    # Exercise the actual browser sequence, including the invalidation request.
+    saved = client.put(f"/api/submissions/{sid}/steps", json={"steps": [{"index": 1, "latex": latex}]}).json()
+    assert saved["manual_score_overrides"] == {"C1": 2}
+    if latex != "x^2 = 5x":
+        assert saved["marks"] is None
+        assert saved["feedback"] is None
+    result = client.post(f"/api/submissions/{sid}/mark").json()
+    c1 = result["marks"]["criteria"][0]
+    assert (c1["proposed"], c1["suggested"], c1["overridden"]) == (2, 0, True)
+
+    client.post(f"/api/submissions/{sid}/reset-overrides")
+    client.put(f"/api/submissions/{sid}/steps", json={"steps": [{"index": 1, "latex": "x(x - 5) = 0"}]})
+    result = client.post(f"/api/submissions/{sid}/mark").json()
+    assert result["manual_score_overrides"] == {}
+    assert result["marks"]["criteria"][0]["proposed"] == 0
+
+
+def test_failed_remark_keeps_legacy_override_for_retry(monkeypatch):
+    _stub_llm(monkeypatch)
+    sid = _new_submission()
+    client.post(f"/api/submissions/{sid}/mark")
+    client.post(f"/api/submissions/{sid}/override", json={"criterion_id": "C1", "proposed": 2})
+    # Simulate a submission written before the separate override field existed.
+    submission = store.load_submission(sid)
+    submission.manual_score_overrides = {}
+    store.save_submission(submission)
+    client.put(f"/api/submissions/{sid}/steps", json={"steps": [{"index": 1, "latex": "x = 5"}]})
+    with monkeypatch.context() as failure:
+        def unavailable(*args):
+            raise main.HTTPException(status_code=503, detail="Marking unavailable")
+        failure.setattr(main, "mark_submission", unavailable)
+        assert client.post(f"/api/submissions/{sid}/mark").status_code == 503
+    assert client.get(f"/api/submissions/{sid}").json()["manual_score_overrides"] == {"C1": 2}
+    result = client.post(f"/api/submissions/{sid}/mark").json()
+    assert result["marks"]["criteria"][0]["proposed"] == 2
+
+
+def test_unchanged_refresh_keeps_reviewed_feedback(monkeypatch):
+    sid = _mark_a_tutorial(monkeypatch)
+    draft = {"what_went_well": "Reviewed", "what_went_wrong": "A lost root", "how_to_improve": "Factor first"}
+    client.put(f"/api/submissions/{sid}/feedback", json=draft)
+    current = client.get(f"/api/submissions/{sid}").json()
+    client.put(f"/api/submissions/{sid}/steps", json={"steps": current["confirmed_steps"]})
+    result = client.post(f"/api/submissions/{sid}/mark").json()
+    assert result["feedback"]["how_to_improve"] == "Factor first"
+
+
 def test_override_before_marking_returns_409():
     submission_id = _new_submission()
     response = client.post(
@@ -409,6 +464,44 @@ def test_a_graded_test_script_is_hidden_until_the_instructor_publishes(monkeypat
 def test_publish_before_marking_is_409():
     created = client.post("/api/submissions", json={"question_id": "q2"}).json()
     assert client.post(f"/api/submissions/{created['id']}/publish").status_code == 409
+
+
+def test_publish_saves_pending_feedback_and_identity_together(monkeypatch):
+    sid = _mark_a_tutorial(monkeypatch, channel="test")
+    stored = store.load_submission(sid)
+    stored.feedback.references = ["Notes section 2"]
+    store.save_submission(stored)
+    body = {
+        "identity": {"name": " Corrected Student ", "student_id": " QA003 "},
+        "feedback": {"what_went_well": "Good setup", "what_went_wrong": "Lost zero", "how_to_improve": "Factor first"},
+    }
+    response = client.post(f"/api/submissions/{sid}/publish", json=body)
+    assert response.status_code == 200
+    saved = client.get(f"/api/submissions/{sid}").json()
+    assert saved["published"] is True
+    assert saved["student_pseudonym"] == "Corrected Student"
+    assert saved["student_id"] == "QA003"
+    assert saved["feedback"] == {**body["feedback"], "references": ["Notes section 2"]}
+    view = client.get(f"/api/submissions/{sid}/student-view").json()
+    assert view["student_pseudonym"] == "Corrected Student"
+    assert view["feedback"]["how_to_improve"] == "Factor first"
+
+
+@pytest.mark.parametrize("invalid", ["feedback", "identity"])
+def test_invalid_pending_review_does_not_partially_publish(monkeypatch, invalid):
+    sid = _mark_a_tutorial(monkeypatch, channel="test")
+    before = client.get(f"/api/submissions/{sid}").json()
+    body = {
+        "identity": {"name": "Corrected Student", "student_id": "QA003"},
+        "feedback": {"what_went_well": "a", "what_went_wrong": "b", "how_to_improve": "c"},
+    }
+    if invalid == "feedback":
+        body["feedback"]["how_to_improve"] = "x" * 4001
+    else:
+        body["identity"]["name"] = "   "
+    assert client.post(f"/api/submissions/{sid}/publish", json=body).status_code in (400, 422)
+    assert client.get(f"/api/submissions/{sid}").json() == before
+    assert client.get(f"/api/submissions/{sid}/student-view").status_code == 403
 
 
 def test_tutor_chat_is_grounded_and_returned(monkeypatch):
@@ -977,6 +1070,26 @@ def test_editing_a_model_solution_invalidates_marks_made_against_the_old_one(
     after = client.get(f"/api/submissions/{created['id']}").json()
     assert after["marks"] is None
     assert after["verification"] is None
+
+
+def test_rubric_change_clears_overrides_while_waiting_for_remark(monkeypatch):
+    _stub_llm(monkeypatch)
+    sid = _new_submission()
+    client.post(f"/api/submissions/{sid}/mark")
+    client.post(f"/api/submissions/{sid}/override", json={"criterion_id": "C1", "proposed": 2})
+    saved = client.put(
+        f"/api/submissions/{sid}/steps",
+        json={"steps": [{"index": 1, "latex": "x = 5"}]},
+    ).json()
+    assert saved["marks"] is None
+    assert saved["manual_score_overrides"] == {"C1": 2}
+
+    question = client.get("/api/questions/q2").json()
+    question["criteria"][0]["description"] = "Revised criterion"
+    assert client.put("/api/questions/q2", json=question).status_code == 200
+    assert client.get(f"/api/submissions/{sid}").json()["manual_score_overrides"] == {}
+    remarked = client.post(f"/api/submissions/{sid}/mark").json()
+    assert remarked["marks"]["criteria"][0]["overridden"] is False
 
 
 def test_editing_only_the_prompt_leaves_existing_marks_alone(monkeypatch):

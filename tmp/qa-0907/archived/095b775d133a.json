@@ -1,0 +1,167 @@
+{
+  "id": "095b775d133a",
+  "question_id": "q2",
+  "image_filename": null,
+  "source_page": null,
+  "source_page_count": null,
+  "transcription": null,
+  "confirmed_steps": [
+    {
+      "index": 1,
+      "latex": "x^2 = 5x",
+      "confidence": "high",
+      "edited_by_human": true
+    },
+    {
+      "index": 2,
+      "latex": "x = 5",
+      "confidence": "high",
+      "edited_by_human": true
+    }
+  ],
+  "verification": {
+    "steps": [
+      {
+        "index": 1,
+        "parsed": true,
+        "solutions": [
+          "0",
+          "5"
+        ],
+        "equivalent_to_previous": null,
+        "divergence": null,
+        "lost_roots": [],
+        "gained_roots": [],
+        "note": ""
+      },
+      {
+        "index": 2,
+        "parsed": true,
+        "solutions": [
+          "5"
+        ],
+        "equivalent_to_previous": false,
+        "divergence": "lost_roots",
+        "lost_roots": [
+          "0"
+        ],
+        "gained_roots": [],
+        "note": ""
+      }
+    ],
+    "final_answer_correct": false,
+    "final_answer_verified": true,
+    "model_solutions": [
+      "0",
+      "5"
+    ],
+    "candidate_misconceptions": [
+      "divided_by_variable_lost_root"
+    ],
+    "first_divergence_index": 2,
+    "all_steps_parsed": true
+  },
+  "marks": {
+    "criteria": [
+      {
+        "criterion_id": "C1",
+        "proposed": 0,
+        "suggested": 0,
+        "max": 2,
+        "justification": "At step 2 both sides were divided by x rather than rearranged so that one side is zero, so this criterion is not met.",
+        "evidence_step": 2,
+        "overridden": false
+      },
+      {
+        "criterion_id": "C2",
+        "proposed": 1,
+        "suggested": 1,
+        "max": 3,
+        "justification": "Symbolic checking shows step 2 lost the solution x = 0, so the method did not preserve the solution set. Partial credit for correctly reducing to x = 5.",
+        "evidence_step": 2,
+        "overridden": false
+      },
+      {
+        "criterion_id": "C3",
+        "proposed": 2,
+        "suggested": 2,
+        "max": 2,
+        "justification": "The arithmetic that was carried out is correct: dividing 5x by x does give 5.",
+        "evidence_step": 2,
+        "overridden": false
+      },
+      {
+        "criterion_id": "C4",
+        "proposed": 0,
+        "suggested": 0,
+        "max": 1,
+        "justification": "Only x = 5 is stated. The expected solutions are 0 and 5, so not all solutions were given.",
+        "evidence_step": 2,
+        "overridden": false
+      }
+    ],
+    "misconceptions": [
+      "divided_by_variable_lost_root"
+    ],
+    "warnings": [
+      "C3: full marks awarded, but symbolic verification found step 2 is not equivalent to the previous step. Please review."
+    ],
+    "total_proposed": 3,
+    "total_max": 8
+  },
+  "feedback": {
+    "what_went_well": "You spotted straight away that this equation has an x in every term and that it could be simplified, and the arithmetic you did was correct.",
+    "what_went_wrong": "At step 2 you divided both sides by x. That is only valid when x is not zero, so it silently threw away the solution x = 0. The equation has two solutions, 0 and 5, and your answer only gives one of them.",
+    "how_to_improve": "Move everything to one side instead of dividing: from x^2 = 5x, subtract 5x to get x^2 - 5x = 0, factorise to x(x - 5) = 0, then read off both solutions. Whenever you are about to divide by something containing the unknown, stop and factorise instead.",
+    "references": [
+      "Notes §2 — the zero-product principle"
+    ]
+  },
+  "practice": [
+    {
+      "prompt_latex": "Solve $4x^2 = 7x$.",
+      "answer_latex": "x = 0, \\; x = \\frac{7}{4}",
+      "misconception_tag": "divided_by_variable_lost_root",
+      "template_id": "quad_zero_root",
+      "question_type": "bare",
+      "framing_id": "bare",
+      "admissible_roots": [
+        "0",
+        "7/4"
+      ],
+      "rejected_note": ""
+    },
+    {
+      "prompt_latex": "Solve $3x^2 = 7x$.",
+      "answer_latex": "x = 0, \\; x = \\frac{7}{3}",
+      "misconception_tag": "divided_by_variable_lost_root",
+      "template_id": "quad_zero_root",
+      "question_type": "bare",
+      "framing_id": "bare",
+      "admissible_roots": [
+        "0",
+        "7/3"
+      ],
+      "rejected_note": ""
+    },
+    {
+      "prompt_latex": "Solve $2x^2 = 5x$.",
+      "answer_latex": "x = 0, \\; x = \\frac{5}{2}",
+      "misconception_tag": "divided_by_variable_lost_root",
+      "template_id": "quad_zero_root",
+      "question_type": "bare",
+      "framing_id": "bare",
+      "admissible_roots": [
+        "0",
+        "5/2"
+      ],
+      "rejected_note": ""
+    }
+  ],
+  "student_pseudonym": "QA Second Student",
+  "student_id": null,
+  "extracted_identity": null,
+  "channel": "test",
+  "published": true,
+  "assignment_id": "qa-pitch-0907"
+}

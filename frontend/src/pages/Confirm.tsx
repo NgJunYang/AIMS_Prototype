@@ -26,7 +26,7 @@ import { StepList } from "../components/StepList";
 import { Katex, Mixed } from "../components/Math";
 import { api, ApiError } from "../lib/api";
 import { divergenceMessage, formatRootList, humanizeTag } from "../lib/katex";
-import type { Criterion, CriterionMark, Feedback, Question, StepVerification } from "../types";
+import type { Criterion, CriterionMark, Question, StepVerification } from "../types";
 
 type PanelTone = "scan" | "record" | "assess";
 
@@ -53,6 +53,9 @@ export default function Confirm() {
   }
 
   const sub = state.submission;
+  // Setup selects a question for the NEXT submission. This desk belongs only
+  // to the question recorded on the active submission.
+  const submissionQuestion = state.questions.find((q) => q.id === sub?.question_id) || null;
   const marks = sub?.marks;
   const extractedIdentity = sub?.extracted_identity;
   const identityWasExtracted = !!(extractedIdentity && (extractedIdentity.name || extractedIdentity.student_id));
@@ -82,7 +85,7 @@ export default function Confirm() {
               Assessment desk
             </span>
             <span className="h-px w-10 bg-border" />
-            <span className="font-mono text-[11px] text-text-muted">{state.currentQuestion?.id}</span>
+            <span className="font-mono text-[11px] text-text-muted">{sub?.question_id}</span>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">
             {state.localName || sub?.student_pseudonym || "Unidentified student"}
@@ -115,7 +118,7 @@ export default function Confirm() {
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(250px,0.84fr)_minmax(360px,1.08fr)_minmax(340px,1fr)]">
+      <fieldset disabled={state.reviewBusy} className="grid min-w-0 gap-4 xl:grid-cols-[minmax(250px,0.84fr)_minmax(360px,1.08fr)_minmax(340px,1fr)]">
         <PanelFrame index="01" title="Source scan" subtitle="The original evidence" tone="scan" icon={<ScanLine size={17} />}>
           <ImagePane
             uploadSourceType={state.uploadSourceType}
@@ -152,6 +155,7 @@ export default function Confirm() {
               </div>
             </div>
             {identityFoundNothing && <p className="mt-2 text-xs text-text-muted">No readable identity was found. Assign it manually.</p>}
+            <IdentitySaveControl />
           </div>
         </PanelFrame>
 
@@ -182,7 +186,7 @@ export default function Confirm() {
             </div>
           }
         >
-          <QuestionReference question={state.currentQuestion} />
+          <QuestionReference question={submissionQuestion} />
           <div className="mb-4 rounded-xl border border-accent/25 bg-accent-soft/45 p-3 text-xs leading-relaxed text-accent-hover">
             Compare every line with the scan. Scores and feedback are drafts based on this editable record.
           </div>
@@ -225,7 +229,7 @@ export default function Confirm() {
                 <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Rubric suggestions</p>
                 <div className="flex items-center gap-2">
                   {hasOverrides && <Badge tone="accent">manual edits</Badge>}
-                  {!editingRubric && state.currentQuestion && (
+                  {!editingRubric && submissionQuestion && (
                     <button
                       onClick={() => setEditingRubric(true)}
                       className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-text-muted hover:bg-surface-2 hover:text-text"
@@ -238,9 +242,10 @@ export default function Confirm() {
                 </div>
               </div>
 
-              {editingRubric && state.currentQuestion ? (
+              {editingRubric && submissionQuestion ? (
                 <RubricEditor
-                  question={state.currentQuestion}
+                  key={submissionQuestion.id}
+                  question={submissionQuestion}
                   onClose={() => setEditingRubric(false)}
                 />
               ) : (
@@ -272,14 +277,14 @@ export default function Confirm() {
               )}
 
               <div className="my-5 h-px bg-border" />
-              <FeedbackEditor submissionId={state.submissionId!} feedback={sub?.feedback ?? null} onUpdated={wb.setSubmission} />
+              <FeedbackEditor />
 
               {!editingRubric && (
                 <PublishControl
                   submissionId={state.submissionId!}
                   channel={sub?.channel ?? "test"}
                   published={!!sub?.published}
-                  disabled={suggestionsStale}
+                  disabled={suggestionsStale || state.confirmBusy}
                   onUpdated={wb.setSubmission}
                 />
               )}
@@ -299,7 +304,7 @@ export default function Confirm() {
             </>
           )}
         </PanelFrame>
-      </div>
+      </fieldset>
     </div>
   );
 }
@@ -437,22 +442,39 @@ function ResetRubricButton({ submissionId, onUpdated }: {
   );
 }
 
-function FeedbackEditor({ submissionId, feedback, onUpdated }: {
-  submissionId: string;
-  feedback: Feedback | null;
-  onUpdated: (submission: any) => void;
-}) {
+function IdentitySaveControl() {
+  const wb = useWorkbench();
+  const { state } = wb;
   const toast = useToast();
-  const [draft, setDraft] = useState({ what_went_well: "", what_went_wrong: "", how_to_improve: "" });
-  const [saving, setSaving] = useState(false);
+  const dirty = state.localName.trim() !== (state.submission?.student_pseudonym || "") ||
+    state.localStudentId.trim() !== (state.submission?.student_id || "");
 
-  useEffect(() => {
-    setDraft({
-      what_went_well: feedback?.what_went_well || "",
-      what_went_wrong: feedback?.what_went_wrong || "",
-      how_to_improve: feedback?.how_to_improve || "",
-    });
-  }, [feedback]);
+  async function save() {
+    try {
+      if (await wb.saveReview("identity")) toast.success("Student identity saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save student identity.");
+    }
+  }
+
+  return (
+    <div className="mt-3">
+      <p className="mb-2 text-[11px] text-text-muted" role="status">
+        {dirty ? "Unsaved identity changes — save now or publish to save them." : "Student identity saved."}
+      </p>
+      <Button variant="secondary" className="w-full" disabled={!dirty || state.reviewBusy || state.confirmBusy || state.autoRefreshing} onClick={save}>
+        <Save size={14} /> Save identity
+      </Button>
+    </div>
+  );
+}
+
+function FeedbackEditor() {
+  const wb = useWorkbench();
+  const { state } = wb;
+  const feedback = state.submission?.feedback;
+  const toast = useToast();
+  const draft = state.feedbackDraft || feedback || { what_went_well: "", what_went_wrong: "", how_to_improve: "" };
 
   const dirty = !!feedback &&
     (draft.what_went_well !== feedback.what_went_well ||
@@ -460,15 +482,11 @@ function FeedbackEditor({ submissionId, feedback, onUpdated }: {
       draft.how_to_improve !== feedback.how_to_improve);
 
   async function save() {
-    if (!dirty || saving) return;
-    setSaving(true);
+    if (!dirty || state.reviewBusy) return;
     try {
-      onUpdated(await api.updateFeedback(submissionId, draft));
-      toast.success("Feedback edits saved.");
+      if (await wb.saveReview("feedback")) toast.success("Feedback edits saved.");
     } catch (error) {
       toast.error(error instanceof ApiError ? String(error.body?.detail || error.message) : "Could not save feedback.");
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -484,12 +502,12 @@ function FeedbackEditor({ submissionId, feedback, onUpdated }: {
         {dirty && <Badge tone="warning">unsaved</Badge>}
       </div>
       <div className="flex flex-col gap-3">
-        <FeedbackField id="feedback-well" label="What went well" value={draft.what_went_well} onChange={(value) => setDraft((current) => ({ ...current, what_went_well: value }))} />
-        <FeedbackField id="feedback-attention" label="What needs attention" value={draft.what_went_wrong} onChange={(value) => setDraft((current) => ({ ...current, what_went_wrong: value }))} />
-        <FeedbackField id="feedback-improve" label="How to improve" value={draft.how_to_improve} onChange={(value) => setDraft((current) => ({ ...current, how_to_improve: value }))} />
+        <FeedbackField id="feedback-well" label="What went well" value={draft.what_went_well} onChange={(value) => wb.setFeedbackDraft({ ...draft, what_went_well: value })} />
+        <FeedbackField id="feedback-attention" label="What needs attention" value={draft.what_went_wrong} onChange={(value) => wb.setFeedbackDraft({ ...draft, what_went_wrong: value })} />
+        <FeedbackField id="feedback-improve" label="How to improve" value={draft.how_to_improve} onChange={(value) => wb.setFeedbackDraft({ ...draft, how_to_improve: value })} />
       </div>
-      <Button variant="secondary" className="mt-3 w-full" disabled={!dirty || saving} onClick={save}>
-        {saving ? <RefreshCw className="animate-spin" size={14} /> : <Save size={14} />}
+      <Button variant="secondary" className="mt-3 w-full" disabled={!dirty || state.reviewBusy || state.confirmBusy || state.autoRefreshing} onClick={save}>
+        <Save size={14} />
         Save feedback edits
       </Button>
     </div>
@@ -664,6 +682,7 @@ function PublishControl({
   disabled: boolean;
   onUpdated: (submission: any) => void;
 }) {
+  const wb = useWorkbench();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
 
@@ -671,10 +690,14 @@ function PublishControl({
     if (busy) return;
     setBusy(true);
     try {
-      onUpdated(await (next ? api.publish(submissionId) : api.unpublish(submissionId)));
+      if (next) {
+        if (!await wb.saveReview("publish")) return;
+      } else {
+        onUpdated(await api.unpublish(submissionId));
+      }
       toast.success(next ? "Published — the student can now see this." : "Unpublished.");
     } catch (error) {
-      toast.error(error instanceof ApiError ? String(error.body?.detail || error.message) : "Could not update.");
+      toast.error(error instanceof ApiError ? String(error.body?.detail || error.message) : error instanceof Error ? error.message : "Could not update.");
     } finally {
       setBusy(false);
     }
@@ -697,7 +720,7 @@ function PublishControl({
       </div>
       <p className="mb-3 text-xs leading-relaxed text-text-muted">
         A graded-test script stays hidden from the student until you publish it. Publish once you're happy with the
-        score and feedback.
+        score and feedback. Publishing also saves your pending feedback and student identity changes.
       </p>
       <Button
         variant={published ? "secondary" : "primary"}

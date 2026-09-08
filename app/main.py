@@ -105,6 +105,11 @@ class UpdateFeedback(BaseModel):
     how_to_improve: str = Field(max_length=4000)
 
 
+class PublishReview(BaseModel):
+    identity: UpdateIdentity
+    feedback: UpdateFeedback
+
+
 class QuestionCheck(BaseModel):
     ok: bool
     problems: list[str] = Field(default_factory=list)
@@ -337,7 +342,7 @@ def api_update_question(question_id: str, question: Question) -> Question:
         or question.variable != existing.variable
     ):
         for submission in list_submissions():
-            if submission.question_id != question_id or submission.marks is None:
+            if submission.question_id != question_id:
                 continue
             _invalidate_downstream(submission)
             save_submission(submission)
@@ -493,6 +498,11 @@ async def api_preview_upload(
 def api_update_steps(submission_id: str, body: UpdateSteps) -> Submission:
     submission = _submission(submission_id)
 
+    if [(s.latex, s.confidence) for s in (submission.confirmed_steps or [])] == [
+        (s.latex, s.confidence) for s in body.steps
+    ]:
+        return submission
+
     original = {
         s.index: s.latex
         for s in (submission.transcription.steps if submission.transcription else [])
@@ -506,7 +516,7 @@ def api_update_steps(submission_id: str, body: UpdateSteps) -> Submission:
         )
         for i, step in enumerate(body.steps, start=1)
     ]
-    _invalidate_downstream(submission)
+    _invalidate_downstream(submission, preserve_overrides=True)
     save_submission(submission)
     return submission
 
@@ -551,11 +561,13 @@ def api_mark(submission_id: str) -> Submission:
     # explicit override is a decision, not a suggestion - keep its value and
     # just update what the model now suggests alongside it. "Reset rubric edits
     # to AI suggestions" (api_reset_overrides) is the one path that discards it.
-    prior_overrides = {
+    prior_marks = submission.marks
+    prior_overrides = dict(submission.manual_score_overrides)
+    prior_overrides.update({
         c.criterion_id: c.proposed
         for c in (submission.marks.criteria if submission.marks else [])
         if c.overridden
-    }
+    })
 
     submission.marks = mark_submission(question, steps, submission.verification)
     for criterion in submission.marks.criteria:
@@ -565,7 +577,12 @@ def api_mark(submission_id: str) -> Submission:
             kept = min(prior_overrides[criterion.criterion_id], criterion.max)
             criterion.proposed = kept
             criterion.overridden = True
-    submission.feedback = write_feedback(question, steps, submission.marks, submission.verification)
+    submission.manual_score_overrides = {
+        c.criterion_id: c.proposed for c in submission.marks.criteria if c.overridden
+    }
+    # An unchanged record and unchanged marks do not invalidate reviewed prose.
+    if submission.feedback is None or submission.marks != prior_marks:
+        submission.feedback = write_feedback(question, steps, submission.marks, submission.verification)
     submission.practice = generate_practice(
         submission.marks.misconceptions,
         count=3,
@@ -589,6 +606,7 @@ def api_override(submission_id: str, body: Override) -> Submission:
                 )
             criterion.proposed = body.proposed
             criterion.overridden = True
+            submission.manual_score_overrides[criterion.criterion_id] = body.proposed
             save_submission(submission)
             return submission
 
@@ -601,6 +619,7 @@ def api_reset_overrides(submission_id: str) -> Submission:
     if submission.marks is None:
         raise HTTPException(status_code=409, detail="nothing to reset yet")
 
+    submission.manual_score_overrides = {}
     for criterion in submission.marks.criteria:
         if criterion.suggested is not None:
             criterion.proposed = criterion.suggested
@@ -673,10 +692,22 @@ def _marked_submission(submission_id: str) -> Submission:
 
 
 @app.post("/api/submissions/{submission_id}/publish")
-def api_publish(submission_id: str) -> Submission:
+def api_publish(submission_id: str, body: PublishReview | None = None) -> Submission:
     """Release a graded-test script to the student. Tutorial scripts are visible
     without this; a test script is not, until the instructor has vetted it."""
     submission = _marked_submission(submission_id)
+    if body is not None:
+        # Persist the complete review in the same write as the release flag.
+        # Validation runs before any changes, so failed publishing keeps the
+        # existing result and the browser's pending edits intact.
+        name = (body.identity.name or "").strip()
+        if not name:
+            raise HTTPException(status_code=400, detail="Enter a student name before publishing.")
+        submission.student_pseudonym = name
+        submission.student_id = (body.identity.student_id or "").strip() or None
+        submission.feedback = Feedback(
+            **body.feedback.model_dump(), references=submission.feedback.references
+        )
     submission.published = True
     save_submission(submission)
     return submission
@@ -904,12 +935,20 @@ def _seed_from_id(submission_id: str) -> int:
         return int.from_bytes(submission_id.encode(), "little", signed=False) % 10_000
 
 
-def _invalidate_downstream(submission: Submission) -> None:
+def _invalidate_downstream(submission: Submission, *, preserve_overrides: bool = False) -> None:
     """Confirmed steps changed, so anything derived from them is stale.
 
     A mark attached to working the lecturer has since edited would be worse
     than no mark at all.
     """
+    if preserve_overrides:
+        submission.manual_score_overrides.update({
+            c.criterion_id: c.proposed
+            for c in (submission.marks.criteria if submission.marks else [])
+            if c.overridden
+        })
+    else:
+        submission.manual_score_overrides = {}
     submission.verification = None
     submission.marks = None
     submission.feedback = None

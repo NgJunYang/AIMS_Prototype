@@ -1,0 +1,19 @@
+{
+  "id": "qa-pitch-0907",
+  "title": "QA Pitch Test",
+  "kind": "ca",
+  "question_ids": [
+    "q2"
+  ],
+  "roster": [
+    {
+      "name": "QA Instructor Demo",
+      "student_id": "QA001"
+    },
+    {
+      "name": "QA Second Student",
+      "student_id": "QA002"
+    }
+  ],
+  "created_at": "2026-09-07T13:07:42.075800+00:00"
+}

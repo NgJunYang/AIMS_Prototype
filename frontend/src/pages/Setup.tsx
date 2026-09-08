@@ -31,9 +31,7 @@ export default function Setup({ onSubmissionCreated }: { onSubmissionCreated: ()
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    wb.loadQuestions().then((questions) => {
-      if (questions.length) wb.selectQuestion(questions[0].id);
-    });
+    void wb.loadQuestions();
     api.listAssignments().then(setAssignments).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
