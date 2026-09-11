@@ -50,7 +50,13 @@ class SolutionDetection(BaseModel):
 
 class AnswerDetection(BaseModel):
     identity: IdentityExtraction = Field(default_factory=IdentityExtraction)
-    answers: list[MappedWorking] = Field(max_length=100)
+    answers: list[MappedWorking] = Field(
+        max_length=100,
+        description=(
+            "Required top-level array of student answer blocks. Return an empty array when no answer "
+            "blocks are visible; never omit, rename, null, or wrap this array."
+        ),
+    )
     warnings: list[str] = Field(default_factory=list)
 
 

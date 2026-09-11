@@ -1,0 +1,10 @@
+{
+  "what_went_well": "You spotted straight away that 2x is the common factor of 2x^2 - 8x, which is exactly the right first observation, and that earned you a mark on the factorising criterion. Your algebra after that point was clean and accurate: x - 4 = 0 giving x = 4 is correct, and x = 4 is genuinely one of the solutions. You also flagged your own uncertainty at Step 5, which is a good habit \u2014 it shows you were checking whether the answer felt complete.",
+  "what_went_wrong": "The problem is Step 2, where you divided both sides by 2x instead of factorising 2x out. Dividing by x feels like the same move as dividing by 2, but it is not: dividing by an expression containing the unknown quietly assumes that expression is not zero, so it throws away the solution x = 0 before you ever get a chance to find it. That single step cost you the retaining-both-factors marks and left you with only one of the two roots at Step 4.",
+  "how_to_improve": "Redo this question writing Step 2 as 2x(x - 4) = 0 instead of dividing, then set each factor to zero separately to get both answers. Make it a fixed rule for yourself: when one side of an equation is already 0, never divide by anything containing the unknown \u2014 factorise and use the zero-product principle instead. Then go back over your recent quadratics and check each one for a step where you divided by a term with x in it, and rewrite those as factorisations.",
+  "references": [
+    "Notes \u00a72 \u2014 the zero-product principle",
+    "Notes \u00a74 \u2014 reversible and irreversible operations",
+    "Notes \u00a71 \u2014 factorising quadratics"
+  ]
+}

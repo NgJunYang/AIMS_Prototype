@@ -1,0 +1,10 @@
+{
+  "what_went_well": "You picked factorisation straight away, and it was a sensible choice for this quadratic \u2014 that earned you the method mark in c1. Your factorisation in Step 2, (x - 2)(x - 3) = 0, is correct, and you then applied the zero-product principle cleanly in Step 3 to split it into two separate equations. You finished with both roots, x = 2 and x = 3, so you kept every mark available: 6/6.",
+  "what_went_wrong": "Nothing went wrong here \u2014 each step follows from the one before it, and the marks confirm full credit on all four criteria. The one thing I would flag is that your working is quite compressed: you jump from the equation in Step 1 to the factorised form in Step 2 without showing how you found the numbers 2 and 3. That cost you nothing on this question, but on a harder quadratic a silent jump leaves you nothing to check against if the factors are wrong.",
+  "how_to_improve": "On your next quadratic, write one extra line between the original equation and the factorised form, naming the two numbers you are looking for and stating their product and sum. Then expand your brackets back out and check the result matches the original equation before you go on to set each factor to zero. Doing this in writing, not just in your head, means an error in choosing the factors shows up immediately rather than at the final answer.",
+  "references": [
+    "Notes \u00a70 \u2014 how your work is marked",
+    "Notes \u00a71 \u2014 factorising quadratics",
+    "Notes \u00a72 \u2014 the zero-product principle"
+  ]
+}

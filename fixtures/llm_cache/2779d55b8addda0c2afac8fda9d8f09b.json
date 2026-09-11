@@ -1,0 +1,31 @@
+{
+  "criteria": [
+    {
+      "criterion_id": "c1",
+      "proposed": 1,
+      "justification": "Step 2 shows the student chose factorisation, a valid method for this quadratic.",
+      "evidence_step": 2
+    },
+    {
+      "criterion_id": "c2",
+      "proposed": 0,
+      "justification": "Step 2 gives (x + 3)(x - 4) = 0, which the CAS confirms has roots -3 and 4, not equivalent to the original equation \u2014 the factor pair and signs are wrong.",
+      "evidence_step": 2
+    },
+    {
+      "criterion_id": "c3",
+      "proposed": 1,
+      "justification": "Step 3 correctly applies the zero-product principle to the student's own factors, giving x = -3 or x = 4 (verified equivalent to Step 2).",
+      "evidence_step": 3
+    },
+    {
+      "criterion_id": "c4",
+      "proposed": 0,
+      "justification": "Step 3 gives x = -3 or x = 4, whereas the correct roots are x = -4 and x = 3.",
+      "evidence_step": 3
+    }
+  ],
+  "misconceptions": [
+    "sign_error"
+  ]
+}

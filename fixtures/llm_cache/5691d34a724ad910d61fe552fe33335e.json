@@ -1,0 +1,189 @@
+{
+  "answers": [
+    {
+      "block_id": "Q1",
+      "question_id": "123-3f8f71fe",
+      "label": "Q1",
+      "status": "detected",
+      "confidence": "high",
+      "confirmed": false,
+      "source_pages": [
+        1
+      ],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x + 7 = 19",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "x = 19 - 7",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 12",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [],
+      "notes": ""
+    },
+    {
+      "block_id": "Q2",
+      "question_id": "123-27655adf",
+      "label": "Q2",
+      "status": "detected",
+      "confidence": "high",
+      "confirmed": false,
+      "source_pages": [
+        1
+      ],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 - 5x + 6 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "(x - 2)(x - 3) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 2 \\text{ or } x = 3",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [],
+      "notes": ""
+    },
+    {
+      "block_id": "Q3",
+      "question_id": "123-aebc1cd5",
+      "label": "Q3",
+      "status": "detected",
+      "confidence": "high",
+      "confirmed": false,
+      "source_pages": [
+        1
+      ],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "2x^2 - 8x = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "\\text{divide both sides by } 2x",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x - 4 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 4,
+          "latex": "x = 4",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 5,
+          "latex": "\\text{(I think this is the only answer.)}",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [],
+      "notes": "Student divided by 2x, which loses the x=0 solution; error preserved as written."
+    },
+    {
+      "block_id": "Q4",
+      "question_id": "123-5b39f0d4",
+      "label": "Q4",
+      "status": "detected",
+      "confidence": "high",
+      "confirmed": false,
+      "source_pages": [
+        2
+      ],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 = 49",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "\\text{square root both sides}",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 7",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [],
+      "notes": "Student only gave x=7, omitting x=-7; error preserved as written."
+    },
+    {
+      "block_id": "Q5",
+      "question_id": "123-88ce4630",
+      "label": "Q5",
+      "status": "detected",
+      "confidence": "high",
+      "confirmed": false,
+      "source_pages": [
+        2
+      ],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 + x - 12 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "(x + 3)(x - 4) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = -3 \\text{ or } x = 4",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [],
+      "notes": ""
+    }
+  ],
+  "identity": {
+    "name": "Alex Tan",
+    "student_id": "2500123",
+    "confidence": "high"
+  },
+  "warnings": [
+    "Page 2 states the document intentionally includes mistakes in Q3, Q4, and Q5 for instructor-review testing; these errors have been preserved verbatim without correction per instructions."
+  ]
+}

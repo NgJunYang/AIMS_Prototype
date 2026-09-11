@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "criterion_id": "c1",
+      "proposed": 1,
+      "justification": "At Step 2 the student correctly identifies 2x as the common factor of 2x^2 - 8x (Step 3 is verified equivalent to Step 1), but divides it out rather than factorising it out, so only partial credit for the factorisation method.",
+      "evidence_step": 2
+    },
+    {
+      "criterion_id": "c2",
+      "proposed": 0,
+      "justification": "Step 2 divides both sides by 2x rather than retaining both factors; Step 4 is verified as losing the root x = 0.",
+      "evidence_step": 2
+    },
+    {
+      "criterion_id": "c3",
+      "proposed": 1,
+      "justification": "Step 4 gives only x = 4 (verified to have lost x = 0), and Step 5 did not parse but on the written evidence the student states this is the only answer \u2014 so one root only (answer line not machine-verified).",
+      "evidence_step": 4
+    }
+  ],
+  "misconceptions": [
+    "divided_by_variable_lost_root"
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "what_went_well": "You picked the right method straight away: in Step 2 you wrote \"square root both sides\", which is exactly the operation this equation calls for, and that earned you a method mark. Your arithmetic was accurate too, since Step 3 correctly identifies that 7 squared is 49, giving the valid solution x = 7. The layout is clear and easy to follow, so it was simple to see what you had done at each stage.",
+  "what_went_wrong": "The problem is in Step 3: you stopped at x = 7 and never wrote x = -7, so only half the solution set is there. The reason this matters is that the square-root symbol by itself means the positive root only, but the equation x^2 = 49 is asking for every number that squares to 49, and there are two of them. Because the second root is missing, you scored 1 out of 2 for recognising that both roots are needed and 0 for obtaining x = -7.",
+  "how_to_improve": "Whenever you take the square root of both sides, write the plus-or-minus sign into the line itself, so Step 2 becomes x = plus or minus the square root of 49, and then split that into two separate answers on the next line. Make this a fixed habit: any equation of the form x^2 = k with k positive should produce two written answers before you stop. Re-do this question that way, then check each answer by squaring it to confirm both give 49.",
+  "references": [
+    "Notes \u00a73 \u2014 square roots and the plus-or-minus sign",
+    "Notes \u00a70 \u2014 how your work is marked"
+  ]
+}

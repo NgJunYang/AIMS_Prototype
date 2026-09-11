@@ -1,0 +1,10 @@
+{
+  "what_went_well": "You picked factorising, which is a sensible method for this quadratic, and that earned you the method mark. Your Step 3 is also handled properly: from (x + 3)(x - 4) = 0 you correctly set each bracket to zero and read off x = -3 or x = 4, which is exactly the zero-product principle applied to your own factors. So the structure of your solution is sound, and the marks for c1 and c3 reflect that.",
+  "what_went_wrong": "The error is in Step 2, where you wrote x^2 + x - 12 = 0 as (x + 3)(x - 4) = 0. Those brackets are not equivalent to the original equation \u2014 they correspond to roots -3 and 4, whereas the correct roots are x = -4 and x = 3, so the factor pair and the signs have been swapped. Because Step 3 was built faithfully on Step 2, that single slip carried through and cost you both c2 and c4.",
+  "how_to_improve": "Before moving past the factorising line, expand your brackets and compare the result term by term with the original equation; if the middle term or the constant does not match, the signs are the usual culprit. It also helps to write down the two numbers you are hunting for first \u2014 their product must be the constant and their sum must be the coefficient of x \u2014 and check both conditions before committing them to brackets. Then substitute each of your final answers back into x^2 + x - 12 = 0 to confirm it gives 0.",
+  "references": [
+    "Notes \u00a71 \u2014 factorising quadratics",
+    "Notes \u00a72 \u2014 the zero-product principle",
+    "Notes \u00a70 \u2014 how your work is marked"
+  ]
+}

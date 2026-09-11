@@ -1,0 +1,95 @@
+{
+  "questions": [
+    {
+      "question_id": null,
+      "label": "Q1",
+      "prompt": "Solve the equation: x + 7 = 19",
+      "source_pages": [
+        1
+      ],
+      "topic_tag": "linear equations",
+      "variable": "x",
+      "problems": [],
+      "criteria": [],
+      "model_solution_steps": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "confidence": "high",
+      "notes": ""
+    },
+    {
+      "question_id": null,
+      "label": "Q2",
+      "prompt": "Solve the quadratic equation: x^2 - 5x + 6 = 0",
+      "source_pages": [
+        1
+      ],
+      "topic_tag": "quadratics",
+      "variable": "x",
+      "problems": [],
+      "criteria": [],
+      "model_solution_steps": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "confidence": "high",
+      "notes": ""
+    },
+    {
+      "question_id": null,
+      "label": "Q3",
+      "prompt": "Solve the equation: 2x^2 - 8x = 0",
+      "source_pages": [
+        1
+      ],
+      "topic_tag": "quadratics",
+      "variable": "x",
+      "problems": [],
+      "criteria": [],
+      "model_solution_steps": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "confidence": "high",
+      "notes": ""
+    },
+    {
+      "question_id": null,
+      "label": "Q4",
+      "prompt": "Solve the equation: x^2 = 49",
+      "source_pages": [
+        2
+      ],
+      "topic_tag": "quadratics",
+      "variable": "x",
+      "problems": [],
+      "criteria": [],
+      "model_solution_steps": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "confidence": "high",
+      "notes": ""
+    },
+    {
+      "question_id": null,
+      "label": "Q5",
+      "prompt": "Solve the quadratic equation: x^2 + x - 12 = 0",
+      "source_pages": [
+        2
+      ],
+      "topic_tag": "quadratics",
+      "variable": "x",
+      "problems": [],
+      "criteria": [],
+      "model_solution_steps": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "confidence": "high",
+      "notes": ""
+    }
+  ],
+  "title": "SAINTS Test Fixture - Tutorial 5",
+  "warnings": [
+    "This is a professor question paper with no worked solutions provided; solution_transcription left null for all questions.",
+    "Total marks stated as 26 but sum of listed question marks (4+6+6+4+6=26) matches; no missing questions detected across the two pages.",
+    "No confirmed question context data was provided to cross-reference."
+  ]
+}

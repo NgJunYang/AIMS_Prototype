@@ -1,5 +1,12 @@
-import { useEffect, useState } from "react";
-import { ArrowDown, ArrowUp, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Plus,
+  RefreshCw,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import { api } from "../lib/api";
 import { ingestionApi } from "../lib/ingestionApi";
 import { useWorkbench } from "../state/WorkbenchContext";
@@ -154,8 +161,47 @@ export function TutorialImportPanel({ assignmentId, ready, onChanged, onOpen }: 
   </section>;
 }
 
-function PdfInput({ label, onFile }: { label: string; onFile: (file: File) => void }) {
-  return <label className="block text-xs font-medium">{label}<input aria-label={label} className="mt-2 block w-full text-xs" type="file" accept="application/pdf,.pdf" onChange={(e) => { const file = e.target.files?.[0]; if (file) onFile(file); e.target.value = ""; }} /></label>;
+function PdfInput({
+  label,
+  onFile,
+}: {
+  label: string;
+  onFile: (file: File) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div className="block">
+      <p className="mb-2 text-xs font-medium">{label}</p>
+
+      <input
+        ref={fileRef}
+        aria-label={label}
+        className="hidden"
+        type="file"
+        accept="application/pdf,.pdf"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+
+          if (file) {
+            onFile(file);
+          }
+
+          e.target.value = "";
+        }}
+      />
+
+      <Button
+        type="button"
+        variant="secondary"
+        className="px-3 py-1.5 text-xs"
+        onClick={() => fileRef.current?.click()}
+      >
+        <Upload size={13} />
+        Choose PDF
+      </Button>
+    </div>
+  );
 }
 
 function PageNumbers({ value, onChange }: { value: number[]; onChange: (pages: number[]) => void }) {

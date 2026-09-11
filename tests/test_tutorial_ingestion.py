@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import ingestion_api, main, store, tutorial_ingestion as ingestion, uploads
-from app.ingestion_models import MappedWorking, QuestionDraft
+from app.ingestion_models import AnswerDetection, MappedWorking, QuestionDraft
 from app.models import IdentityExtraction, Question
 from tests.test_api import isolate_disk_writes, _stub_llm
 from tests.test_uploads import _pdf_bytes
@@ -38,6 +38,16 @@ def response(monkeypatch, payload):
     def fake(**kwargs):
         calls.append(kwargs)
         return copy.deepcopy(payload)
+    monkeypatch.setattr(ingestion, "complete_json", fake)
+    return calls
+
+
+def response_sequence(monkeypatch, *payloads):
+    calls = []
+    remaining = list(payloads)
+    def fake(**kwargs):
+        calls.append(kwargs)
+        return copy.deepcopy(remaining.pop(0))
     monkeypatch.setattr(ingestion, "complete_json", fake)
     return calls
 
@@ -104,6 +114,11 @@ def student_import(monkeypatch, setup, rows=None):
     return result.json()
 
 
+def student_payload(setup, rows=None):
+    return {"identity": {"name": "Alex Tan", "student_id": "2500123", "confidence": "high"},
+            "answers": rows if rows is not None else working_rows(setup, False), "warnings": []}
+
+
 def confirm_answers(draft):
     for answer in draft["answers"]:
         answer["confirmed"] = True
@@ -150,6 +165,55 @@ def test_real_fixture_end_to_end_reuses_mark_review_and_group_publication(monkey
     assert client.post(f"/api/tutorial-imports/{draft['id']}/mark").json()["complete"]
     assert all(store.load_submission(sid).reviewed for sid in ids)
     assert all(p.read_bytes() == content for p, content in original_hashes.items())
+
+
+def test_live_student_schema_validates_and_fixture_preserves_q1_to_q5(monkeypatch):
+    setup = setup_tutorial(monkeypatch)
+    payload = student_payload(setup)
+    validated = AnswerDetection.model_validate(payload)
+    assert len(validated.answers) == 5
+
+    calls = response(monkeypatch, payload)
+    result = upload("/api/assignments/t5/imports/student", "03")
+    assert result.status_code == 200, result.text
+    draft = result.json()
+    answers = {answer["label"]: answer for answer in draft["answers"]}
+    assert [answer["question_id"] for answer in draft["answers"]] == [
+        question["question_id"] for question in setup["questions"]
+    ]
+    assert "x = 0" not in " ".join(step["latex"] for step in answers["Q3"]["steps"][1:])
+    assert answers["Q3"]["steps"][-1]["latex"] == "x = 4"
+    assert "-7" not in " ".join(step["latex"] for step in answers["Q4"]["steps"])
+    assert answers["Q4"]["steps"][-1]["latex"] == "x = 7"
+    assert answers["Q5"]["steps"][1]["latex"] == "(x + 3)(x - 4) = 0"
+    assert answers["Q5"]["steps"][-1]["latex"] == "x = -3, x = 4"
+    assert len(calls) == 1 and len(calls[0]["images_b64"]) == 2
+    assert "model_solution_steps" not in calls[0]["prompt"]
+    assert "rubric" not in calls[0]["prompt"].split("Confirmed question context", 1)[-1].casefold()
+
+
+def test_first_malformed_student_response_retries_once_and_then_succeeds(monkeypatch):
+    setup = setup_tutorial(monkeypatch)
+    calls = response_sequence(monkeypatch, {}, student_payload(setup))
+    result = upload("/api/assignments/t5/imports/student", "03")
+    assert result.status_code == 200, result.text
+    assert [answer["label"] for answer in result.json()["answers"]] == [f"Q{i}" for i in range(1, 6)]
+    assert len(calls) == 2
+
+
+@pytest.mark.parametrize(
+    "payload,category",
+    [({}, "malformed structured response"), ({"answers": [None]}, "schema validation")],
+)
+def test_two_invalid_student_responses_return_clear_502(monkeypatch, payload, category):
+    setup = setup_tutorial(monkeypatch)
+    before = len(store.list_imports("t5"))
+    calls = response_sequence(monkeypatch, payload, payload)
+    result = upload("/api/assignments/t5/imports/student", "03")
+    assert result.status_code == 502
+    assert category in result.json()["detail"].casefold()
+    assert len(calls) == 2
+    assert len(store.list_imports("t5")) == before
 
 
 def test_question_drafts_are_editable_ordered_and_not_markable_yet(monkeypatch):
@@ -339,6 +403,29 @@ def test_partial_malformed_output_keeps_good_items(monkeypatch):
     assert questions[1].confidence == "low" and warnings
 
 
+def test_partial_malformed_student_answer_keeps_valid_siblings_and_safe_fields(monkeypatch, caplog):
+    questions = [
+        Question(id="q1", label="Q1", prompt="Solve one", model_solution_steps=[], criteria=[]),
+        Question(id="q2", label="Q2", prompt="Solve two", model_solution_steps=[], criteria=[]),
+    ]
+    response(monkeypatch, {"answers": [
+        {"label": "Q1", "question_id": "q1", "source_pages": [1],
+         "steps": [{"index": 1, "latex": "x = 1"}]},
+        {"label": "Q2", "question_id": "q2", "source_pages": "page one",
+         "steps": [{"index": 1, "latex": "x = 2"}]},
+    ]})
+    _, answers, warnings = ingestion.segment_student_tutorial([b"png"], questions)
+    by_label = {answer.label: answer for answer in answers}
+    assert by_label["Q1"].steps[0].latex == "x = 1"
+    assert by_label["Q2"].steps[0].latex == "x = 2"
+    assert by_label["Q2"].question_id == "q2"
+    assert by_label["Q2"].source_pages == [] and by_label["Q2"].confidence == "low"
+    assert "manual correction" in by_label["Q2"].notes.casefold()
+    assert warnings
+    assert "answers.1.source_pages" in caplog.text
+    assert "page one" not in caplog.text
+
+
 @pytest.mark.parametrize("payload", [{}, {"questions": "prose"}, {"questions": [None] * 101}])
 def test_malformed_root_output_returns_useful_error(monkeypatch, payload):
     client.post("/api/assignments", json={"id": "t5", "title": "Tutorial 5"})
@@ -387,11 +474,15 @@ def test_provider_errors_do_not_create_imports(monkeypatch, offline):
     from anthropic import AnthropicError
     from app.llm import OfflineCacheMiss
     client.post("/api/assignments", json={"id": "t5", "title": "Tutorial 5"})
+    calls = 0
     def failure(**kwargs):
+        nonlocal calls
+        calls += 1
         raise OfflineCacheMiss("not cached") if offline else AnthropicError("private provider details")
     monkeypatch.setattr(ingestion, "complete_json", failure)
     result = upload("/api/assignments/t5/imports/questions", "01")
     assert result.status_code == (503 if offline else 502)
+    assert calls == 1
     assert "private provider details" not in result.text
     assert store.list_imports("t5") == []
 

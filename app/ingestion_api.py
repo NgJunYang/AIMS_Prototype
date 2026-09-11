@@ -1,5 +1,6 @@
 """Instructor import API: review drafts first, then create existing domain objects."""
 import hashlib
+import logging
 import uuid
 from collections import Counter
 
@@ -12,8 +13,11 @@ from app import store, tutorial_ingestion as ingestion, uploads
 from app.assignment_review import student_key
 from app.authoring import validate_question
 from app.ingestion_models import ConfirmAnswers, ConfirmQuestions, ConfirmSolutions, QuestionDraft, TutorialImport
-from app.llm import OfflineCacheMiss
+from app.llm import OfflineCacheMiss, StructuredOutputError
 from app.models import Assignment, Question, Step, Submission, Transcription
+
+
+logger = logging.getLogger(__name__)
 
 
 def _assignment(assignment_id: str) -> Assignment:
@@ -69,7 +73,11 @@ async def _extract(function, *args):
         raise  # existing offline/cache handler remains authoritative
     except AnthropicError:
         raise HTTPException(502, "Document extraction service failed. Retry the upload; no questions or submissions were changed.")
-    except (ValueError, RuntimeError):
+    except StructuredOutputError as exc:
+        logger.warning("Document extraction rejected (%s): %s", exc.category, exc)
+        raise HTTPException(502, exc.safe_message)
+    except (ValueError, RuntimeError) as exc:
+        logger.warning("Document extraction rejected (%s): %s", type(exc).__name__, exc)
         raise HTTPException(502, "Document extraction returned invalid or incomplete structured output. Retry with a smaller PDF or correct the source.")
 
 

@@ -1,0 +1,10 @@
+{
+  "what_went_well": "You solved this cleanly and picked up full marks, 4/4. In Step 2 you spotted that the inverse of adding 7 is subtracting 7, and you applied it to both sides to get x = 19 - 7, which is exactly equivalent to the equation you started with. Step 3 then gives x = 12, the correct solution, and your layout of one step per line makes the reasoning easy to follow.",
+  "what_went_wrong": "Nothing went wrong here \u2014 every step in your working earned its marks, and there is no step I can point to as an error. Step 1 copies the equation correctly, Step 2 rearranges it correctly, and Step 3 states the correct answer.",
+  "how_to_improve": "To make the method fully self-checking, add a final line substituting your answer back into the original equation, writing 12 + 7 = 19 underneath Step 3. You could also write the operation you are performing beside Step 2, such as \"subtract 7 from both sides\", so that a reader can see the justification for the rearrangement rather than inferring it. Keep using the one-equation-per-line layout you used here on longer problems, where it will matter more.",
+  "references": [
+    "Solving linear equations by inverse operations",
+    "Checking solutions by substitution",
+    "Setting out algebraic working"
+  ]
+}

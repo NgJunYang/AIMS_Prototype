@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "criterion_id": "c1",
+      "proposed": 1,
+      "justification": "Step 2 states \"square root both sides\", showing the correct method is chosen, but no plus-or-minus appears and Step 3 keeps only x = 7, so the requirement for both roots is not recognised (CAS: lost root -7).",
+      "evidence_step": 2
+    },
+    {
+      "criterion_id": "c2",
+      "proposed": 1,
+      "justification": "Step 3 gives x = 7, confirmed by the CAS as a valid solution.",
+      "evidence_step": 3
+    },
+    {
+      "criterion_id": "c3",
+      "proposed": 0,
+      "justification": "x = -7 never appears; Step 3 ends at x = 7 only and the CAS flags -7 as lost.",
+      "evidence_step": 3
+    }
+  ],
+  "misconceptions": [
+    "dropped_plus_minus"
+  ]
+}
