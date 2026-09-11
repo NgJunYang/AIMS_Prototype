@@ -19,6 +19,10 @@ export interface SolutionTranscription {
 
 export interface Question {
   id: string;
+  label?: string | null;
+  source_import_id?: string | null;
+  source_pages?: number[];
+  solution_source_pages?: number[];
   prompt: string;
   variable: string;
   topic_tag: string;
@@ -82,6 +86,8 @@ export interface IdentityExtraction {
 
 export interface Submission {
   id: string;
+  source_import_id?: string | null;
+  source_pages?: number[];
   question_id: string;
   assignment_id?: string | null;
   student_pseudonym?: string;
@@ -150,4 +156,47 @@ export interface ApiErrorLike {
   message: string;
   status?: number;
   body?: { detail?: string | string[]; hint?: string; error?: string };
+}
+
+export interface ImportQuestion {
+  question_id: string | null;
+  label: string;
+  prompt: string;
+  variable: string;
+  topic_tag: string;
+  source_pages: number[];
+  confidence: "high" | "low";
+  notes: string;
+  problems: string[];
+}
+
+export interface ImportWorking {
+  block_id: string;
+  question_id: string | null;
+  label: string;
+  source_pages: number[];
+  confidence: "high" | "low";
+  status: "detected" | "uncertain" | "not_detected";
+  steps: Step[];
+  criteria: Criterion[];
+  notes: string;
+  confirmed: boolean;
+}
+
+export interface TutorialImport {
+  id: string;
+  assignment_id: string;
+  kind: "setup" | "student";
+  stage: "questions" | "solutions" | "answers" | "complete";
+  revision: number;
+  filename: string;
+  page_count: number;
+  solution_page_count: number;
+  title: string;
+  questions: ImportQuestion[];
+  solutions: ImportWorking[];
+  answers: ImportWorking[];
+  identity: IdentityExtraction;
+  warnings: string[];
+  submission_ids: string[];
 }

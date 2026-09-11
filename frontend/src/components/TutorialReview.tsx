@@ -11,6 +11,7 @@ export function TutorialReview({ disabled }: { disabled: boolean }) {
   const wb = useWorkbench();
   const { state } = wb;
   const sub = state.submission!;
+  const questionLabel = (id: string) => state.questions.find((q) => q.id === id)?.label || id;
   const [loaded, setLoaded] = useState<{ submission: Submission; status: AssignmentReviewStatus } | null>(null);
   const [error, setError] = useState("");
   const [refresh, setRefresh] = useState(0);
@@ -63,7 +64,7 @@ export function TutorialReview({ disabled }: { disabled: boolean }) {
   return (
     <section className="mt-5 rounded-lg border border-border bg-surface-2/50 p-3" aria-label="Instructor Review">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">{sub.question_id} — Instructor Review</h3>
+        <h3 className="text-sm font-semibold">{questionLabel(sub.question_id)} — Instructor Review</h3>
         <Badge tone={reviewed ? "success" : "warning"}>{reviewed ? "✓ Reviewed" : "Review required"}</Badge>
       </div>
       <p className="mb-3 text-xs text-text-muted">
@@ -92,7 +93,7 @@ export function TutorialReview({ disabled }: { disabled: boolean }) {
                 <button className="font-mono text-accent-hover underline underline-offset-2 disabled:text-text-muted disabled:no-underline"
                   disabled={busy || !question.submission_id || question.submission_id === sub.id}
                   onClick={() => question.submission_id && openQuestion(question.submission_id)}>
-                  {label === "Reviewed" ? "✓" : "○"} {question.question_id}
+                  {label === "Reviewed" ? "✓" : "○"} {questionLabel(question.question_id)}
                 </button>
                 <span className={label === "Reviewed" ? "text-success" : "text-text-muted"}>{label}</span>
               </li>;

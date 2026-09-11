@@ -167,6 +167,12 @@ just seeded.
 
 ## Resume marking and open released results
 
+Tutorial assignments now support whole-PDF question detection, model-solution
+matching and student-answer segmentation. Start with an empty tutorial in
+**Assignments**, upload the three documents, and confirm each extraction before
+marking. See [the whole-tutorial ingestion guide](docs/tutorial-ingestion.md) for
+the workflow, APIs, limits, error recovery and synthetic-fixture walkthrough.
+
 - **Setup → Resume saved marking** lists marked and unmarked submissions. Search by name, student ID, question or assignment, then choose **Resume marking**. Analytics student details also include a resume button.
 - Resuming loads the last saved identity, confirmed working, marks, feedback and publication status. It does not recover unsaved browser edits. For a PDF, only the rendered page used for transcription is retained, not the original multi-page file.
 - For assignment tutorials, edit the rubric scores, feedback and identity on Confirm, then click **Mark Question as Reviewed**. The tutorial progress list opens the student's other questions. Once every required question has marks, feedback and explicit review, **Publish Tutorial Results** releases them together. **Unpublish Tutorial Results** hides the group again.

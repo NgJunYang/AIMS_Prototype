@@ -12,6 +12,7 @@ LLM_CACHE_DIR = FIXTURES_DIR / "llm_cache"
 IMAGES_DIR = FIXTURES_DIR / "images"
 SUBMISSIONS_DIR = BASE_DIR / "data" / "submissions"
 ASSIGNMENTS_DIR = BASE_DIR / "data" / "assignments"
+IMPORTS_DIR = BASE_DIR / "data" / "tutorial_imports"
 # Lecturer-authored questions, layered over the read-only seeded bank so the
 # seed file stays pristine and a fresh clone still starts with six questions.
 QUESTIONS_FILE = BASE_DIR / "data" / "questions.json"

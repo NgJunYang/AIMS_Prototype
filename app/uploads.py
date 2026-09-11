@@ -43,7 +43,11 @@ def inspect(raw: bytes) -> UploadInfo:
     if _is_pdf(raw):
         try:
             with fitz.open(stream=raw, filetype="pdf") as document:
+                if document.needs_pass:
+                    raise UnsupportedUpload("Encrypted PDFs are not supported. Upload an unlocked copy.")
                 page_count = document.page_count
+        except UnsupportedUpload:
+            raise
         except Exception as exc:
             raise UnsupportedUpload("Could not open this file as a PDF.") from exc
         if page_count < 1:
@@ -63,6 +67,42 @@ def inspect(raw: bytes) -> UploadInfo:
             "Could not read this file as an image or a PDF."
         ) from exc
     return UploadInfo(source_type="image", page_count=1)
+
+
+MAX_DOCUMENT_BYTES = 20 * 1024 * 1024
+MAX_DOCUMENT_PAGES = 20
+MAX_RENDERED_BYTES = 18 * 1024 * 1024  # base64 expands this to about 24 MB
+
+
+def render_document(raw: bytes) -> list[bytes]:
+    """Bounded whole-PDF rendering using the same normalized page renderer."""
+    if len(raw) > MAX_DOCUMENT_BYTES:
+        raise UnsupportedUpload("PDF exceeds the 20 MB document limit.")
+    info = inspect(raw)
+    if info.source_type != "pdf":
+        raise UnsupportedUpload("Whole-tutorial imports require a PDF.")
+    if info.page_count > MAX_DOCUMENT_PAGES:
+        raise UnsupportedUpload("PDF exceeds the 20-page document limit.")
+    pages = []
+    total = 0
+    try:
+        with fitz.open(stream=raw, filetype="pdf") as document:
+            for index in range(info.page_count):
+                rect = document[index].rect
+                if min(rect.width, rect.height) <= 0:
+                    raise UnsupportedUpload(f"Page {index + 1} has invalid dimensions.")
+                # Avoid allocating a huge intermediate raster on oversized pages.
+                dpi = min(200, _MAX_DIMENSION * 72 / max(rect.width, rect.height))
+                png = render_page(raw, page=index + 1, dpi=dpi)
+                total += len(png)
+                if total > MAX_RENDERED_BYTES:
+                    raise UnsupportedUpload("Rendered PDF exceeds the document image budget. Use a smaller PDF.")
+                pages.append(png)
+    except UnsupportedUpload:
+        raise
+    except Exception as exc:
+        raise UnsupportedUpload("Could not render this PDF.") from exc
+    return pages
 
 
 def render_page(raw: bytes, page: int = 1, dpi: int = 200) -> bytes:

@@ -139,6 +139,7 @@ export function QuestionEditor({
 
   function questionFromEditor() {
     return {
+      ...question,
       id: id.trim(),
       prompt: prompt.trim(),
       variable: variable.trim() || "x",

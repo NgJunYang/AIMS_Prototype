@@ -51,6 +51,8 @@ def complete_json(
     image_b64: str | None = None,
     image_media_type: str = "image/jpeg",
     max_tokens: int = 4096,
+    *,
+    images_b64: list[str] | None = None,
 ) -> dict[str, Any]:
     """Call Claude and return a JSON object matching `schema`.
 
@@ -59,7 +61,14 @@ def complete_json(
     used here rejects that parameter outright (400 invalid_request_error)
     rather than ignoring it, so passing one at all breaks every call.
     """
-    key = cache_key(model, prompt, image_b64)
+    if image_b64 and images_b64:
+        raise ValueError("Use either one image or a document's pages, not both.")
+    # Preserve every existing single-image cache key. Document imports include
+    # ordered pages and the schema, so neither page order nor schema can collide.
+    key = cache_key(model, prompt, image_b64) if images_b64 is None else cache_key(
+        model, prompt, json.dumps({"pages": images_b64, "schema": schema,
+                                  "media_type": image_media_type}, sort_keys=True)
+    )
 
     cached = read_cache(key)
     if cached is not None:
@@ -72,6 +81,11 @@ def complete_json(
         )
 
     content: list[dict[str, Any]] = []
+    for number, page in enumerate(images_b64 or [], start=1):
+        content.extend([
+            {"type": "text", "text": f"Document page {number}"},
+            {"type": "image", "source": {"type": "base64", "media_type": image_media_type, "data": page}},
+        ])
     if image_b64:
         content.append(
             {
@@ -100,9 +114,15 @@ def complete_json(
         messages=[{"role": "user", "content": content}],
     )
 
+    if images_b64 is not None and response.stop_reason == "max_tokens":
+        raise RuntimeError("Document extraction exceeded the response limit; use a smaller PDF.")
     for block in response.content:
         if block.type == "tool_use":
             payload = dict(block.input)
+            if images_b64 is not None:
+                for field in schema.get("required", []):
+                    if field not in payload or (schema.get("properties", {}).get(field, {}).get("type") == "array" and not isinstance(payload[field], list)):
+                        raise RuntimeError("Document extraction returned a malformed result; retry extraction.")
             write_cache(key, payload)
             return payload
 

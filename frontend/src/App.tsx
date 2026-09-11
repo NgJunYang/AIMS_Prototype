@@ -109,7 +109,7 @@ function Shell() {
         {screen === "confirm" && <Confirm />}
         {screen === "class" && <Class onResume={() => setScreen("confirm")} />}
         {screen === "student" && <Student />}
-        {screen === "assignments" && <Assignments />}
+        {screen === "assignments" && <Assignments onOpenReview={() => setScreen("confirm")} />}
       </motion.main>
     </div>
   );

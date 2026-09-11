@@ -7,6 +7,7 @@ import { Input, Label } from "../components/ui/Field";
 import { useToast } from "../components/ui/Toast";
 import { api, ApiError } from "../lib/api";
 import type { Question } from "../types";
+import { TutorialImportPanel } from "../components/TutorialImportPanel";
 
 interface Roster {
   name: string;
@@ -35,7 +36,7 @@ function err(e: unknown): string {
   return e instanceof Error ? e.message : "Something went wrong.";
 }
 
-export default function Assignments() {
+export default function Assignments({ onOpenReview = () => {} }: { onOpenReview?: () => void }) {
   const toast = useToast();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -85,7 +86,7 @@ export default function Assignments() {
       ) : (
         <div className="flex flex-col gap-4">
           {assignments.map((a) => (
-            <AssignmentCard key={a.id} assignment={a} onChanged={reload} />
+            <AssignmentCard key={a.id} assignment={a} onChanged={reload} onOpenReview={onOpenReview} />
           ))}
         </div>
       )}
@@ -190,7 +191,7 @@ function CreateForm({
   );
 }
 
-function AssignmentCard({ assignment, onChanged }: { assignment: Assignment; onChanged: () => void }) {
+function AssignmentCard({ assignment, onChanged, onOpenReview }: { assignment: Assignment; onChanged: () => void; onOpenReview: () => void }) {
   const toast = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [roster, setRoster] = useState<Roster[]>(assignment.roster);
@@ -267,6 +268,7 @@ function AssignmentCard({ assignment, onChanged }: { assignment: Assignment; onC
         )}
       </div>
 
+      {assignment.kind === "tutorial" && <TutorialImportPanel assignmentId={assignment.id} ready={assignment.question_ids.length > 0} onChanged={onChanged} onOpen={onOpenReview} />}
       {roster.length > 0 && (
         <table className="mt-3 w-full text-sm">
           <tbody>

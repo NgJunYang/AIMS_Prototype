@@ -7,7 +7,8 @@ from functools import lru_cache, wraps
 from threading import RLock
 from typing import Any
 
-from app.config import ASSIGNMENTS_DIR, QUESTIONS_FILE, SEEDS_DIR, SUBMISSIONS_DIR
+from app.config import ASSIGNMENTS_DIR, IMPORTS_DIR, QUESTIONS_FILE, SEEDS_DIR, SUBMISSIONS_DIR
+from app.ingestion_models import TutorialImport
 from app.models import Assignment, Question, Submission
 
 
@@ -131,10 +132,15 @@ def save_submission(submission: Submission) -> None:
 
 
 def _replace_submission_file(path, content: str) -> None:
+    _replace_file(path, content.encode("utf-8"))
+
+
+def _replace_file(path, content: bytes) -> None:
     # Readers never see a truncated JSON file during a write.
-    fd, temporary = tempfile.mkstemp(dir=SUBMISSIONS_DIR, suffix=".tmp")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+        with os.fdopen(fd, "wb") as stream:
             stream.write(content)
         os.replace(temporary, path)
     finally:
@@ -220,3 +226,85 @@ def list_assignments() -> list[Assignment]:
         except (OSError, ValueError):
             continue
     return sorted(assignments, key=lambda a: a.created_at, reverse=True)
+
+
+@submission_transaction
+def _atomic_files(files: dict) -> None:
+    """Commit related import files; roll back both new and existing records."""
+    previous = {path: path.read_bytes() if path.exists() else None for path in files}
+    written = []
+    try:
+        for path, content in files.items():
+            _replace_file(path, content)
+            written.append(path)
+    except OSError:
+        for path in reversed(written):
+            if previous[path] is None:
+                path.unlink(missing_ok=True)
+            else:
+                _replace_file(path, previous[path])
+        raise
+
+
+def _import_path(import_id: str):
+    import re
+    if not re.fullmatch(r"[0-9a-f]{12}", import_id):
+        raise KeyError("unknown tutorial import")
+    return IMPORTS_DIR / import_id
+
+
+def save_import(draft: TutorialImport, pages: list[bytes] | None = None,
+                solution_pages: list[bytes] | None = None) -> None:
+    folder = _import_path(draft.id)
+    files = {folder / "draft.json": draft.model_dump_json(indent=2).encode()}
+    for prefix, images in [("page", pages), ("solution", solution_pages)]:
+        for number, png in enumerate(images or [], start=1):
+            files[folder / f"{prefix}-{number}.png"] = png
+    _atomic_files(files)
+
+
+def load_import(import_id: str) -> TutorialImport:
+    path = _import_path(import_id) / "draft.json"
+    if not path.is_file():
+        raise KeyError("unknown tutorial import")
+    return TutorialImport.model_validate_json(path.read_text(encoding="utf-8"))
+
+
+def list_imports(assignment_id: str) -> list[TutorialImport]:
+    imports = []
+    for path in sorted(IMPORTS_DIR.glob("*/draft.json")):
+        try:
+            draft = TutorialImport.model_validate_json(path.read_text(encoding="utf-8"))
+            if draft.assignment_id == assignment_id:
+                imports.append(draft)
+        except (OSError, ValueError):
+            continue
+    return imports
+
+
+def import_page_path(import_id: str, page: int, *, solution: bool = False):
+    draft = load_import(import_id)
+    if page < 1 or page > (draft.solution_page_count if solution else draft.page_count):
+        raise KeyError("unknown import page")
+    path = _import_path(import_id) / f"{'solution' if solution else 'page'}-{page}.png"
+    if not path.is_file():
+        raise KeyError("unknown import page")
+    return path
+
+
+@submission_transaction
+def commit_tutorial_questions(draft: TutorialImport, questions: list[Question], assignment: Assignment) -> None:
+    overlay = _overlay()
+    overlay["questions"].update({q.id: q.model_dump() for q in questions})
+    _atomic_files({
+        QUESTIONS_FILE: json.dumps(overlay, indent=2).encode(),
+        ASSIGNMENTS_DIR / f"{assignment.id}.json": assignment.model_dump_json(indent=2).encode(),
+        _import_path(draft.id) / "draft.json": draft.model_dump_json(indent=2).encode(),
+    })
+
+
+@submission_transaction
+def commit_tutorial_submissions(draft: TutorialImport, submissions: list[Submission]) -> None:
+    files = {SUBMISSIONS_DIR / f"{s.id}.json": s.model_dump_json(indent=2).encode() for s in submissions}
+    files[_import_path(draft.id) / "draft.json"] = draft.model_dump_json(indent=2).encode()
+    _atomic_files(files)

@@ -55,6 +55,10 @@ class IdentityExtraction(BaseModel):
 
 class Question(BaseModel):
     id: str
+    label: str | None = None
+    source_import_id: str | None = None
+    source_pages: list[int] = Field(default_factory=list)
+    solution_source_pages: list[int] = Field(default_factory=list)
     prompt: str
     model_solution_steps: list[str]
     variable: str = "x"
@@ -264,6 +268,8 @@ class ClassSummary(BaseModel):
 
 class Submission(BaseModel):
     id: str
+    source_import_id: str | None = None
+    source_pages: list[int] = Field(default_factory=list)
     question_id: str
     image_filename: str | None = None
     source_page: int | None = None

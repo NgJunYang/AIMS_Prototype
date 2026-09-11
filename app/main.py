@@ -1122,4 +1122,7 @@ def _set_identity(submission: Submission, name: str, student_id: str | None) -> 
 
 # Must stay last: the static mount is a catch-all and would otherwise
 # swallow every /api/... route above.
+from app.ingestion_api import create_router
+
+app.include_router(create_router(api_mark))
 app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")

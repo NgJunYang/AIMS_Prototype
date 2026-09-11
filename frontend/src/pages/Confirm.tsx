@@ -29,6 +29,7 @@ import { divergenceMessage, formatRootList, humanizeTag } from "../lib/katex";
 import type { Criterion, CriterionMark, Question, StepVerification } from "../types";
 import { StudentResultLink } from "../components/StudentResultLink";
 import { TutorialReview } from "../components/TutorialReview";
+import { ImportSourcePages } from "../components/ImportSourcePages";
 
 type PanelTone = "scan" | "record" | "assess";
 
@@ -87,7 +88,7 @@ export default function Confirm() {
               Assessment desk
             </span>
             <span className="h-px w-10 bg-border" />
-            <span className="font-mono text-[11px] text-text-muted">{sub?.question_id}</span>
+            <span className="font-mono text-[11px] text-text-muted">{submissionQuestion?.label || sub?.question_id}</span>
           </div>
           <h1 className="text-2xl font-semibold tracking-tight">
             {state.localName || sub?.student_pseudonym || "Unidentified student"}
@@ -122,7 +123,8 @@ export default function Confirm() {
 
       <fieldset disabled={state.reviewBusy} className="grid min-w-0 gap-4 xl:grid-cols-[minmax(250px,0.84fr)_minmax(360px,1.08fr)_minmax(340px,1fr)]">
         <PanelFrame index="01" title="Source scan" subtitle="The original evidence" tone="scan" icon={<ScanLine size={17} />}>
-          <ImagePane
+          {sub?.source_import_id ? <ImportSourcePages key={sub.id} id={sub.source_import_id}
+            pages={sub.source_pages?.length ? sub.source_pages : Array.from({ length: sub.source_page_count || 0 }, (_, i) => i + 1)} /> : <ImagePane
             uploadSourceType={state.uploadSourceType}
             hasTranscription={!!sub?.transcription}
             uploadedImageUrl={state.uploadedImageUrl}
@@ -135,7 +137,7 @@ export default function Confirm() {
             onPrev={() => wb.loadPagePreview(state.uploadSelectedPage - 1)}
             onNext={() => wb.loadPagePreview(state.uploadSelectedPage + 1)}
             onCommit={() => wb.transcribeStagedFile(state.uploadSelectedPage)}
-          />
+          />}
 
           <div className="mt-5 border-t border-border pt-4">
             <div className="mb-3 flex items-center justify-between gap-2">

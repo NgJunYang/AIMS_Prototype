@@ -22,10 +22,14 @@ testing workflow. Keep the original PDFs unchanged.
 
 ## Manual test workflow
 
-Set up a Tutorial 5 assignment containing Q1–Q5, using the professor PDFs as
-references for the questions, model solutions and rubrics. Use the existing
-manual/per-question workflow for each answer. Keep all five submissions linked
-to the same assignment and confirmed identity: Alex Tan, `2500123`.
+Create an empty Tutorial 5 assignment in **Assignments**. In **Whole tutorial
+PDF import**, upload file 01 and confirm the detected Q1–Q5 prompts. Upload file
+02, correct any solution/rubric extraction errors, confirm every mapping, and
+save the validated setup. Upload file 03, confirm Alex Tan / `2500123` and each
+answer's working/mapping, then **Confirm & Start Marking**. Use **Open Instructor
+Review** for the checks below. The original manual/per-question workflow remains
+available as an alternative; keep all submissions linked to the same assignment
+and student identity.
 
 1. AI-mark each question separately and inspect the intended correct answers
    and errors listed above.
@@ -45,10 +49,11 @@ to the same assignment and confirmed identity: Alex Tan, `2500123`.
 Also check that changing an assessment after review requires reviewing that
 question again, and that **Unpublish Tutorial Results** hides all five results.
 
-These files do not imply support for automatic whole-PDF question splitting.
-They are reusable manual/end-to-end test data today. When whole-tutorial
-ingestion is implemented later, reuse them to test automatic question detection
-and student-answer splitting.
+These files now support testing automatic question detection, solution matching
+and student-answer segmentation, with professor confirmation before saving or
+marking. Automated tests render these same PDFs and mock Claude responses; live
+extraction requires a configured API key or cached responses. See
+[the ingestion guide](../../docs/tutorial-ingestion.md) for limits and recovery.
 
 Keep runtime uploads, caches, generated API responses, `.env` files, real student
 submissions and secrets out of Git; only these synthetic source PDFs and this

@@ -161,7 +161,7 @@ export default function Setup({ onSubmissionCreated }: { onSubmissionCreated: ()
             <option value="">Choose a question…</option>
             {visibleQuestions.map((qq) => (
               <option key={qq.id} value={qq.id}>
-                {qq.id} — {qq.prompt.replace(/\$/g, "")}
+                {qq.label || qq.id} — {qq.prompt.replace(/\$/g, "")}
               </option>
             ))}
           </select>
