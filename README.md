@@ -169,18 +169,26 @@ just seeded.
 
 - **Setup → Resume saved marking** lists marked and unmarked submissions. Search by name, student ID, question or assignment, then choose **Resume marking**. Analytics student details also include a resume button.
 - Resuming loads the last saved identity, confirmed working, marks, feedback and publication status. It does not recover unsaved browser edits. For a PDF, only the rendered page used for transcription is retained, not the original multi-page file.
-- After publishing, use **Open student result** or **Copy result link**. The Student screen also accepts the result code. Reloading that link rechecks publication; unpublished test results are unavailable.
+- For assignment tutorials, edit the rubric scores, feedback and identity on Confirm, then click **Mark Question as Reviewed**. The tutorial progress list opens the student's other questions. Once every required question has marks, feedback and explicit review, **Publish Tutorial Results** releases them together. **Unpublish Tutorial Results** hides the group again.
+- Assessment edits invalidate question review and hide a previously published tutorial together. Unassigned self-practice tutorials retain immediate access; CA/exam scripts retain individual publication.
+- Progress matches student IDs first, or whitespace-normalized, case-insensitive names when both scripts lack IDs. Confirm missing IDs consistently; identified and unidentified namesakes are never silently merged. Duplicate attempts for a required question block publication until the instructor resolves their student/question association.
+- After publishing, use **Open student result** or **Copy result link**. The Student screen also accepts the result code. Student view, chat and email drafting all recheck publication; unpublished assignment tutorials and test results are unavailable.
 - Roster CSV headers can be `name,student_id` or `student_id,name`; `Student Name` and `Student ID` are accepted too. Headerless files must be name-first. Invalid rows, ambiguous recognised headers, and duplicate IDs reject the entire upload without replacing the existing roster.
 
 This remains a trusted-demo prototype, not an authenticated student portal. Instructor APIs are not role-protected. Use synthetic data until authentication and authorisation are implemented. A localhost result link works only on the computer running the server.
+
+The JSON persistence layer assumes a single backend process. Assessment transactions use an in-process lock, atomic file replacement and rollback on group write failure. Student access additionally requires the entire group to be complete and published, so interrupted or legacy partial publication fails closed. Multiple workers sharing these files require cross-process transaction coordination before deployment.
 
 ## Tests
 
 ```
 .venv/Scripts/python.exe -m pytest -q
+cd frontend
+npm test
+npm run build
 ```
 
-992 tests currently pass. Notable groups:
+Backend pytest tests, React workflow interaction tests and the existing static deployment checks cover the application. Notable groups:
 
 - **`tests/test_seed_integrity.py`** — every model solution line in
   `app/seeds/questions.json` actually parses, and verifies as correct against

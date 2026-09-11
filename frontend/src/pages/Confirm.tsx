@@ -28,6 +28,7 @@ import { api, ApiError } from "../lib/api";
 import { divergenceMessage, formatRootList, humanizeTag } from "../lib/katex";
 import type { Criterion, CriterionMark, Question, StepVerification } from "../types";
 import { StudentResultLink } from "../components/StudentResultLink";
+import { TutorialReview } from "../components/TutorialReview";
 
 type PanelTone = "scan" | "record" | "assess";
 
@@ -252,7 +253,7 @@ export default function Confirm() {
               ) : (
                 <>
                   {hasOverrides && (
-                    <ResetRubricButton submissionId={state.submissionId!} onUpdated={wb.setSubmission} />
+                    <ResetRubricButton />
                   )}
                   {!!marks.warnings?.length && (
                     <div className="mb-3 flex flex-col gap-2">
@@ -268,8 +269,6 @@ export default function Confirm() {
                       <RubricCriterion
                         key={criterion.criterion_id}
                         criterion={criterion}
-                        submissionId={state.submissionId!}
-                        onUpdated={wb.setSubmission}
                         onEvidence={focusEvidence}
                       />
                     ))}
@@ -280,7 +279,7 @@ export default function Confirm() {
               <div className="my-5 h-px bg-border" />
               <FeedbackEditor />
 
-              {!editingRubric && (
+              {!editingRubric && !(sub?.channel === "tutorial" && sub.assignment_id != null) && (
                 <PublishControl
                   submissionId={state.submissionId!}
                   channel={sub?.channel ?? "test"}
@@ -303,6 +302,9 @@ export default function Confirm() {
 
               <PracticeSection />
             </>
+          )}
+          {sub?.channel === "tutorial" && sub.assignment_id != null && (
+            <TutorialReview key={sub.id} disabled={suggestionsStale || state.confirmBusy || recordDirty || editingRubric} />
           )}
         </PanelFrame>
       </fieldset>
@@ -355,13 +357,12 @@ function EmptyAssessment({ busy }: { busy: boolean }) {
   );
 }
 
-function RubricCriterion({ criterion, submissionId, onUpdated, onEvidence }: {
+function RubricCriterion({ criterion, onEvidence }: {
   criterion: CriterionMark;
-  submissionId: string;
-  onUpdated: (submission: any) => void;
   onEvidence: (step: number) => void;
 }) {
   const toast = useToast();
+  const wb = useWorkbench();
   const [value, setValue] = useState(String(criterion.proposed));
 
   useEffect(() => setValue(String(criterion.proposed)), [criterion.proposed]);
@@ -375,7 +376,7 @@ function RubricCriterion({ criterion, submissionId, onUpdated, onEvidence }: {
     }
     if (proposed === criterion.proposed) return;
     try {
-      onUpdated(await api.override(submissionId, criterion.criterion_id, proposed));
+      await wb.saveScore(criterion.criterion_id, proposed);
       toast.success(`${criterion.criterion_id} updated.`);
     } catch (error) {
       setValue(String(criterion.proposed));
@@ -406,6 +407,9 @@ function RubricCriterion({ criterion, submissionId, onUpdated, onEvidence }: {
         </label>
       </div>
       <p className="mt-2 text-xs leading-relaxed">{criterion.justification}</p>
+      {criterion.overridden && criterion.suggested != null && (
+        <p className="mt-2 text-[11px] text-text-muted">AI suggested: {criterion.suggested} / {criterion.max} · Instructor final: {criterion.proposed} / {criterion.max}</p>
+      )}
       {criterion.evidence_step != null && (
         <button onClick={() => onEvidence(criterion.evidence_step!)} className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-accent-hover underline decoration-accent/40 underline-offset-2">
           <FileSearch size={11} /> Inspect evidence at line {criterion.evidence_step}
@@ -415,10 +419,8 @@ function RubricCriterion({ criterion, submissionId, onUpdated, onEvidence }: {
   );
 }
 
-function ResetRubricButton({ submissionId, onUpdated }: {
-  submissionId: string;
-  onUpdated: (submission: any) => void;
-}) {
+function ResetRubricButton() {
+  const wb = useWorkbench();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
 
@@ -426,7 +428,7 @@ function ResetRubricButton({ submissionId, onUpdated }: {
     if (busy) return;
     setBusy(true);
     try {
-      onUpdated(await api.resetOverrides(submissionId));
+      await wb.saveScore();
       toast.success("Rubric edits reset to the latest suggestions.");
     } catch (error) {
       toast.error(error instanceof ApiError ? String(error.body?.detail || error.message) : "Could not reset rubric edits.");
@@ -461,7 +463,7 @@ function IdentitySaveControl() {
   return (
     <div className="mt-3">
       <p className="mb-2 text-[11px] text-text-muted" role="status">
-        {dirty ? "Unsaved identity changes — save now or publish to save them." : "Student identity saved."}
+        {dirty ? "Unsaved identity changes — save now or complete the question review to save them." : "Student identity saved."}
       </p>
       <Button variant="secondary" className="w-full" disabled={!dirty || state.reviewBusy || state.confirmBusy || state.autoRefreshing} onClick={save}>
         <Save size={14} /> Save identity

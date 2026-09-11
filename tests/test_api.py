@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 from app import main, store
 from app.main import app
 from app.models import (
+    Assignment,
     Feedback,
     IdentityExtraction,
     MarkProposal,
@@ -1377,3 +1378,250 @@ def test_roster_reversed_headers_and_invalid_replacement_are_atomic():
         response = client.post("/api/assignments/week5/roster", files={"file": ("bad.csv", csv)})
         assert response.status_code == 400
         assert client.get("/api/assignments/week5").json()["roster"] == expected
+
+
+# ---------- Assignment tutorial review and final publication ----------
+
+REVIEW = {
+    "identity": {"name": "Student A", "student_id": "2500001"},
+    "feedback": {"what_went_well": "Clear setup", "what_went_wrong": "Lost a root", "how_to_improve": "Factor first"},
+}
+
+
+def _tutorial_group(monkeypatch, count=5, reviewed=0):
+    _stub_llm(monkeypatch)
+    question_ids = [f"q{i}" for i in range(1, count + 1)]
+    store.save_assignment(Assignment(id="tutorial5", title="Tutorial 5", question_ids=question_ids))
+    ids = []
+    for index, question_id in enumerate(question_ids):
+        sid = client.post("/api/submissions", json={
+            "question_id": question_id, "assignment_id": "tutorial5", "student_pseudonym": "Student A",
+        }).json()["id"]
+        client.put(f"/api/submissions/{sid}/identity", json=REVIEW["identity"])
+        client.put(f"/api/submissions/{sid}/steps", json={"steps": [{"index": 1, "latex": "x = 5"}]})
+        assert client.post(f"/api/submissions/{sid}/mark").status_code == 200
+        if index < reviewed:
+            assert client.post(f"/api/submissions/{sid}/review", json=REVIEW).status_code == 200
+        ids.append(sid)
+    return ids
+
+
+def _status(sid):
+    response = client.get(f"/api/submissions/{sid}/assignment-review-status")
+    assert response.status_code == 200
+    return response.json()
+
+
+def test_assignment_tutorial_review_saves_edits_without_publishing(monkeypatch):
+    sid = _tutorial_group(monkeypatch, count=1)[0]
+    stored = store.load_submission(sid)
+    stored.feedback.references = ["Notes section 2"]
+    store.save_submission(stored)
+    response = client.post(f"/api/submissions/{sid}/review", json=REVIEW)
+    assert response.status_code == 200
+    assert response.json()["reviewed"] is True
+    assert response.json()["published"] is False
+    saved = store.load_submission(sid)
+    assert saved.student_id == "2500001"
+    assert saved.feedback.model_dump() == {**REVIEW["feedback"], "references": ["Notes section 2"]}
+    assert client.get(f"/api/submissions/{sid}/student-view").status_code == 403
+
+
+@pytest.mark.parametrize("missing", ["marks", "feedback"])
+def test_review_requires_marks_and_feedback(monkeypatch, missing):
+    sid = _tutorial_group(monkeypatch, count=1)[0]
+    submission = store.load_submission(sid)
+    setattr(submission, missing, None)
+    store.save_submission(submission)
+    before = store.load_submission(sid)
+    assert client.post(f"/api/submissions/{sid}/review", json=REVIEW).status_code == 409
+    assert store.load_submission(sid) == before
+
+
+@pytest.mark.parametrize("invalid", ["identity", "feedback"])
+def test_invalid_review_saves_nothing(monkeypatch, invalid):
+    sid = _tutorial_group(monkeypatch, count=1)[0]
+    body = json.loads(json.dumps(REVIEW))
+    if invalid == "identity":
+        body["identity"]["name"] = "  "
+    else:
+        body["feedback"]["how_to_improve"] = "x" * 4001
+    before = store.load_submission(sid)
+    assert client.post(f"/api/submissions/{sid}/review", json=body).status_code in (400, 422)
+    assert store.load_submission(sid) == before
+
+
+@pytest.mark.parametrize("channel", ["tutorial", "test"])
+def test_unpublished_results_block_all_student_endpoints(monkeypatch, channel):
+    sid = _tutorial_group(monkeypatch, count=1)[0] if channel == "tutorial" else _mark_a_tutorial(monkeypatch, "test")
+    def unexpected(*args, **kwargs):
+        pytest.fail("Unpublished assessment reached the tutor")
+    monkeypatch.setattr(main, "tutor_answer", unexpected)
+    monkeypatch.setattr(main, "tutor_draft_email", unexpected)
+    assert client.get(f"/api/submissions/{sid}/student-view").status_code == 403
+    assert client.post(f"/api/submissions/{sid}/chat", json={"messages": [{"role": "user", "content": "Explain my mark"}]}).status_code == 403
+    assert client.post(f"/api/submissions/{sid}/draft-email", json={"concern": "My mark"}).status_code == 403
+
+
+@pytest.mark.parametrize("action", ["override", "reset-overrides", "feedback", "steps", "mark", "rubric", "transcribe"])
+def test_assessment_changes_invalidate_review_and_hide_entire_tutorial(monkeypatch, action):
+    ids = _tutorial_group(monkeypatch, count=2, reviewed=2)
+    sid = ids[0]
+    assert client.post(f"/api/submissions/{sid}/publish-assignment").status_code == 200
+    if action == "override":
+        response = client.post(f"/api/submissions/{sid}/override", json={"criterion_id": "C1", "proposed": 1})
+    elif action == "feedback":
+        response = client.put(f"/api/submissions/{sid}/feedback", json={**REVIEW["feedback"], "how_to_improve": "New instructor advice"})
+    elif action == "steps":
+        response = client.put(f"/api/submissions/{sid}/steps", json={"steps": [{"index": 1, "latex": "x = 3"}]})
+    elif action == "rubric":
+        question = store.get_question("q1").model_dump()
+        question["criteria"][0]["description"] += " Explain your method."
+        response = client.put("/api/questions/q1", json=question)
+    elif action == "transcribe":
+        monkeypatch.setattr(main, "transcribe", lambda **kw: (Transcription(steps=[Step(index=1, latex="x = 3")]), IdentityExtraction()))
+        response = client.post(f"/api/submissions/{sid}/transcribe", files={"file": ("scan.png", PNG_1X1, "image/png")})
+    else:
+        response = client.post(f"/api/submissions/{sid}/{action}")
+    assert response.status_code == 200
+    assert store.load_submission(sid).reviewed is False
+    assert store.load_submission(sid).review_invalidated is True
+    for item in ids:
+        assert store.load_submission(item).published is False
+        assert client.get(f"/api/submissions/{item}/student-view").status_code == 403
+    assert client.post(f"/api/submissions/{sid}/publish-assignment").status_code == 409
+
+
+def test_opening_unchanged_work_and_practice_keep_review(monkeypatch):
+    sid = _tutorial_group(monkeypatch, count=1, reviewed=1)[0]
+    assert client.get(f"/api/submissions/{sid}").json()["reviewed"] is True
+    for method, path, body in [
+        (client.put, "steps", {"steps": [{"index": 1, "latex": "x = 5"}]}),
+        (client.put, "feedback", REVIEW["feedback"]),
+        (client.post, "practice", {"question_type": "bare"}),
+    ]:
+        assert method(f"/api/submissions/{sid}/{path}", json=body).json()["reviewed"] is True
+
+
+def test_progress_preserves_assignment_order_and_excludes_other_work(monkeypatch):
+    ids = _tutorial_group(monkeypatch, reviewed=3)
+    extra = store.load_submission(ids[0]).model_copy(update={"id": "extra", "question_id": "q6"})
+    store.save_submission(extra)
+    for change in [{"student_id": "other"}, {"assignment_id": "other"}]:
+        store.save_submission(extra.model_copy(update={"id": str(len(store.list_submissions())), "question_id": "q4", **change}))
+    status = _status(ids[0])
+    assert status["reviewed_count"] == 3
+    assert status["total_questions"] == 5
+    assert [q["question_id"] for q in status["questions"]] == ["q1", "q2", "q3", "q4", "q5"]
+    assert status["ready_to_publish"] is False
+
+
+@pytest.mark.parametrize("incomplete", ["missing", "marks", "feedback", "reviewed", "duplicate"])
+def test_incomplete_publication_is_409_and_changes_nothing(monkeypatch, incomplete):
+    ids = _tutorial_group(monkeypatch, count=2, reviewed=2)
+    second = store.load_submission(ids[1])
+    if incomplete == "missing":
+        (store.SUBMISSIONS_DIR / f"{ids[1]}.json").unlink()
+    elif incomplete == "duplicate":
+        store.save_submission(second.model_copy(update={"id": "duplicate"}))
+    else:
+        setattr(second, incomplete, False if incomplete == "reviewed" else None)
+        store.save_submission(second)
+    before = store.list_submissions()
+    response = client.post(f"/api/submissions/{ids[0]}/publish-assignment")
+    assert response.status_code == 409
+    assert "q2" in str(response.json()["detail"])
+    assert store.list_submissions() == before
+    assert all(not s.published for s in store.list_submissions())
+    status = _status(ids[0])
+    assert status["ready_to_publish"] is False
+    if incomplete == "missing":
+        assert status["questions"][1]["submission_id"] is None
+        assert status["questions"][1]["marked"] is False
+
+
+def test_complete_tutorial_publishes_final_scores_and_prose_and_unpublishes_together(monkeypatch):
+    ids = _tutorial_group(monkeypatch, count=2, reviewed=2)
+    sid = ids[0]
+    client.post(f"/api/submissions/{sid}/override", json={"criterion_id": "C1", "proposed": 1})
+    client.post(f"/api/submissions/{sid}/review", json=REVIEW)
+    assert _status(sid)["ready_to_publish"] is True
+    assert client.post(f"/api/submissions/{sid}/publish-assignment").json()["published"] is True
+    for item in ids:
+        assert store.load_submission(item).published is True
+        result = client.get(f"/api/submissions/{item}/student-view")
+        assert result.status_code == 200
+        assert result.json()["feedback"]["how_to_improve"] == "Factor first"
+    assert client.get(f"/api/submissions/{sid}/student-view").json()["criteria"][0]["proposed"] == 1
+    monkeypatch.setattr(main, "tutor_answer", lambda *args: "Released feedback")
+    assert client.post(f"/api/submissions/{sid}/chat", json={"messages": [{"role": "user", "content": "Explain"}]}).status_code == 200
+    assert client.post(f"/api/submissions/{ids[1]}/unpublish-assignment").json()["published"] is False
+    for item in ids:
+        assert store.load_submission(item).published is False
+        assert store.load_submission(item).reviewed is True
+        assert client.get(f"/api/submissions/{item}/student-view").status_code == 403
+
+
+def test_individual_routes_cannot_bypass_tutorial_group_publication(monkeypatch):
+    sid = _tutorial_group(monkeypatch, count=1, reviewed=1)[0]
+    assert client.post(f"/api/submissions/{sid}/publish", json=REVIEW).status_code == 409
+    client.post(f"/api/submissions/{sid}/publish-assignment")
+    assert client.post(f"/api/submissions/{sid}/unpublish").status_code == 409
+    assert _status(sid)["published"] is True
+
+
+@pytest.mark.parametrize("kind", ["ca", "exam"])
+def test_ca_exam_assignment_keeps_individual_publication(monkeypatch, kind):
+    sid = _tutorial_group(monkeypatch, count=1)[0]
+    store.save_assignment(Assignment(id="graded", title="Graded", kind=kind, question_ids=["q1"]))
+    sub = store.load_submission(sid)
+    sub.assignment_id, sub.channel = "graded", "test"
+    store.save_submission(sub)
+    assert client.post(f"/api/submissions/{sid}/publish", json=REVIEW).status_code == 200
+    assert client.get(f"/api/submissions/{sid}/student-view").status_code == 200
+    assert client.post(f"/api/submissions/{sid}/unpublish").status_code == 200
+    assert client.get(f"/api/submissions/{sid}/student-view").status_code == 403
+
+
+def test_student_identity_uses_ids_then_normalized_names(monkeypatch):
+    ids = _tutorial_group(monkeypatch, count=2, reviewed=2)
+    second = store.load_submission(ids[1])
+    second.student_pseudonym = "Different spelling"
+    store.save_submission(second)
+    assert _status(ids[0])["ready_to_publish"] is True  # IDs are authoritative.
+    for index, sid in enumerate(ids):
+        sub = store.load_submission(sid)
+        sub.student_id = None
+        sub.student_pseudonym = " Student   A " if index == 0 else "student a"
+        store.save_submission(sub)
+    assert _status(ids[0])["reviewed_count"] == 2
+    second = store.load_submission(ids[1])
+    second.student_id = "different-person"
+    store.save_submission(second)
+    assert _status(ids[0])["reviewed_count"] == 1  # Never join an identified namesake.
+
+
+def test_partial_legacy_publication_fails_closed(monkeypatch):
+    ids = _tutorial_group(monkeypatch, count=2, reviewed=2)
+    sub = store.load_submission(ids[0])
+    sub.published = True
+    store.save_submission(sub)
+    assert _status(ids[0])["published"] is False
+    for sid in ids:
+        assert client.get(f"/api/submissions/{sid}/student-view").status_code == 403
+
+
+def test_group_write_failure_rolls_back(monkeypatch):
+    ids = _tutorial_group(monkeypatch, count=2, reviewed=2)
+    original = store.save_submission
+    calls = 0
+    def fail_second(sub):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("disk failure")
+        original(sub)
+    monkeypatch.setattr(store, "save_submission", fail_second)
+    with TestClient(app, raise_server_exceptions=False) as failing_client:
+        assert failing_client.post(f"/api/submissions/{ids[0]}/publish-assignment").status_code == 500
+    assert all(not store.load_submission(sid).published for sid in ids)

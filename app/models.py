@@ -283,11 +283,11 @@ class Submission(BaseModel):
     # was uploaded - see IdentityExtraction. None for manual entry (no photo)
     # and for submissions created before this field existed.
     extracted_identity: IdentityExtraction | None = None
-    # Which usage scenario this submission belongs to. A "tutorial" script is
-    # self-marked and visible to the student straight away; a "test" script is
-    # only visible once the instructor has vetted and published it. Defaulted so
-    # every submission saved before this field existed still validates.
+    # Only unassigned tutorials are immediately visible. Assignment tutorials
+    # require question review followed by publication of the complete tutorial.
     channel: Literal["tutorial", "test"] = "tutorial"
+    reviewed: bool = False
+    review_invalidated: bool = False
     published: bool = False
     assignment_id: str | None = None
 
@@ -303,8 +303,8 @@ class RosterEntry(BaseModel):
 class Assignment(BaseModel):
     """A named activity: a set of questions and (optionally) a class roster.
 
-    ``kind`` drives the marking channel - a tutorial is student-self-serve,
-    a ca/exam is instructor-marked and published. Persisted one JSON file per
+    ``kind`` drives the marking channel; assignment tutorials are reviewed and
+    published together, while ca/exam scripts use individual publication. One JSON file per
     assignment in data/assignments/, like submissions.
     """
 
@@ -318,3 +318,25 @@ class Assignment(BaseModel):
     @property
     def channel(self) -> Literal["tutorial", "test"]:
         return "tutorial" if self.kind == "tutorial" else "test"
+
+
+class AssignmentQuestionReview(BaseModel):
+    question_id: str
+    submission_id: str | None = None
+    marked: bool = False
+    has_feedback: bool = False
+    reviewed: bool = False
+    published: bool = False
+    problems: list[str] = Field(default_factory=list)
+
+
+class AssignmentReviewStatus(BaseModel):
+    assignment_id: str
+    assignment_title: str
+    student_pseudonym: str
+    student_id: str | None = None
+    total_questions: int
+    reviewed_count: int
+    ready_to_publish: bool
+    published: bool
+    questions: list[AssignmentQuestionReview]

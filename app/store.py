@@ -1,11 +1,27 @@
 """Loading seed data and persisting submissions. The only file-I/O module."""
 
 import json
-from functools import lru_cache
+import os
+import tempfile
+from functools import lru_cache, wraps
+from threading import RLock
 from typing import Any
 
 from app.config import ASSIGNMENTS_DIR, QUESTIONS_FILE, SEEDS_DIR, SUBMISSIONS_DIR
 from app.models import Assignment, Question, Submission
+
+
+# The JSON store runs in one server process. Serialize assessment transactions
+# so a concurrent edit cannot race final publication or a student-facing read.
+submission_lock = RLock()
+
+
+def submission_transaction(function):
+    @wraps(function)
+    def locked(*args, **kwargs):
+        with submission_lock:
+            return function(*args, **kwargs)
+    return locked
 
 
 @lru_cache(maxsize=1)
@@ -111,7 +127,39 @@ def get_notes(topic_tag: str) -> list[dict[str, str]]:
 
 def save_submission(submission: Submission) -> None:
     path = SUBMISSIONS_DIR / f"{submission.id}.json"
-    path.write_text(submission.model_dump_json(indent=2), encoding="utf-8")
+    _replace_submission_file(path, submission.model_dump_json(indent=2))
+
+
+def _replace_submission_file(path, content: str) -> None:
+    # Readers never see a truncated JSON file during a write.
+    fd, temporary = tempfile.mkstemp(dir=SUBMISSIONS_DIR, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as stream:
+            stream.write(content)
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
+@submission_transaction
+def save_submissions(submissions: list[Submission]) -> None:
+    """Persist a validated group; restore its previous files if a write fails.
+
+    Student access also checks the entire group, failing closed if a process
+    stops between file replacements. This is not a multi-process database.
+    """
+    previous = {
+        s.id: (SUBMISSIONS_DIR / f"{s.id}.json").read_text(encoding="utf-8")
+        for s in submissions
+    }
+    try:
+        for submission in submissions:
+            save_submission(submission)
+    except OSError:
+        for submission_id, content in previous.items():
+            _replace_submission_file(SUBMISSIONS_DIR / f"{submission_id}.json", content)
+        raise
 
 
 def load_submission(submission_id: str) -> Submission:

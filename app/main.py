@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app import uploads
+from app.assignment_review import is_assignment_tutorial, review_status, student_key, student_submissions
 from app.assignments import parse_roster_csv, validate_assignment
 from app.authoring import default_criteria, validate_question
 from app.cohort import summarise
@@ -22,6 +23,7 @@ from app.llm import OfflineCacheMiss
 from app.marker import mark as mark_submission
 from app.models import (
     Assignment,
+    AssignmentReviewStatus,
     ClassSummary,
     Feedback,
     IdentityExtraction,
@@ -43,6 +45,9 @@ from app.store import (
     save_assignment,
     save_question,
     save_submission,
+    save_submissions,
+    submission_lock,
+    submission_transaction,
 )
 from app.transcriber import transcribe, transcribe_model_solution
 from app.tutor import answer as tutor_answer
@@ -320,6 +325,7 @@ def api_create_question(question: Question) -> Question:
 
 
 @app.put("/api/questions/{question_id}")
+@submission_transaction
 def api_update_question(question_id: str, question: Question) -> Question:
     existing = _question(question_id)
     if question.id != question_id:
@@ -395,13 +401,14 @@ def api_delete_question(question_id: str) -> dict[str, str]:
 
 
 @app.post("/api/submissions")
+@submission_transaction
 def api_create_submission(body: CreateSubmission) -> Submission:
     _question(body.question_id)
     channel = body.channel
     if body.assignment_id:
         assignment = _assignment(body.assignment_id)
         # The assignment's kind is authoritative for the channel: a CA or exam
-        # script must be published, a tutorial is visible straight away.
+        # script uses individual publication, a tutorial uses group publication.
         channel = assignment.channel
     submission = Submission(
         id=uuid.uuid4().hex[:12],
@@ -410,6 +417,8 @@ def api_create_submission(body: CreateSubmission) -> Submission:
         channel=channel,
         assignment_id=body.assignment_id,
     )
+    if is_assignment_tutorial(submission):
+        _hide_tutorial(submission)
     save_submission(submission)
     return submission
 
@@ -421,7 +430,7 @@ def api_list_submissions() -> list[dict]:
         {"id": s.id, "question_id": s.question_id,
          "student_pseudonym": s.student_pseudonym, "student_id": s.student_id,
          "assignment_id": s.assignment_id, "channel": s.channel,
-         "published": s.published, "marked": s.marks is not None,
+         "published": s.published, "reviewed": s.reviewed, "marked": s.marks is not None,
          "total_proposed": s.marks.total_proposed if s.marks else None,
          "total_max": s.marks.total_max if s.marks else None}
         for s in sorted(list_submissions(), key=lambda s: (s.student_pseudonym.casefold(), s.id))
@@ -470,24 +479,19 @@ async def api_transcribe(
         image_b64=base64.b64encode(png).decode(), media_type="image/png"
     )
 
-    submission.image_filename = filename
-    submission.source_page = page
-    submission.source_page_count = info.page_count
-    submission.transcription = transcription
-    submission.confirmed_steps = list(transcription.steps)
-    submission.extracted_identity = identity
-    # Pre-fill the same way transcribed steps pre-fill confirmed_steps: the
-    # lecturer sees it immediately and can edit or overwrite it before
-    # Confirm & Mark writes anything final. Never overwrite with a null - an
-    # illegible/absent name should leave whatever was there (typed, or the
-    # "Student N" fallback) rather than blank the field.
-    if identity.name:
-        submission.student_pseudonym = identity.name
-    if identity.student_id:
-        submission.student_id = identity.student_id
-    _invalidate_downstream(submission)
-    save_submission(submission)
-    return submission
+    with submission_lock:
+        submission = _submission(submission_id)
+        _invalidate_downstream(submission)
+        submission.image_filename = filename
+        submission.source_page = page
+        submission.source_page_count = info.page_count
+        submission.transcription = transcription
+        submission.confirmed_steps = list(transcription.steps)
+        submission.extracted_identity = identity
+        _set_identity(submission, identity.name or submission.student_pseudonym,
+                      identity.student_id or submission.student_id)
+        save_submission(submission)
+        return submission
 
 
 @app.post("/api/uploads/inspect")
@@ -522,6 +526,7 @@ async def api_preview_upload(
 
 
 @app.put("/api/submissions/{submission_id}/steps")
+@submission_transaction
 def api_update_steps(submission_id: str, body: UpdateSteps) -> Submission:
     submission = _submission(submission_id)
 
@@ -549,6 +554,7 @@ def api_update_steps(submission_id: str, body: UpdateSteps) -> Submission:
 
 
 @app.put("/api/submissions/{submission_id}/identity")
+@submission_transaction
 def api_update_identity(submission_id: str, body: UpdateIdentity) -> Submission:
     """Confirm (or overwrite) the student's name/id after Confirm-screen review.
 
@@ -557,13 +563,13 @@ def api_update_identity(submission_id: str, body: UpdateIdentity) -> Submission:
     change whether the maths was correct.
     """
     submission = _submission(submission_id)
-    submission.student_pseudonym = body.name or submission.student_pseudonym
-    submission.student_id = body.student_id
+    _set_identity(submission, body.name or submission.student_pseudonym, body.student_id)
     save_submission(submission)
     return submission
 
 
 @app.post("/api/submissions/{submission_id}/verify")
+@submission_transaction
 def api_verify(submission_id: str) -> Submission:
     submission = _submission(submission_id)
     question = _question(submission.question_id)
@@ -575,10 +581,14 @@ def api_verify(submission_id: str) -> Submission:
 
 
 @app.post("/api/submissions/{submission_id}/mark")
+@submission_transaction
 def api_mark(submission_id: str) -> Submission:
     submission = _submission(submission_id)
     question = _question(submission.question_id)
     steps = submission.confirmed_steps or []
+    # Invalidate before calling the model, including when a re-mark fails.
+    _invalidate_review(submission)
+    save_submission(submission)
 
     if submission.verification is None:
         submission.verification = verify(steps, question.model_solution_steps, question.variable)
@@ -620,6 +630,7 @@ def api_mark(submission_id: str) -> Submission:
 
 
 @app.post("/api/submissions/{submission_id}/override")
+@submission_transaction
 def api_override(submission_id: str, body: Override) -> Submission:
     submission = _submission(submission_id)
     if submission.marks is None:
@@ -634,6 +645,7 @@ def api_override(submission_id: str, body: Override) -> Submission:
             criterion.proposed = body.proposed
             criterion.overridden = True
             submission.manual_score_overrides[criterion.criterion_id] = body.proposed
+            _invalidate_review(submission)
             save_submission(submission)
             return submission
 
@@ -641,11 +653,13 @@ def api_override(submission_id: str, body: Override) -> Submission:
 
 
 @app.post("/api/submissions/{submission_id}/reset-overrides")
+@submission_transaction
 def api_reset_overrides(submission_id: str) -> Submission:
     submission = _submission(submission_id)
     if submission.marks is None:
         raise HTTPException(status_code=409, detail="nothing to reset yet")
 
+    _invalidate_review(submission)
     submission.manual_score_overrides = {}
     for criterion in submission.marks.criteria:
         if criterion.suggested is not None:
@@ -656,6 +670,7 @@ def api_reset_overrides(submission_id: str) -> Submission:
 
 
 @app.put("/api/submissions/{submission_id}/feedback")
+@submission_transaction
 def api_update_feedback(submission_id: str, body: UpdateFeedback) -> Submission:
     """Persist the lecturer's edits to the generated feedback draft.
 
@@ -667,17 +682,21 @@ def api_update_feedback(submission_id: str, body: UpdateFeedback) -> Submission:
     if submission.feedback is None:
         raise HTTPException(status_code=409, detail="no feedback draft to edit yet")
 
-    submission.feedback = Feedback(
+    updated = Feedback(
         what_went_well=body.what_went_well,
         what_went_wrong=body.what_went_wrong,
         how_to_improve=body.how_to_improve,
         references=submission.feedback.references,
     )
+    if updated != submission.feedback:
+        _invalidate_review(submission)
+    submission.feedback = updated
     save_submission(submission)
     return submission
 
 
 @app.post("/api/submissions/{submission_id}/practice")
+@submission_transaction
 def api_regenerate_practice(submission_id: str, body: RegeneratePractice) -> Submission:
     """Regenerate practice in a chosen framing, without re-marking.
 
@@ -719,10 +738,11 @@ def _marked_submission(submission_id: str) -> Submission:
 
 
 @app.post("/api/submissions/{submission_id}/publish")
+@submission_transaction
 def api_publish(submission_id: str, body: PublishReview | None = None) -> Submission:
-    """Release a graded-test script to the student. Tutorial scripts are visible
-    without this; a test script is not, until the instructor has vetted it."""
+    """Existing individual publication for CA/exam and unassigned scripts."""
     submission = _marked_submission(submission_id)
+    _require_individual_publication(submission)
     if body is not None:
         # Persist the complete review in the same write as the release flag.
         # Validation runs before any changes, so failed publishing keeps the
@@ -730,32 +750,112 @@ def api_publish(submission_id: str, body: PublishReview | None = None) -> Submis
         name = (body.identity.name or "").strip()
         if not name:
             raise HTTPException(status_code=400, detail="Enter a student name before publishing.")
-        submission.student_pseudonym = name
-        submission.student_id = (body.identity.student_id or "").strip() or None
-        submission.feedback = Feedback(
-            **body.feedback.model_dump(), references=submission.feedback.references
-        )
+        _save_review_edits(submission, body)
     submission.published = True
     save_submission(submission)
     return submission
 
 
 @app.post("/api/submissions/{submission_id}/unpublish")
+@submission_transaction
 def api_unpublish(submission_id: str) -> Submission:
     submission = _submission(submission_id)
+    _require_individual_publication(submission)
     submission.published = False
     save_submission(submission)
     return submission
 
 
-@app.get("/api/submissions/{submission_id}/student-view")
-def api_student_view(submission_id: str) -> StudentView:
+def _require_individual_publication(submission: Submission) -> None:
+    if is_assignment_tutorial(submission):
+        raise HTTPException(status_code=409, detail="Use tutorial group publication to release or hide all questions together.")
+
+
+def _tutorial_assignment(submission: Submission) -> Assignment:
+    if not is_assignment_tutorial(submission):
+        raise HTTPException(status_code=409, detail="This submission is not an assignment-based tutorial.")
+    assignment = _assignment(submission.assignment_id)
+    if assignment.kind != "tutorial" or submission.question_id not in assignment.question_ids:
+        raise HTTPException(status_code=409, detail="This question is not required by a tutorial assignment.")
+    return assignment
+
+
+def _save_review_edits(submission: Submission, body: PublishReview) -> None:
+    name = (body.identity.name or "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Enter a student name before completing review.")
+    updated = Feedback(**body.feedback.model_dump(), references=submission.feedback.references)
+    _set_identity(submission, name, body.identity.student_id)
+    if updated != submission.feedback:
+        _invalidate_review(submission)
+    submission.feedback = updated
+
+
+@app.post("/api/submissions/{submission_id}/review")
+@submission_transaction
+def api_review(submission_id: str, body: PublishReview) -> Submission:
     submission = _marked_submission(submission_id)
-    if submission.channel == "test" and not submission.published:
-        raise HTTPException(
-            status_code=403,
-            detail="These results have not been published by your instructor yet.",
-        )
+    _save_review_edits(submission, body)
+    submission.reviewed = True
+    submission.review_invalidated = False
+    save_submission(submission)
+    return submission
+
+
+@app.get("/api/submissions/{submission_id}/assignment-review-status")
+@submission_transaction
+def api_assignment_review_status(submission_id: str) -> AssignmentReviewStatus:
+    submission = _submission(submission_id)
+    return review_status(submission, _tutorial_assignment(submission), list_submissions())
+
+
+@app.post("/api/submissions/{submission_id}/publish-assignment")
+@submission_transaction
+def api_publish_assignment(submission_id: str) -> AssignmentReviewStatus:
+    submission = _submission(submission_id)
+    assignment = _tutorial_assignment(submission)
+    submissions = list_submissions()
+    status = review_status(submission, assignment, submissions)
+    if not status.ready_to_publish:
+        problems = [f"{row.question_id}: {', '.join(row.problems)}"
+                    for row in status.questions if row.problems]
+        raise HTTPException(status_code=409, detail=problems or ["The assignment has no required questions."])
+    required_ids = {row.submission_id for row in status.questions}
+    required = [s for s in submissions if s.id in required_ids]
+    for item in required:
+        item.published = True
+    save_submissions(required)
+    return review_status(submission, assignment, submissions)
+
+
+@app.post("/api/submissions/{submission_id}/unpublish-assignment")
+@submission_transaction
+def api_unpublish_assignment(submission_id: str) -> AssignmentReviewStatus:
+    submission = _submission(submission_id)
+    assignment = _tutorial_assignment(submission)
+    _hide_tutorial(submission)
+    return review_status(submission, assignment, list_submissions())
+
+
+def _student_submission(submission_id: str) -> Submission:
+    submission = _submission(submission_id)
+    visible = submission.published
+    if is_assignment_tutorial(submission):
+        # Check the complete group as well as the flag. Partial legacy files,
+        # interrupted writes, changed question sets and duplicates fail closed.
+        try:
+            visible = visible and api_assignment_review_status(submission_id).published
+        except HTTPException:
+            visible = False
+    if (submission.channel == "test" or is_assignment_tutorial(submission)) and not visible:
+        raise HTTPException(status_code=403, detail="These results have not been published by your instructor yet.")
+    return _marked_submission(submission_id)
+
+
+@app.get("/api/submissions/{submission_id}/student-view")
+@submission_transaction
+def api_student_view(submission_id: str) -> StudentView:
+    submission = _student_submission(submission_id)
     question = _question(submission.question_id)
     report = submission.verification
     return StudentView(
@@ -782,10 +882,11 @@ def api_student_view(submission_id: str) -> StudentView:
 
 
 @app.post("/api/submissions/{submission_id}/chat")
+@submission_transaction
 def api_chat(submission_id: str, body: ChatRequest) -> ChatReply:
     """A grounded tutor: answers the student's question about their own marked
     work, constrained to the marks and checks already settled."""
-    submission = _marked_submission(submission_id)
+    submission = _student_submission(submission_id)
     question = _question(submission.question_id)
     report = submission.verification or verify(
         submission.confirmed_steps or [],
@@ -804,13 +905,14 @@ def api_chat(submission_id: str, body: ChatRequest) -> ChatReply:
 
 
 @app.post("/api/submissions/{submission_id}/draft-email")
+@submission_transaction
 def api_draft_email(submission_id: str, body: DraftEmailRequest) -> EmailDraft:
     """Draft an email from the student to their instructor about this question.
 
     Returns text only. Nothing is sent - the student reviews, edits and sends
     it from their own mail client.
     """
-    submission = _marked_submission(submission_id)
+    submission = _student_submission(submission_id)
     question = _question(submission.question_id)
     report = submission.verification or verify(
         submission.confirmed_steps or [],
@@ -843,6 +945,7 @@ def api_get_assignment(assignment_id: str) -> Assignment:
 
 
 @app.post("/api/assignments")
+@submission_transaction
 def api_create_assignment(body: CreateAssignment) -> Assignment:
     if any(a.id == body.id for a in list_assignments()):
         raise HTTPException(
@@ -863,6 +966,7 @@ def api_create_assignment(body: CreateAssignment) -> Assignment:
 
 
 @app.put("/api/assignments/{assignment_id}")
+@submission_transaction
 def api_update_assignment(assignment_id: str, body: Assignment) -> Assignment:
     existing = _assignment(assignment_id)
     if body.id != assignment_id:
@@ -879,6 +983,7 @@ def api_update_assignment(assignment_id: str, body: Assignment) -> Assignment:
 
 
 @app.delete("/api/assignments/{assignment_id}")
+@submission_transaction
 def api_delete_assignment(assignment_id: str) -> dict[str, str]:
     _assignment(assignment_id)
     delete_assignment(assignment_id)
@@ -971,6 +1076,7 @@ def _invalidate_downstream(submission: Submission, *, preserve_overrides: bool =
     A mark attached to working the lecturer has since edited would be worse
     than no mark at all.
     """
+    _invalidate_review(submission)
     if preserve_overrides:
         submission.manual_score_overrides.update({
             c.criterion_id: c.proposed
@@ -983,6 +1089,35 @@ def _invalidate_downstream(submission: Submission, *, preserve_overrides: bool =
     submission.marks = None
     submission.feedback = None
     submission.practice = []
+
+
+def _hide_tutorial(submission: Submission) -> None:
+    if not is_assignment_tutorial(submission):
+        return
+    group = student_submissions(submission, list_submissions())
+    changed = [s for s in group if s.published]
+    for item in changed:
+        item.published = False
+    save_submissions(changed)
+    submission.published = False
+
+
+def _invalidate_review(submission: Submission) -> None:
+    submission.review_invalidated = submission.review_invalidated or submission.reviewed
+    submission.reviewed = False
+    _hide_tutorial(submission)
+
+
+def _set_identity(submission: Submission, name: str, student_id: str | None) -> None:
+    updated = submission.model_copy(update={
+        "student_pseudonym": name.strip(), "student_id": (student_id or "").strip() or None,
+    })
+    if student_key(updated) != student_key(submission):
+        # Reassignment must not carry release into a different student's group.
+        _invalidate_review(submission)
+        _hide_tutorial(updated)
+    submission.student_pseudonym = updated.student_pseudonym
+    submission.student_id = updated.student_id
 
 
 # Must stay last: the static mount is a catch-all and would otherwise

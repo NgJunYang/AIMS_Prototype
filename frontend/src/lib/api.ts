@@ -1,4 +1,4 @@
-import type { PublishReview, SubmissionSummary } from "../types";
+import type { AssignmentReviewStatus, PublishReview, Submission, SubmissionSummary } from "../types";
 
 // Mechanical port of static/app.js's `apiUrl`/`apiFetch`/`api` — same
 // endpoints, same signatures. Fidelity matters more than idiomatic-ness here.
@@ -114,6 +114,18 @@ export const api = {
     }),
   resetOverrides: (submissionId: string) =>
     apiFetch(`/api/submissions/${submissionId}/reset-overrides`, { method: "POST" }),
+  review: (submissionId: string, review: PublishReview) =>
+    apiFetch<Submission>(`/api/submissions/${submissionId}/review`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(review),
+    }),
+  assignmentReviewStatus: (submissionId: string) =>
+    apiFetch<AssignmentReviewStatus>(`/api/submissions/${submissionId}/assignment-review-status`),
+  publishAssignment: (submissionId: string) =>
+    apiFetch<AssignmentReviewStatus>(`/api/submissions/${submissionId}/publish-assignment`, { method: "POST" }),
+  unpublishAssignment: (submissionId: string) =>
+    apiFetch<AssignmentReviewStatus>(`/api/submissions/${submissionId}/unpublish-assignment`, { method: "POST" }),
   publish: (submissionId: string, review: PublishReview) =>
     apiFetch(`/api/submissions/${submissionId}/publish`, {
       method: "POST",

@@ -88,6 +88,8 @@ export interface Submission {
   student_id?: string | null;
   channel?: "tutorial" | "test";
   published?: boolean;
+  reviewed?: boolean;
+  review_invalidated?: boolean;
   /** Raw audit record of what the vision model read off the page, if a photo
    * was uploaded. Never authoritative on its own — see student_pseudonym/student_id. */
   extracted_identity?: IdentityExtraction | null;
@@ -122,6 +124,26 @@ export type FeedbackDraft = Pick<Feedback, "what_went_well" | "what_went_wrong" 
 export interface PublishReview {
   identity: { name: string; student_id: string | null };
   feedback: FeedbackDraft;
+}
+
+export interface AssignmentReviewStatus {
+  assignment_id: string;
+  assignment_title: string;
+  student_pseudonym: string;
+  student_id: string | null;
+  total_questions: number;
+  reviewed_count: number;
+  ready_to_publish: boolean;
+  published: boolean;
+  questions: {
+    question_id: string;
+    submission_id: string | null;
+    marked: boolean;
+    has_feedback: boolean;
+    reviewed: boolean;
+    published: boolean;
+    problems: string[];
+  }[];
 }
 
 export interface ApiErrorLike {

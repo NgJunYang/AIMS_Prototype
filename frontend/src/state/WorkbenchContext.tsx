@@ -26,8 +26,7 @@ interface WorkbenchState {
    * editing the transcription — distinct from confirmBusy, which is the loud
    * manual path that blanks the panel while it runs. */
   autoRefreshing: boolean;
-  /** Which usage scenario this marking session is for. A tutorial submission is
-   * visible to the student straight away; a graded test must be published. */
+  /** Assignment tutorials and graded tests require explicit publication. */
   channel: "tutorial" | "test";
   /** The assignment this marking session belongs to, if any. */
   assignmentId: string | null;
@@ -327,8 +326,12 @@ function useWorkbenchValue() {
 
   // Keep pending review edits separate from responses returned by score,
   // practice and publication operations. Those responses must not erase text.
-  const saveReview = useCallback(async (action: "identity" | "feedback" | "publish") => {
-    if (!state.submissionId || mutationBusy.current) return false;
+  const saveReview = useCallback(async (action: "identity" | "feedback" | "publish" | "review") => {
+    if (!state.submissionId || mutationBusy.current || state.confirmBusy || state.autoRefreshing) return false;
+    if ((action === "review" || action === "publish") &&
+      JSON.stringify(state.localSteps.map((s) => s.latex)) !== JSON.stringify((state.submission?.confirmed_steps || []).map((s) => s.latex))) {
+      throw new Error("Wait for the changed working to be marked before completing review.");
+    }
     const id = state.submissionId;
     const feedback = state.feedbackDraft || state.submission?.feedback;
     const name = state.localName.trim();
@@ -337,8 +340,8 @@ function useWorkbenchValue() {
     mutationBusy.current = true;
     patch({ reviewBusy: true });
     try {
-      const updated: Submission = action === "publish"
-        ? await api.publish(id, {
+      const updated: Submission = action === "publish" || action === "review"
+        ? await api[action](id, {
             identity: { name, student_id: state.localStudentId.trim() || null },
             feedback: feedback!,
           })
@@ -355,7 +358,46 @@ function useWorkbenchValue() {
       mutationBusy.current = false;
       patch({ reviewBusy: false });
     }
-  }, [state.submissionId, state.submission, state.feedbackDraft, state.localName, state.localStudentId, patch]);
+  }, [state, patch]);
+
+  // Score saves share the review lock: clicking Review immediately after a
+  // score field loses focus must wait for that override to finish saving.
+  const saveScore = useCallback(async (criterionId?: string, proposed?: number) => {
+    if (!state.submissionId || mutationBusy.current || state.confirmBusy || state.autoRefreshing) {
+      throw new Error("Wait for the current assessment save to finish.");
+    }
+    mutationBusy.current = true;
+    patch({ reviewBusy: true });
+    try {
+      const updated: Submission = criterionId === undefined
+        ? await api.resetOverrides(state.submissionId)
+        : await api.override(state.submissionId, criterionId, proposed!);
+      patch({ submission: updated });
+    } finally {
+      mutationBusy.current = false;
+      patch({ reviewBusy: false });
+    }
+  }, [state.submissionId, state.confirmBusy, state.autoRefreshing, patch]);
+
+  const publishTutorial = useCallback(async (publish: boolean) => {
+    if (!state.submissionId || mutationBusy.current || state.confirmBusy || state.autoRefreshing) return null;
+    if (publish && (state.feedbackDraft !== null ||
+      state.localName.trim() !== state.submission?.student_pseudonym ||
+      state.localStudentId.trim() !== (state.submission?.student_id || "") ||
+      JSON.stringify(state.localSteps.map((s) => s.latex)) !== JSON.stringify((state.submission?.confirmed_steps || []).map((s) => s.latex)))) {
+      throw new Error("Save and review the pending changes before publishing tutorial results.");
+    }
+    mutationBusy.current = true;
+    patch({ reviewBusy: true });
+    try {
+      const status = await (publish ? api.publishAssignment : api.unpublishAssignment)(state.submissionId);
+      patch({ submission: await api.getSubmission(state.submissionId) });
+      return status;
+    } finally {
+      mutationBusy.current = false;
+      patch({ reviewBusy: false });
+    }
+  }, [state, patch]);
 
   const addStep = useCallback(() => {
     setState((s) => ({
@@ -514,6 +556,8 @@ function useWorkbenchValue() {
     setLocalStudentId,
     setFeedbackDraft,
     saveReview,
+    saveScore,
+    publishTutorial,
     addStep,
     updateStepLatex,
     removeStep,

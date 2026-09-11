@@ -2,6 +2,7 @@
 
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
+const path = require("node:path");
 const test = require("node:test");
 
 const { renderConfig } = require("../scripts/build_pages_config.js");
@@ -31,7 +32,7 @@ test("Pages config rejects missing, insecure, or non-origin URLs", () => {
 });
 
 test("local frontend assets use repository-subpath-safe URLs", () => {
-  const html = fs.readFileSync("static/index.html", "utf8");
+  const html = fs.readFileSync(path.join(__dirname, "../static/index.html"), "utf8");
 
   for (const asset of ["./app.css", "./config.js", "./app.js"]) {
     assert.ok(html.includes(asset), `missing relative asset reference: ${asset}`);
@@ -40,6 +41,6 @@ test("local frontend assets use repository-subpath-safe URLs", () => {
 });
 
 test("committed runtime config keeps local development same-origin", () => {
-  const config = fs.readFileSync("static/config.js", "utf8");
+  const config = fs.readFileSync(path.join(__dirname, "../static/config.js"), "utf8");
   assert.match(config, /window\.AIMS_API_BASE = "";/);
 });

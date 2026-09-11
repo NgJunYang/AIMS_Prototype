@@ -8,8 +8,15 @@ from app.models import (
     Question,
     Step,
     StepVerification,
+    Submission,
     VerificationReport,
 )
+
+
+def test_old_submission_json_defaults_to_unreviewed():
+    submission = Submission.model_validate_json('{"id":"old","question_id":"q1"}')
+    assert submission.reviewed is False
+    assert submission.review_invalidated is False
 
 
 def test_step_defaults_to_unedited_and_high_confidence():
