@@ -478,6 +478,9 @@ function FeedbackEditor() {
   const wb = useWorkbench();
   const { state } = wb;
   const feedback = state.submission?.feedback;
+  const settings = state.submission?.feedback_settings_used;
+  const workingDirty = JSON.stringify(state.localSteps.map((s) => s.latex)) !==
+    JSON.stringify((state.submission?.confirmed_steps || []).map((s) => s.latex));
   const toast = useToast();
   const draft = state.feedbackDraft || feedback || { what_went_well: "", what_went_wrong: "", how_to_improve: "" };
 
@@ -495,6 +498,14 @@ function FeedbackEditor() {
     }
   }
 
+  async function regenerate() {
+    try {
+      if (await wb.regenerateFeedback()) toast.success("Feedback regenerated. Instructor review required.");
+    } catch (error) {
+      toast.error(error instanceof ApiError ? String(error.body?.detail || error.message) : error instanceof Error ? error.message : "Could not regenerate feedback.");
+    }
+  }
+
   if (!feedback) return null;
 
   return (
@@ -503,6 +514,11 @@ function FeedbackEditor() {
         <div>
           <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-text-muted">Feedback draft</p>
           <p className="mt-0.5 text-[11px] text-text-muted">Edit the suggestion before it reaches the learner.</p>
+          <p className="mt-2 text-[11px] text-text-muted">
+            {settings ? <>AI draft generated using: <span className="capitalize">{settings.variation}</span> · {settings.reveal_full_solution ? "Full solution allowed" : "Hints only"}
+              {settings.custom_instructions && <span className="mt-0.5 block">Instructor instructions applied</span>}</>
+              : "Generation settings not recorded for this earlier draft."}
+          </p>
         </div>
         {dirty && <Badge tone="warning">unsaved</Badge>}
       </div>
@@ -515,6 +531,14 @@ function FeedbackEditor() {
         <Save size={14} />
         Save feedback edits
       </Button>
+      {dirty && <Button variant="ghost" className="mt-2 w-full text-xs" disabled={state.reviewBusy || state.confirmBusy || state.autoRefreshing} onClick={() => wb.setFeedbackDraft(null)}>Discard unsaved feedback edits</Button>}
+      <Button variant="secondary" className="mt-2 w-full" onClick={regenerate}
+        disabled={dirty || workingDirty || !state.submission?.verification || state.reviewBusy || state.confirmBusy || state.autoRefreshing}>
+        <RefreshCw size={14} /> Regenerate with current settings
+      </Button>
+      <p className="mt-2 text-[11px] leading-relaxed text-text-muted">{dirty ? "Save or discard your feedback edits before regenerating." : "Regeneration replaces the saved feedback draft and requires review again. Scores stay unchanged."}</p>
+      {state.submission?.published && state.submission.channel === "tutorial" && state.submission.assignment_id &&
+        <p className="mt-1 text-[11px] text-text-muted">Regenerating hides this student's tutorial results until you review and publish them again.</p>}
     </div>
   );
 }

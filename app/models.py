@@ -158,6 +158,12 @@ class MarkProposal(BaseModel):
 # ---------- Feedback and practice ----------
 
 
+class FeedbackSettings(BaseModel):
+    variation: Literal["focused", "balanced", "exploratory"] = "balanced"
+    custom_instructions: str = Field(default="", max_length=2000)
+    reveal_full_solution: bool = True
+
+
 class Feedback(BaseModel):
     what_went_well: str
     what_went_wrong: str
@@ -282,6 +288,8 @@ class Submission(BaseModel):
     # transcription edit. Older submissions start empty and migrate on edit.
     manual_score_overrides: dict[str, int] = Field(default_factory=dict)
     feedback: Feedback | None = None
+    # Generation provenance, retained through manual edits. Unknown for old drafts.
+    feedback_settings_used: FeedbackSettings | None = None
     practice: list[PracticeQuestion] = Field(default_factory=list)
     student_pseudonym: str = "Student A"
     student_id: str | None = None
@@ -319,6 +327,7 @@ class Assignment(BaseModel):
     kind: Literal["tutorial", "ca", "exam"] = "tutorial"
     question_ids: list[str] = Field(default_factory=list)
     roster: list[RosterEntry] = Field(default_factory=list)
+    feedback_settings: FeedbackSettings = Field(default_factory=FeedbackSettings)
     created_at: str = ""
 
     @property

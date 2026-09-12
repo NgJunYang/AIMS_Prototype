@@ -180,7 +180,7 @@ def _stub_llm(monkeypatch):
     monkeypatch.setattr(
         main,
         "write_feedback",
-        lambda question, steps, proposal, report: Feedback(
+        lambda question, steps, proposal, report, settings=None: Feedback(
             what_went_well="a", what_went_wrong="b", how_to_improve="c", references=[]
         ),
     )

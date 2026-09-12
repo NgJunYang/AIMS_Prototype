@@ -322,7 +322,7 @@ function useWorkbenchValue() {
     []
   );
 
-  const setFeedbackDraft = useCallback((draft: FeedbackDraft) => patch({ feedbackDraft: draft }), [patch]);
+  const setFeedbackDraft = useCallback((draft: FeedbackDraft | null) => patch({ feedbackDraft: draft }), [patch]);
 
   // Keep pending review edits separate from responses returned by score,
   // practice and publication operations. Those responses must not erase text.
@@ -378,6 +378,29 @@ function useWorkbenchValue() {
       patch({ reviewBusy: false });
     }
   }, [state.submissionId, state.confirmBusy, state.autoRefreshing, patch]);
+
+  const regenerateFeedback = useCallback(async () => {
+    if (!state.submissionId || mutationBusy.current || state.confirmBusy || state.autoRefreshing) return false;
+    const feedback = state.submission?.feedback;
+    if (state.feedbackDraft && (!feedback ||
+      (["what_went_well", "what_went_wrong", "how_to_improve"] as const).some((key) => state.feedbackDraft![key] !== feedback[key]))) {
+      throw new Error("Save or discard feedback edits before regenerating.");
+    }
+    if (JSON.stringify(state.localSteps.map((s) => s.latex)) !== JSON.stringify((state.submission?.confirmed_steps || []).map((s) => s.latex))) {
+      throw new Error("Wait for the changed working to be marked before regenerating feedback.");
+    }
+    const id = state.submissionId;
+    mutationBusy.current = true;
+    patch({ reviewBusy: true });
+    try {
+      const updated = await api.regenerateFeedback(id);
+      setState((s) => s.submissionId !== id ? s : { ...s, submission: updated, feedbackDraft: null });
+      return true;
+    } finally {
+      mutationBusy.current = false;
+      patch({ reviewBusy: false });
+    }
+  }, [state, patch]);
 
   const publishTutorial = useCallback(async (publish: boolean) => {
     if (!state.submissionId || mutationBusy.current || state.confirmBusy || state.autoRefreshing) return null;
@@ -557,6 +580,7 @@ function useWorkbenchValue() {
     setFeedbackDraft,
     saveReview,
     saveScore,
+    regenerateFeedback,
     publishTutorial,
     addStep,
     updateStepLatex,

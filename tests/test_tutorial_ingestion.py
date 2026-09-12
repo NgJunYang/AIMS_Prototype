@@ -143,8 +143,11 @@ def test_real_fixture_end_to_end_reuses_mark_review_and_group_publication(monkey
         assert submission.source_import_id == draft["id"]
         assert client.get(f"/api/submissions/{sid}/student-view").status_code == 403
     _stub_llm(monkeypatch)
+    settings = {"variation": "focused", "custom_instructions": "Use simple hints.", "reveal_full_solution": False}
+    assert client.put("/api/assignments/t5/feedback-settings", json=settings).status_code == 200
     result = client.post(f"/api/tutorial-imports/{draft['id']}/mark")
     assert result.status_code == 200 and result.json()["complete"]
+    assert all(store.load_submission(sid).feedback_settings_used.model_dump() == settings for sid in ids)
     reports = [store.load_submission(sid).verification for sid in ids]
     assert [report.final_answer_correct for report in reports] == [True, True, False, False, False]
     assert reports[2].steps[1].lost_roots == ["0"]

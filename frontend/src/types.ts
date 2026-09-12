@@ -84,6 +84,12 @@ export interface IdentityExtraction {
   confidence: Confidence;
 }
 
+export interface FeedbackSettings {
+  variation: "focused" | "balanced" | "exploratory";
+  custom_instructions: string;
+  reveal_full_solution: boolean;
+}
+
 export interface Submission {
   id: string;
   source_import_id?: string | null;
@@ -107,6 +113,7 @@ export interface Submission {
   verification?: Verification | null;
   marks?: Marks | null;
   feedback?: Feedback | null;
+  feedback_settings_used?: FeedbackSettings | null;
   misconceptions?: string[] | null;
   practice?: unknown;
   [key: string]: unknown;

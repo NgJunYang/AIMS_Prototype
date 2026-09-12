@@ -4,7 +4,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import Confirm from "../src/pages/Confirm";
 import { WorkbenchProvider, useWorkbench } from "../src/state/WorkbenchContext";
 import { api } from "../src/lib/api";
-import type { AssignmentReviewStatus, Question, Submission } from "../src/types";
+import type { AssignmentReviewStatus, FeedbackSettings, Question, Submission } from "../src/types";
 
 vi.mock("../src/components/ui/Toast", () => ({ useToast: () => ({ error: vi.fn(), success: vi.fn() }) }));
 
@@ -32,12 +32,14 @@ function Resume() {
   return <button onClick={() => wb.resumeSubmission("s4")}>Load saved question</button>;
 }
 
-async function open(reviewed = 3) {
+async function open(reviewed = 3, settings?: FeedbackSettings) {
   records = [1, 2, 3, 4, 5].map((n) => ({
     id: `s${n}`, question_id: `Q${n}`, assignment_id: "tutorial5", channel: "tutorial",
     student_pseudonym: "Student A", student_id: "2500001", published: false,
     reviewed: n <= 3 && n <= reviewed || n === 5 && reviewed >= 4 || reviewed === 5,
     confirmed_steps: [{ index: 1, latex: "x = 5", confidence: "high" }],
+    verification: { steps: [], final_answer_correct: false, final_answer_verified: true, model_solutions: [], candidate_misconceptions: [] },
+    feedback_settings_used: settings,
     marks: { criteria: [{ criterion_id: "C1", proposed: 2, suggested: 2, max: 3, justification: "Setup" }] },
     feedback: { what_went_well: "AI well", what_went_wrong: "AI attention", how_to_improve: "AI improve", references: [] },
   }));
@@ -87,6 +89,59 @@ async function open(reviewed = 3) {
 
 beforeEach(() => vi.spyOn(window, "confirm").mockReturnValue(true));
 afterEach(cleanup);
+
+test("shows the recorded generation mode and replaces feedback through the dedicated endpoint", async () => {
+  await open(5, { variation: "focused", custom_instructions: "Year 1 language", reveal_full_solution: false });
+  expect(screen.getByText(/Hints only/)).toBeTruthy();
+  expect(screen.getByText("focused")).toBeTruthy();
+  expect(screen.getByText("Instructor instructions applied")).toBeTruthy();
+  const before = clone(record("s4").marks);
+  vi.spyOn(api, "regenerateFeedback").mockImplementation(async (id) => {
+    const sub = record(id);
+    invalidate(sub);
+    sub.feedback = { ...sub.feedback!, how_to_improve: "New hint" };
+    sub.feedback_settings_used = { variation: "exploratory", custom_instructions: "", reveal_full_solution: true };
+    return clone(sub);
+  });
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Regenerate with current settings" })); });
+  expect(api.regenerateFeedback).toHaveBeenCalledExactlyOnceWith("s4");
+  expect((screen.getByLabelText("How to improve") as HTMLTextAreaElement).value).toBe("New hint");
+  expect(screen.getByText("exploratory")).toBeTruthy();
+  expect(record("s4").marks).toEqual(before);
+  expect(record("s4").reviewed).toBe(false);
+  expect(screen.getByText("4 / 5 questions reviewed")).toBeTruthy();
+});
+
+test("unsaved feedback blocks regeneration until explicitly discarded", async () => {
+  await open(5);
+  vi.spyOn(api, "regenerateFeedback").mockResolvedValue(clone(record("s4")));
+  fireEvent.change(screen.getByLabelText("How to improve"), { target: { value: "Unsaved professor hint" } });
+  const regenerate = screen.getByRole("button", { name: "Regenerate with current settings" }) as HTMLButtonElement;
+  expect(regenerate.disabled).toBe(true);
+  fireEvent.click(regenerate);
+  expect(api.regenerateFeedback).not.toHaveBeenCalled();
+  expect((screen.getByLabelText("How to improve") as HTMLTextAreaElement).value).toBe("Unsaved professor hint");
+  fireEvent.click(screen.getByRole("button", { name: "Discard unsaved feedback edits" }));
+  expect(regenerate.disabled).toBe(false);
+  expect((screen.getByLabelText("How to improve") as HTMLTextAreaElement).value).toBe("AI improve");
+});
+
+test("saving manual feedback enables regeneration and legacy drafts do not claim unknown settings", async () => {
+  await open(5);
+  expect(screen.getByText("Generation settings not recorded for this earlier draft.")).toBeTruthy();
+  fireEvent.change(screen.getByLabelText("How to improve"), { target: { value: "Saved professor hint" } });
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Save feedback edits" })); });
+  expect(record("s4").feedback!.how_to_improve).toBe("Saved professor hint");
+  expect((screen.getByRole("button", { name: "Regenerate with current settings" }) as HTMLButtonElement).disabled).toBe(false);
+});
+
+test("failed feedback regeneration retains saved manual edits", async () => {
+  await open(5);
+  vi.spyOn(api, "regenerateFeedback").mockRejectedValue(new Error("Feedback unavailable"));
+  await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Regenerate with current settings" })); });
+  expect((screen.getByLabelText("How to improve") as HTMLTextAreaElement).value).toBe("AI improve");
+  expect(record("s4").reviewed).toBe(true);
+});
 
 test("shows ordered 3/5 progress and blocks incomplete tutorial publication", async () => {
   await open();

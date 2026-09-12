@@ -62,10 +62,10 @@ export function TutorialImportPanel({ assignmentId, ready, onChanged, onOpen }: 
     new Set(working.map((s) => s.question_id)).size === draft.questions.length;
 
   return <section className="mt-5 border-t border-border pt-4" aria-label="Whole tutorial PDF import">
-    <h3 className="font-semibold">Whole tutorial PDF import</h3>
-    <p className="my-2 text-xs text-text-muted">Review the detected content before saving or marking. Up to 20 pages / 20 MB per PDF. Results stay private until final tutorial publication.</p>
-    {error && <p role="alert" className="my-3 text-sm text-danger">{error}</p>}
-    <fieldset disabled={!!busy}>
+    <h3 className="text-sm font-semibold tracking-tight">Whole tutorial PDF import</h3>
+    <p className="mb-4 mt-1.5 max-w-2xl text-xs leading-relaxed text-text-muted">Review the detected content before saving or marking. Up to 20 pages / 20 MB per PDF. Results stay private until final tutorial publication.</p>
+    {error && <p role="alert" className="my-3 rounded-lg border border-danger/20 bg-danger-soft/50 px-3 py-2.5 text-sm text-danger">{error}</p>}
+    <fieldset disabled={!!busy} className="min-w-0 disabled:opacity-60">
       <div className="flex flex-wrap gap-4">
         {!ready && <PdfInput label="Upload Question Paper PDF" onFile={(file) => run("Detecting questions…", async () => { setDraft(await ingestionApi.questions(assignmentId, file)); setMarkErrors([]); })} />}
         {ready && <PdfInput label="Upload Completed Tutorial PDF" onFile={(file) => run("Detecting student answers…", async () => { setDraft(await ingestionApi.student(assignmentId, file)); setMarkErrors([]); })} />}
@@ -169,11 +169,10 @@ function PdfInput({
   onFile: (file: File) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState("");
 
   return (
-    <div className="block">
-      <p className="mb-2 text-xs font-medium">{label}</p>
-
+    <div className="flex min-w-0 flex-wrap items-center gap-3">
       <input
         ref={fileRef}
         aria-label={label}
@@ -184,6 +183,7 @@ function PdfInput({
           const file = e.target.files?.[0];
 
           if (file) {
+            setSelectedFile(file.name);
             onFile(file);
           }
 
@@ -194,12 +194,13 @@ function PdfInput({
       <Button
         type="button"
         variant="secondary"
-        className="px-3 py-1.5 text-xs"
+        className="cursor-pointer px-3 py-1.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
         onClick={() => fileRef.current?.click()}
       >
-        <Upload size={13} />
-        Choose PDF
+        <Upload size={13} aria-hidden="true" />
+        {label}
       </Button>
+      {selectedFile && <p className="min-w-0 truncate text-xs text-text-muted" title={selectedFile}>Selected: {selectedFile}</p>}
     </div>
   );
 }

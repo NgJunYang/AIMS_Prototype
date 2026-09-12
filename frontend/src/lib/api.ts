@@ -1,4 +1,4 @@
-import type { AssignmentReviewStatus, PublishReview, Submission, SubmissionSummary } from "../types";
+import type { AssignmentReviewStatus, FeedbackSettings, PublishReview, Submission, SubmissionSummary } from "../types";
 
 // Mechanical port of static/app.js's `apiUrl`/`apiFetch`/`api` — same
 // endpoints, same signatures. Fidelity matters more than idiomatic-ness here.
@@ -57,6 +57,12 @@ export const api = {
       }),
     }),
   listAssignments: () => apiFetch("/api/assignments"),
+  updateFeedbackSettings: (id: string, settings: FeedbackSettings) =>
+    apiFetch<{ feedback_settings: FeedbackSettings }>(`/api/assignments/${encodeURIComponent(id)}/feedback-settings`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings),
+    }),
+  regenerateFeedback: (id: string) =>
+    apiFetch<Submission>(`/api/submissions/${encodeURIComponent(id)}/feedback/regenerate`, { method: "POST" }),
   createAssignment: (a: { id: string; title: string; kind: string; question_ids: string[] }) =>
     apiFetch("/api/assignments", {
       method: "POST",

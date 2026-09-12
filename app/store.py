@@ -201,7 +201,7 @@ def list_submissions() -> list[Submission]:
 
 def save_assignment(assignment: Assignment) -> None:
     path = ASSIGNMENTS_DIR / f"{assignment.id}.json"
-    path.write_text(assignment.model_dump_json(indent=2), encoding="utf-8")
+    _replace_file(path, assignment.model_dump_json(indent=2).encode())
 
 
 def load_assignment(assignment_id: str) -> Assignment:

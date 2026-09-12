@@ -6,7 +6,8 @@ import { Badge } from "../components/ui/Badge";
 import { Input, Label } from "../components/ui/Field";
 import { useToast } from "../components/ui/Toast";
 import { api, ApiError } from "../lib/api";
-import type { Question } from "../types";
+import type { FeedbackSettings, Question } from "../types";
+import { AssignmentFeedbackSettings } from "../components/AssignmentFeedbackSettings";
 import { TutorialImportPanel } from "../components/TutorialImportPanel";
 
 interface Roster {
@@ -14,6 +15,7 @@ interface Roster {
   student_id: string;
 }
 interface Assignment {
+  feedback_settings?: FeedbackSettings;
   id: string;
   title: string;
   kind: "tutorial" | "ca" | "exam";
@@ -268,6 +270,7 @@ function AssignmentCard({ assignment, onChanged, onOpenReview }: { assignment: A
         )}
       </div>
 
+      <AssignmentFeedbackSettings assignmentId={assignment.id} settings={assignment.feedback_settings} />
       {assignment.kind === "tutorial" && <TutorialImportPanel assignmentId={assignment.id} ready={assignment.question_ids.length > 0} onChanged={onChanged} onOpen={onOpenReview} />}
       {roster.length > 0 && (
         <table className="mt-3 w-full text-sm">

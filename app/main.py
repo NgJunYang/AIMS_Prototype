@@ -26,6 +26,7 @@ from app.models import (
     AssignmentReviewStatus,
     ClassSummary,
     Feedback,
+    FeedbackSettings,
     IdentityExtraction,
     Question,
     Step,
@@ -619,7 +620,7 @@ def api_mark(submission_id: str) -> Submission:
     }
     # An unchanged record and unchanged marks do not invalidate reviewed prose.
     if submission.feedback is None or submission.marks != prior_marks:
-        submission.feedback = write_feedback(question, steps, submission.marks, submission.verification)
+        _write_submission_feedback(submission, question)
     submission.practice = generate_practice(
         submission.marks.misconceptions,
         count=3,
@@ -691,6 +692,19 @@ def api_update_feedback(submission_id: str, body: UpdateFeedback) -> Submission:
     if updated != submission.feedback:
         _invalidate_review(submission)
     submission.feedback = updated
+    save_submission(submission)
+    return submission
+
+
+@app.post("/api/submissions/{submission_id}/feedback/regenerate")
+@submission_transaction
+def api_regenerate_feedback(submission_id: str) -> Submission:
+    submission = _submission(submission_id)
+    if submission.marks is None or submission.verification is None:
+        raise HTTPException(409, "Mark and verify this submission before regenerating feedback.")
+    # On generation failure retain the prior saved assessment and publication.
+    _write_submission_feedback(submission, _question(submission.question_id))
+    _invalidate_review(submission)
     save_submission(submission)
     return submission
 
@@ -971,9 +985,10 @@ def api_update_assignment(assignment_id: str, body: Assignment) -> Assignment:
     existing = _assignment(assignment_id)
     if body.id != assignment_id:
         raise HTTPException(status_code=400, detail="an assignment's id cannot be changed")
-    # The roster is managed through its own endpoint; created_at is immutable.
+    # Roster and feedback settings have focused endpoints; created_at is immutable.
     merged = body.model_copy(
-        update={"roster": existing.roster, "created_at": existing.created_at}
+        update={"roster": existing.roster, "created_at": existing.created_at,
+                "feedback_settings": existing.feedback_settings}
     )
     problems = validate_assignment(merged, {q.id for q in list_questions()})
     if problems:
@@ -990,25 +1005,37 @@ def api_delete_assignment(assignment_id: str) -> dict[str, str]:
     return {"deleted": assignment_id}
 
 
+@app.put("/api/assignments/{assignment_id}/feedback-settings")
+@submission_transaction
+def api_update_feedback_settings(assignment_id: str, body: FeedbackSettings) -> Assignment:
+    assignment = _assignment(assignment_id)
+    assignment.feedback_settings = body
+    save_assignment(assignment)
+    return assignment
+
+
 @app.post("/api/assignments/{assignment_id}/roster")
 async def api_upload_roster(
     assignment_id: str, file: UploadFile = File(...)
 ) -> Assignment:
     """Attach a class roster from a `name,student_id` CSV (a header row is fine)."""
-    assignment = _assignment(assignment_id)
+    _assignment(assignment_id)
     raw = await file.read()
     if not raw:
         raise HTTPException(status_code=400, detail="empty file")
     try:
-        assignment.roster = parse_roster_csv(raw)
+        roster = parse_roster_csv(raw)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    if not assignment.roster:
+    if not roster:
         raise HTTPException(
             status_code=400, detail="no names could be read from that file"
         )
-    save_assignment(assignment)
-    return assignment
+    with submission_lock:
+        assignment = _assignment(assignment_id)
+        assignment.roster = roster
+        save_assignment(assignment)
+        return assignment
 
 
 # ---------- class view ----------
@@ -1070,6 +1097,14 @@ def _seed_from_id(submission_id: str) -> int:
         return int.from_bytes(submission_id.encode(), "little", signed=False) % 10_000
 
 
+def _write_submission_feedback(submission: Submission, question: Question) -> None:
+    settings = (_assignment(submission.assignment_id).feedback_settings
+                if submission.assignment_id else FeedbackSettings())
+    submission.feedback = write_feedback(question, submission.confirmed_steps or [],
+                                         submission.marks, submission.verification, settings=settings)
+    submission.feedback_settings_used = settings.model_copy(deep=True)
+
+
 def _invalidate_downstream(submission: Submission, *, preserve_overrides: bool = False) -> None:
     """Confirmed steps changed, so anything derived from them is stale.
 
@@ -1088,6 +1123,7 @@ def _invalidate_downstream(submission: Submission, *, preserve_overrides: bool =
     submission.verification = None
     submission.marks = None
     submission.feedback = None
+    submission.feedback_settings_used = None
     submission.practice = []
 
 
