@@ -8,7 +8,7 @@ import uuid
 
 from pydantic import ValidationError
 
-from app.authoring import default_criteria, validate_question
+from app.authoring import compute_verification_tier, default_criteria, validate_question
 from app.config import VISION_MODEL
 from app.ingestion_models import (
     AnswerDetection, MappedWorking, QuestionDetection, QuestionDraft, SolutionDetection,
@@ -20,7 +20,7 @@ from app.llm import (
     StructuredSchemaValidationError,
     complete_json,
 )
-from app.models import IdentityExtraction, Question
+from app.models import IdentityExtraction, Question, VerificationTier
 
 
 logger = logging.getLogger(__name__)
@@ -356,8 +356,13 @@ def segment_student_tutorial(pages: list[bytes], questions: list[Question]):
     return identity, match_working(answers, questions, warnings), warnings
 
 
-def solution_problems(question: QuestionDraft, solution: MappedWorking) -> list[str]:
+def solution_review(question: QuestionDraft, solution: MappedWorking) -> tuple[list[str], "VerificationTier", list[str]]:
+    """Problems, verification tier, and tier notes for a proposed model
+    solution, without saving anything. Used for the live preview shown right
+    after a solutions PDF is matched, before confirmation.
+    """
     candidate = Question(id=question.question_id or "draft", prompt=question.prompt,
                          variable=question.variable, topic_tag=question.topic_tag,
                          model_solution_steps=[s.latex for s in solution.steps], criteria=solution.criteria)
-    return validate_question(candidate)
+    tier, notes = compute_verification_tier(candidate)
+    return validate_question(candidate), tier, notes

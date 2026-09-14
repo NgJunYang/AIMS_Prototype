@@ -233,6 +233,17 @@ def test_question_drafts_are_editable_ordered_and_not_markable_yet(monkeypatch):
     assert store.load_assignment("t5").question_ids == []
 
 
+@pytest.mark.parametrize("kind", ["ca", "exam"])
+def test_whole_pdf_import_is_allowed_for_ca_and_exam_assignments(monkeypatch, kind):
+    assert client.post("/api/assignments", json={"id": "g1", "title": "Graded CA 1", "kind": kind}).status_code == 200
+    calls = response(monkeypatch, {"title": "Graded CA 1", "questions": [
+        {"label": f"Q{i + 1}", "prompt": f"Solve ${equation}$.", "source_pages": [1 if i < 3 else 2]}
+        for i, equation in enumerate(EQUATIONS)]})
+    result = upload("/api/assignments/g1/imports/questions", "01")
+    assert result.status_code == 200, result.text
+    assert len(calls) == 1
+
+
 @pytest.mark.parametrize("label,expected", [("Q1", "Q1"), ("Question 1", "Q1"), ("1.", "Q1"), ("1)", "Q1"),
     ("Q2(a)", "Q2(a)"), ("2(a)", "Q2(a)"), ("2b", "Q2(b)"), ("Part (a)", "Q2(a)")])
 def test_common_labels(label, expected):
@@ -262,6 +273,19 @@ def test_solution_errors_are_flagged_and_final_validation_stays_strict(monkeypat
     assert store.load_assignment("t5").question_ids == []
     extracted["solutions"][2]["steps"] = [{"index": i + 1, "latex": s} for i, s in enumerate(SOLUTIONS[2])]
     assert confirm_solutions(extracted).status_code == 200
+
+
+def test_an_unparseable_solution_step_is_ai_graded_not_rejected(monkeypatch):
+    draft = confirm_questions(question_import(monkeypatch))
+    rows = working_rows(draft)
+    rows[2]["steps"] = [{"index": 1, "latex": "2x^2 - 8x = 0"}, {"index": 2, "latex": "then I expanded it somehow"}]
+    response(monkeypatch, {"solutions": rows})
+    extracted = upload(f"/api/tutorial-imports/{draft['id']}/solutions", "02", {"revision": draft["revision"]}).json()
+    assert extracted["questions"][2]["verification_tier"] == "ai_graded"
+    assert not extracted["questions"][2]["problems"]
+    result = confirm_solutions(extracted)
+    assert result.status_code == 200, result.text
+    assert store.get_question(extracted["questions"][2]["question_id"]).verification_tier == "ai_graded"
 
 
 def test_ambiguous_solution_mapping_and_missing_solution_are_not_guessed(monkeypatch):

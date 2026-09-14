@@ -11,7 +11,7 @@ from starlette.concurrency import run_in_threadpool
 
 from app import store, tutorial_ingestion as ingestion, uploads
 from app.assignment_review import student_key
-from app.authoring import validate_question
+from app.authoring import compute_verification_tier, validate_question
 from app.ingestion_models import ConfirmAnswers, ConfirmQuestions, ConfirmSolutions, QuestionDraft, TutorialImport
 from app.llm import OfflineCacheMiss, StructuredOutputError
 from app.models import Assignment, Question, Step, Submission, Transcription
@@ -25,8 +25,6 @@ def _assignment(assignment_id: str) -> Assignment:
         assignment = store.load_assignment(assignment_id)
     except KeyError:
         raise HTTPException(404, "Unknown assignment.")
-    if assignment.kind != "tutorial":
-        raise HTTPException(409, "Whole-PDF ingestion currently supports tutorial assignments.")
     return assignment
 
 
@@ -181,7 +179,11 @@ def create_router(mark_submission) -> APIRouter:
             draft.warnings = warnings
             for question in draft.questions:
                 matches = [s for s in solutions if s.question_id == question.question_id]
-                question.problems = ingestion.solution_problems(question, matches[0]) if len(matches) == 1 else ["Solution mapping needs correction."]
+                if len(matches) == 1:
+                    question.problems, question.verification_tier, question.verification_tier_notes = ingestion.solution_review(question, matches[0])
+                else:
+                    question.problems = ["Solution mapping needs correction."]
+                    question.verification_tier, question.verification_tier_notes = "ai_graded", []
             draft.revision += 1
             store.save_import(draft, solution_pages=pages)
             return draft
@@ -210,6 +212,7 @@ def create_router(mark_submission) -> APIRouter:
                                  solution_source_pages=solution.source_pages,
                                  solution_source_page=next(iter(solution.source_pages), None),
                                  solution_transcription=Transcription(steps=next((s.steps for s in draft.solutions if s.block_id == solution.block_id), []), notes=solution.notes))
+            candidate.verification_tier, _ = compute_verification_tier(candidate)
             problems.extend(f"{candidate.label}: {p}" for p in validate_question(candidate))
             questions.append(candidate)
         if problems:
