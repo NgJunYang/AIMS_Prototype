@@ -15,7 +15,7 @@ No LLM is involved. Every judgement here is SymPy's or a field check.
 
 import re
 
-from app.models import Criterion, Question, Step
+from app.models import Criterion, Question, Step, VerificationTier
 from app.verifier import solution_set, verify
 
 _ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
@@ -88,21 +88,42 @@ def _field_problems(question: Question) -> list[str]:
     return problems
 
 
+def compute_verification_tier(question: Question) -> tuple[VerificationTier, list[str]]:
+    """Classify a model solution as SymPy-verified or not, without blocking either way.
+
+    Mirrors the per-step parse check `_mathematical_problems` runs, but a
+    step that can't be read as mathematics in the declared variable - a
+    proof, a sum, set notation, or simply the wrong variable - downgrades
+    the tier instead of failing validation. Only a self-contradiction
+    *within* content that does parse remains a hard block; that stays in
+    `_mathematical_problems`, unchanged.
+    """
+    if len(question.model_solution_steps) < 2:
+        return "verified", []
+    notes = [
+        f"Step {index} could not be read as mathematics in "
+        f"'{question.variable}': {latex!r}"
+        for index, latex in enumerate(question.model_solution_steps, start=1)
+        if solution_set(latex, question.variable) is None
+    ]
+    return ("ai_graded", notes) if notes else ("verified", [])
+
+
 def _mathematical_problems(question: Question) -> list[str]:
-    """Run the lecturer's own model solution through the student verifier."""
+    """Run the lecturer's own model solution through the student verifier.
+
+    Only runs the self-consistency check when every step parses as an
+    equation in the declared variable. A question that can't be read that
+    way is tiered by compute_verification_tier instead of being refused.
+    """
     if len(question.model_solution_steps) < 2:
         return []  # already reported; verifying one line says nothing useful
 
-    problems: list[str] = []
-    for index, latex in enumerate(question.model_solution_steps, start=1):
-        if solution_set(latex, question.variable) is None:
-            problems.append(
-                f"Step {index} could not be read as mathematics in "
-                f"'{question.variable}': {latex!r}"
-            )
-    if problems:
-        return problems
+    tier, _ = compute_verification_tier(question)
+    if tier == "ai_graded":
+        return []
 
+    problems: list[str] = []
     steps = [
         Step(index=i, latex=latex)
         for i, latex in enumerate(question.model_solution_steps, start=1)

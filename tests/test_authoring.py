@@ -1,4 +1,4 @@
-from app.authoring import DEFAULT_CRITERIA, default_criteria, validate_question
+from app.authoring import DEFAULT_CRITERIA, compute_verification_tier, default_criteria, validate_question
 from app.models import Criterion, Question
 
 
@@ -23,6 +23,10 @@ def _question(**overrides) -> Question:
 
 def test_a_sound_question_has_no_problems():
     assert validate_question(_question()) == []
+
+
+def test_a_sound_question_is_tiered_verified():
+    assert compute_verification_tier(_question()) == ("verified", [])
 
 
 def test_a_model_solution_that_loses_a_root_is_rejected():
@@ -54,18 +58,22 @@ def test_a_model_solution_with_a_sign_error_is_rejected():
     assert any("step 2" in p for p in problems)
 
 
-def test_an_unparseable_model_solution_line_is_rejected():
-    problems = validate_question(
-        _question(
-            model_solution_steps=[
-                "x^2 - 7x + 12 = 0",
-                "then I factorised it somehow",
-                "x = 3, x = 4",
-            ]
-        )
+def test_an_unparseable_model_solution_line_is_ai_graded_not_rejected():
+    """Non-algebraic content (a proof, a sum, prose) is not an authoring
+    error: it falls outside what SymPy can check, so it is tiered instead of
+    refused. The instructor still sees why, just as a non-blocking note.
+    """
+    question = _question(
+        model_solution_steps=[
+            "x^2 - 7x + 12 = 0",
+            "then I factorised it somehow",
+            "x = 3, x = 4",
+        ]
     )
-    assert problems
-    assert any("could not be read" in p.lower() for p in problems)
+    assert validate_question(question) == []
+    tier, notes = compute_verification_tier(question)
+    assert tier == "ai_graded"
+    assert any("step 2" in n.lower() for n in notes)
 
 
 def test_a_single_step_solution_is_rejected():
@@ -118,11 +126,19 @@ def test_a_multi_character_variable_is_rejected():
     assert any("variable" in p.lower() for p in problems)
 
 
-def test_a_solution_in_a_different_variable_from_the_declared_one_is_rejected():
-    """Declaring `y` but writing the solution in `x` would make every step
-    unverifiable, so it is caught here rather than at marking time."""
-    problems = validate_question(_question(variable="y"))
-    assert problems
+def test_a_solution_in_a_different_variable_from_the_declared_one_is_ai_graded():
+    """A model solution written in x but declared as y cannot be checked by
+    SymPy either - the free-symbol guard in parse_equation_line treats a
+    variable mismatch exactly like any other unparseable line (see
+    app/latex_utils.py). It downgrades to ai_graded rather than being
+    silently accepted as sound; the notes keep the mismatch visible to the
+    instructor every time the question is viewed, not just at save time.
+    """
+    question = _question(variable="y")
+    assert validate_question(question) == []
+    tier, notes = compute_verification_tier(question)
+    assert tier == "ai_graded"
+    assert notes
 
 
 # ---------- the default rubric ----------
