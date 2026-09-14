@@ -2,6 +2,8 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, expect, test, vi } from "vitest";
 import Assignments from "../src/pages/Assignments";
 import { api } from "../src/lib/api";
+import { ingestionApi } from "../src/lib/ingestionApi";
+import { WorkbenchProvider } from "../src/state/WorkbenchContext";
 
 vi.mock("../src/components/ui/Toast", () => ({ useToast: () => ({ error: vi.fn(), success: vi.fn() }) }));
 
@@ -12,7 +14,8 @@ async function open(settings?: object) {
   vi.spyOn(api, "listQuestions").mockResolvedValue([]);
   vi.spyOn(api, "updateFeedbackSettings").mockImplementation(async (_, value) => ({ feedback_settings: value }));
   vi.spyOn(api, "regenerateFeedback").mockRejectedValue(new Error("Saving settings must not regenerate"));
-  render(<Assignments />);
+  vi.spyOn(ingestionApi, "list").mockResolvedValue([]);
+  render(<WorkbenchProvider><Assignments /></WorkbenchProvider>);
   await screen.findByText("CA 1");
   fireEvent.click(screen.getByText("Feedback settings"));
 }

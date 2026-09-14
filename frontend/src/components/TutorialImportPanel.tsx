@@ -61,14 +61,14 @@ export function TutorialImportPanel({ assignmentId, ready, onChanged, onOpen }: 
   const mappingsReady = !!draft && working.length === draft.questions.length && working.every((s) => s.confirmed && s.question_id) &&
     new Set(working.map((s) => s.question_id)).size === draft.questions.length;
 
-  return <section className="mt-5 border-t border-border pt-4" aria-label="Whole tutorial PDF import">
-    <h3 className="text-sm font-semibold tracking-tight">Whole tutorial PDF import</h3>
-    <p className="mb-4 mt-1.5 max-w-2xl text-xs leading-relaxed text-text-muted">Review the detected content before saving or marking. Up to 20 pages / 20 MB per PDF. Results stay private until final tutorial publication.</p>
+  return <section className="mt-5 border-t border-border pt-4" aria-label="Whole assignment PDF import">
+    <h3 className="text-sm font-semibold tracking-tight">Whole assignment PDF import</h3>
+    <p className="mb-4 mt-1.5 max-w-2xl text-xs leading-relaxed text-text-muted">Review the detected content before saving or marking. Up to 20 pages / 20 MB per PDF. Results stay private until final publication.</p>
     {error && <p role="alert" className="my-3 rounded-lg border border-danger/20 bg-danger-soft/50 px-3 py-2.5 text-sm text-danger">{error}</p>}
     <fieldset disabled={!!busy} className="min-w-0 disabled:opacity-60">
       <div className="flex flex-wrap gap-4">
         {!ready && <PdfInput label="Upload Question Paper PDF" onFile={(file) => run("Detecting questions…", async () => { setDraft(await ingestionApi.questions(assignmentId, file)); setMarkErrors([]); })} />}
-        {ready && <PdfInput label="Upload Completed Tutorial PDF" onFile={(file) => run("Detecting student answers…", async () => { setDraft(await ingestionApi.student(assignmentId, file)); setMarkErrors([]); })} />}
+        {ready && <PdfInput label="Upload Completed Assignment PDF" onFile={(file) => run("Detecting student answers…", async () => { setDraft(await ingestionApi.student(assignmentId, file)); setMarkErrors([]); })} />}
       </div>
       {imports.length > 0 && <label className="my-3 block text-xs text-text-muted">Resume saved import{" "}
         <select aria-label="Resume saved import" value={draft?.id || ""} onChange={(e) => e.target.value && run("Loading import…", async () => { setDraft(await ingestionApi.get(e.target.value)); setMarkErrors([]); })} className="mt-1 w-full rounded border border-border bg-surface p-2">
@@ -90,6 +90,12 @@ export function TutorialImportPanel({ assignmentId, ready, onChanged, onOpen }: 
             <Label>Question text</Label><Textarea aria-label={`Question ${index + 1} text`} value={question.prompt} onChange={(e) => updateQuestion(index, { prompt: e.target.value })} />
             {question.confidence === "low" && <Badge tone="warning">Check detected question</Badge>}
             {question.notes && <p className="text-xs text-text-muted">{question.notes}</p>}
+            {draft.stage === "solutions" && (
+              <Badge tone={question.verification_tier === "ai_graded" ? "warning" : "success"}>
+                {question.verification_tier === "ai_graded" ? "AI-graded — not symbolically verified" : "SymPy-verified"}
+              </Badge>
+            )}
+            {(question.verification_tier_notes || []).map((note, i) => <p key={i} className="text-xs text-text-muted">{note}</p>)}
             {question.problems.map((problem, i) => <p key={i} className="text-xs text-warning">{problem}</p>)}
             <PageNumbers value={question.source_pages} onChange={(source_pages) => updateQuestion(index, { source_pages })} />
             <div className="flex gap-2">

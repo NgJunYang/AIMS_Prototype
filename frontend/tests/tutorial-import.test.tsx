@@ -9,7 +9,8 @@ import type { ImportWorking, TutorialImport } from "../src/types";
 let remote: TutorialImport;
 const copy = <T,>(value: T): T => structuredClone(value);
 const questions = () => ["Q1", "Q2(a)"].map((label, i) => ({ question_id: `qid${i}`, label,
-  prompt: `Solve x = ${i + 1}`, variable: "x", topic_tag: "algebra", source_pages: [1, 2], confidence: "high" as const, notes: "", problems: [] }));
+  prompt: `Solve x = ${i + 1}`, variable: "x", topic_tag: "algebra", source_pages: [1, 2], confidence: "high" as const, notes: "",
+  problems: [], verification_tier: "verified" as const, verification_tier_notes: [] }));
 const working = (): ImportWorking[] => questions().map((q, i) => ({ block_id: `block${i}`, question_id: q.question_id,
   label: q.label, source_pages: [1, 2], confidence: "high", status: "detected", confirmed: false,
   steps: [{ index: 1, latex: `x = ${i + 1}`, confidence: "high" }], notes: "", criteria: [{ id: "C1", max: 2, description: "Correct working" }] }));
@@ -99,9 +100,28 @@ test("solutions and rubrics require per-block confirmation and remain editable",
   expect(ingestionApi.mark).not.toHaveBeenCalled();
 });
 
+test("model solutions that cannot be parsed as mathematics show an AI-graded badge instead of blocking confirmation", async () => {
+  vi.spyOn(ingestionApi, "solutions").mockImplementation(async (draft) => {
+    remote = { ...copy(draft), solutions: working(), solution_page_count: 2, revision: draft.revision + 1,
+      questions: draft.questions.map((q, i) => i === 0
+        ? { ...q, verification_tier: "ai_graded" as const, verification_tier_notes: ["Step 2 could not be read as mathematics in 'x': 'then I expanded it somehow'"] }
+        : q) };
+    return copy(remote);
+  });
+  mount();
+  await upload("Upload Question Paper PDF");
+  await click("Confirm Questions");
+  await upload("Upload Model Solutions PDF");
+  expect(screen.getByText("AI-graded — not symbolically verified")).toBeTruthy();
+  expect(screen.getByText(/Step 2 could not be read as mathematics/)).toBeTruthy();
+  fireEvent.click(screen.getByLabelText("Confirm block 1"));
+  fireEvent.click(screen.getByLabelText("Confirm block 2"));
+  expect((screen.getByRole("button", { name: "Confirm Solutions & Rubrics" }) as HTMLButtonElement).disabled).toBe(false);
+});
+
 test("student segmentation saves corrected identity/working before marking and opens existing review", async () => {
   mount(true);
-  await upload("Upload Completed Tutorial PDF");
+  await upload("Upload Completed Assignment PDF");
   expect(screen.getByText("Detected Student Answers")).toBeTruthy();
   expect(ingestionApi.mark).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText("Imported student name"), { target: { value: "Confirmed Alex" } });
@@ -125,7 +145,7 @@ test("missing student answers are visible and can be confirmed blank", async () 
   vi.mocked(ingestionApi.student).mockImplementation(async () => ({ ...remote, kind: "student", stage: "answers", identity: { name: "Alex", student_id: "2500123", confidence: "high" },
     answers: working().map((w, i) => i === 1 ? { ...w, status: "not_detected", steps: [] } : w) }));
   mount(true);
-  await upload("Upload Completed Tutorial PDF");
+  await upload("Upload Completed Assignment PDF");
   expect(screen.getByText("No answer detected")).toBeTruthy();
   fireEvent.click(screen.getByLabelText("Confirm block 1")); fireEvent.click(screen.getByLabelText("Confirm block 2"));
   await click("Confirm & Start Marking");
@@ -134,7 +154,7 @@ test("missing student answers are visible and can be confirmed blank", async () 
 
 test("unmatched or duplicate mappings prevent confirmation until corrected", async () => {
   mount(true);
-  await upload("Upload Completed Tutorial PDF");
+  await upload("Upload Completed Assignment PDF");
   fireEvent.change(screen.getByLabelText("Mapping 2"), { target: { value: "qid0" } });
   fireEvent.click(screen.getByLabelText("Confirm block 1")); fireEvent.click(screen.getByLabelText("Confirm block 2"));
   expect((screen.getByRole("button", { name: "Confirm & Start Marking" }) as HTMLButtonElement).disabled).toBe(true);
@@ -147,7 +167,7 @@ test("unmatched or duplicate mappings prevent confirmation until corrected", asy
 test("conflict errors preserve corrections and do not launch marking", async () => {
   vi.mocked(ingestionApi.confirmAnswers).mockRejectedValue(new Error("Submissions already exist; nothing overwritten."));
   mount(true);
-  await upload("Upload Completed Tutorial PDF");
+  await upload("Upload Completed Assignment PDF");
   fireEvent.change(screen.getByLabelText("Imported student name"), { target: { value: "Corrected name" } });
   fireEvent.click(screen.getByLabelText("Confirm block 1")); fireEvent.click(screen.getByLabelText("Confirm block 2"));
   await click("Confirm & Start Marking");
@@ -159,7 +179,7 @@ test("conflict errors preserve corrections and do not launch marking", async () 
 test("partial marking errors expose retry without repeating confirmation", async () => {
   vi.mocked(ingestionApi.mark).mockResolvedValue({ complete: false, results: [{ submission_id: "s1", question_id: "qid0", marked: false, error: "Marking unavailable" }] });
   mount(true);
-  await upload("Upload Completed Tutorial PDF");
+  await upload("Upload Completed Assignment PDF");
   fireEvent.click(screen.getByLabelText("Confirm block 1")); fireEvent.click(screen.getByLabelText("Confirm block 2"));
   await click("Confirm & Start Marking");
   expect(screen.getByRole("alert").textContent).toContain("Marking unavailable");
