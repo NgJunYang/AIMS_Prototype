@@ -95,6 +95,9 @@ export default function Confirm() {
           </h1>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {submissionQuestion?.verification_tier === "ai_graded" && (
+            <Badge tone="warning">AI-graded — not symbolically verified</Badge>
+          )}
           {verified > 0 && <Badge tone="success">{verified} lines parsed</Badge>}
           {suggestionsStale ? (
             <Badge tone="warning">Updating suggestions…</Badge>

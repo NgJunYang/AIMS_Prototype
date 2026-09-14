@@ -237,3 +237,26 @@ test("dirty working cannot be approved against previous marks", async () => {
   expect((screen.getByRole("button", { name: "Review Question Again" }) as HTMLButtonElement).disabled).toBe(true);
   expect((screen.getByRole("button", { name: "Publish Tutorial Results" }) as HTMLButtonElement).disabled).toBe(true);
 });
+
+test("a question tiered ai_graded shows an AI-graded badge in the assessment desk", async () => {
+  const sub: Submission = {
+    id: "s4", question_id: "Q4", assignment_id: "tutorial5", channel: "tutorial",
+    student_pseudonym: "Student A", student_id: "2500001", published: false, reviewed: false,
+    confirmed_steps: [{ index: 1, latex: "x = 5", confidence: "high" }],
+    verification: { steps: [], final_answer_correct: false, final_answer_verified: false, model_solutions: [], candidate_misconceptions: [] },
+  };
+  vi.spyOn(api, "getSubmission").mockResolvedValue(sub);
+  vi.spyOn(api, "listQuestions").mockResolvedValue([{
+    id: "Q4", prompt: "Prove something.", criteria: [{ id: "C1", max: 3, description: "Method" }],
+    model_solution_steps: ["step one", "step two"], variable: "x", topic_tag: "proofs",
+    verification_tier: "ai_graded",
+  } satisfies Question]);
+  vi.spyOn(api, "assignmentReviewStatus").mockResolvedValue({
+    assignment_id: "tutorial5", assignment_title: "Tutorial 5", student_pseudonym: "Student A", student_id: "2500001",
+    total_questions: 1, reviewed_count: 0, ready_to_publish: false, published: false,
+    questions: [{ question_id: "Q4", submission_id: "s4", marked: false, has_feedback: false, reviewed: false, published: false, problems: [] }],
+  });
+  render(<WorkbenchProvider><Resume /><Confirm /></WorkbenchProvider>);
+  await act(async () => { fireEvent.click(screen.getByText("Load saved question")); });
+  expect(screen.getByText("AI-graded — not symbolically verified")).toBeTruthy();
+});
