@@ -17,8 +17,8 @@ import { Input, Label, Textarea } from "./ui/Field";
 import { StepList } from "./StepList";
 import { ImportSourcePages } from "./ImportSourcePages";
 
-export function TutorialImportPanel({ assignmentId, ready, onChanged, onOpen }: {
-  assignmentId: string; ready: boolean; onChanged: () => void; onOpen: () => void;
+export function TutorialImportPanel({ assignmentId, ready, groupPublish, onChanged, onOpen }: {
+  assignmentId: string; ready: boolean; groupPublish: boolean; onChanged: () => void; onOpen: () => void;
 }) {
   const wb = useWorkbench();
   const [draft, setDraft] = useState<TutorialImport | null>(null);
@@ -33,9 +33,9 @@ export function TutorialImportPanel({ assignmentId, ready, onChanged, onOpen }: 
     let active = true;
     setProgress(null);
     const anchor = draft?.submission_ids[0];
-    if (anchor) api.assignmentReviewStatus(anchor).then((value) => { if (active) setProgress(value); }).catch((e) => { if (active) setError(String(e.message)); });
+    if (groupPublish && anchor) api.assignmentReviewStatus(anchor).then((value) => { if (active) setProgress(value); }).catch((e) => { if (active) setError(String(e.message)); });
     return () => { active = false; };
-  }, [draft]);
+  }, [draft, groupPublish]);
 
   async function run(message: string, task: () => Promise<void>) {
     if (busy) return;

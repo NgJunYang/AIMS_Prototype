@@ -271,7 +271,7 @@ function AssignmentCard({ assignment, onChanged, onOpenReview }: { assignment: A
       </div>
 
       <AssignmentFeedbackSettings assignmentId={assignment.id} settings={assignment.feedback_settings} />
-      <TutorialImportPanel assignmentId={assignment.id} ready={assignment.question_ids.length > 0} onChanged={onChanged} onOpen={onOpenReview} />
+      <TutorialImportPanel assignmentId={assignment.id} ready={assignment.question_ids.length > 0} groupPublish={assignment.kind === "tutorial"} onChanged={onChanged} onOpen={onOpenReview} />
       {roster.length > 0 && (
         <table className="mt-3 w-full text-sm">
           <tbody>

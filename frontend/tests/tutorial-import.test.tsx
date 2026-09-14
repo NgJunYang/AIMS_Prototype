@@ -56,7 +56,7 @@ beforeEach(() => {
 afterEach(cleanup);
 
 function mount(ready = false) {
-  return render(<WorkbenchProvider><TutorialImportPanel assignmentId="t5" ready={ready} onChanged={onChanged} onOpen={onOpen} /></WorkbenchProvider>);
+  return render(<WorkbenchProvider><TutorialImportPanel assignmentId="t5" ready={ready} groupPublish onChanged={onChanged} onOpen={onOpen} /></WorkbenchProvider>);
 }
 async function upload(label: string) {
   await act(async () => { fireEvent.change(screen.getByLabelText(label), { target: { files: [new File(["%PDF-test"], "tutorial.pdf", { type: "application/pdf" })] } }); });
@@ -140,6 +140,16 @@ test("student segmentation saves corrected identity/working before marking and o
   await click("Open Instructor Review");
   expect(api.getSubmission).toHaveBeenCalledWith("s1");
   expect(onOpen).toHaveBeenCalled();
+});
+
+test("completing a non-tutorial (CA/exam) student import never fetches or shows group review progress", async () => {
+  vi.spyOn(api, "assignmentReviewStatus").mockRejectedValue(new Error("This submission is not an assignment-based tutorial."));
+  render(<WorkbenchProvider><TutorialImportPanel assignmentId="t5" ready onChanged={onChanged} onOpen={onOpen} groupPublish={false} /></WorkbenchProvider>);
+  await upload("Upload Completed Assignment PDF");
+  fireEvent.click(screen.getByLabelText("Confirm block 1")); fireEvent.click(screen.getByLabelText("Confirm block 2"));
+  await click("Confirm & Start Marking");
+  expect(api.assignmentReviewStatus).not.toHaveBeenCalled();
+  expect(screen.queryByRole("alert")).toBeNull();
 });
 
 test("missing student answers are visible and can be confirmed blank", async () => {
