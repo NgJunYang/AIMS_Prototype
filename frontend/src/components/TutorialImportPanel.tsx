@@ -90,7 +90,7 @@ export function TutorialImportPanel({ assignmentId, ready, onChanged, onOpen }: 
             <Label>Question text</Label><Textarea aria-label={`Question ${index + 1} text`} value={question.prompt} onChange={(e) => updateQuestion(index, { prompt: e.target.value })} />
             {question.confidence === "low" && <Badge tone="warning">Check detected question</Badge>}
             {question.notes && <p className="text-xs text-text-muted">{question.notes}</p>}
-            {draft.stage === "solutions" && (
+            {draft.stage === "solutions" && draft.solution_page_count > 0 && (
               <Badge tone={question.verification_tier === "ai_graded" ? "warning" : "success"}>
                 {question.verification_tier === "ai_graded" ? "AI-graded — not symbolically verified" : "SymPy-verified"}
               </Badge>
@@ -153,7 +153,7 @@ export function TutorialImportPanel({ assignmentId, ready, onChanged, onOpen }: 
             else { const saved = await ingestionApi.confirmAnswers(draft); setDraft(saved); await mark(saved.id); }
           })}>{draft.stage === "solutions" ? "Confirm Solutions & Rubrics" : "Confirm & Start Marking"}</Button>
         </>}
-        {draft.stage === "complete" && draft.kind === "setup" && <p className="text-sm text-success">Tutorial setup complete. Upload a completed student tutorial next.</p>}
+        {draft.stage === "complete" && draft.kind === "setup" && <p className="text-sm text-success">Setup complete. Upload a completed submission next.</p>}
         {draft.stage === "complete" && draft.kind === "student" && <>
           <p className="text-sm">{draft.submission_ids.length} individual submissions saved.</p>
           {progress && <p className="text-sm">AI marking: {progress.questions.filter((q) => q.marked).length} / {progress.total_questions} · Instructor review: {progress.reviewed_count} / {progress.total_questions} · Published: {progress.published ? "Yes" : "No"}</p>}

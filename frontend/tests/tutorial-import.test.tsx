@@ -114,6 +114,7 @@ test("model solutions that cannot be parsed as mathematics show an AI-graded bad
   await upload("Upload Model Solutions PDF");
   expect(screen.getByText("AI-graded — not symbolically verified")).toBeTruthy();
   expect(screen.getByText(/Step 2 could not be read as mathematics/)).toBeTruthy();
+  expect((screen.getByRole("button", { name: "Confirm Solutions & Rubrics" }) as HTMLButtonElement).disabled).toBe(true);
   fireEvent.click(screen.getByLabelText("Confirm block 1"));
   fireEvent.click(screen.getByLabelText("Confirm block 2"));
   expect((screen.getByRole("button", { name: "Confirm Solutions & Rubrics" }) as HTMLButtonElement).disabled).toBe(false);

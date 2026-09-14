@@ -798,7 +798,7 @@ Insert the tier badge right after the `question.notes` line and before `question
 
 ```tsx
             {question.notes && <p className="text-xs text-text-muted">{question.notes}</p>}
-            {draft.stage === "solutions" && (
+            {draft.stage === "solutions" && draft.solution_page_count > 0 && (
               <Badge tone={question.verification_tier === "ai_graded" ? "warning" : "success"}>
                 {question.verification_tier === "ai_graded" ? "AI-graded — not symbolically verified" : "SymPy-verified"}
               </Badge>
