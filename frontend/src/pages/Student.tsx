@@ -541,6 +541,16 @@ function PracticeCard({
     }
   }
 
+  // The backend never generates practice for a question it couldn't
+  // symbolically verify (every template is a parameterised quadratic, so
+  // none would be relevant) - regenerating always 409s in that case. A
+  // question that WAS verified always gets a non-empty practice list from
+  // marking onward (generate_practice falls back to a default template
+  // rather than returning nothing), so an empty list here reliably means
+  // "not applicable to this question", not "not generated yet" - hide the
+  // whole card rather than offer buttons that can only fail.
+  if (!practice?.length) return null;
+
   return (
     <Card>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -554,31 +564,27 @@ function PracticeCard({
           </Button>
         </div>
       </div>
-      {!practice?.length ? (
-        <p className="text-sm text-text-muted">No practice questions yet.</p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {practice.map((p, i) => (
-            <div key={i} className="rounded-lg border border-border p-3 text-sm">
-              <Badge tone="accent">{humanizeTag(p.misconception_tag)}</Badge>
-              <div className="mt-2">
-                <Mixed text={p.prompt_latex} />
-              </div>
-              {shown[i] && (
-                <div className="mt-2 rounded-md bg-surface-2 px-2 py-1.5">
-                  <Katex latex={p.answer_latex} />
-                </div>
-              )}
-              <button
-                className="mt-2 text-[11px] font-medium text-accent-hover underline underline-offset-2"
-                onClick={() => setShown((s) => ({ ...s, [i]: !s[i] }))}
-              >
-                {shown[i] ? "Hide answer" : "Show answer"}
-              </button>
+      <div className="flex flex-col gap-2">
+        {practice.map((p, i) => (
+          <div key={i} className="rounded-lg border border-border p-3 text-sm">
+            <Badge tone="accent">{humanizeTag(p.misconception_tag)}</Badge>
+            <div className="mt-2">
+              <Mixed text={p.prompt_latex} />
             </div>
-          ))}
-        </div>
-      )}
+            {shown[i] && (
+              <div className="mt-2 rounded-md bg-surface-2 px-2 py-1.5">
+                <Katex latex={p.answer_latex} />
+              </div>
+            )}
+            <button
+              className="mt-2 text-[11px] font-medium text-accent-hover underline underline-offset-2"
+              onClick={() => setShown((s) => ({ ...s, [i]: !s[i] }))}
+            >
+              {shown[i] ? "Hide answer" : "Show answer"}
+            </button>
+          </div>
+        ))}
+      </div>
     </Card>
   );
 }
