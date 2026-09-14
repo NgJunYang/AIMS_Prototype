@@ -626,10 +626,17 @@ def api_mark(submission_id: str) -> Submission:
     # An unchanged record and unchanged marks do not invalidate reviewed prose.
     if submission.feedback is None or submission.marks != prior_marks:
         _write_submission_feedback(submission, question)
-    submission.practice = generate_practice(
-        submission.marks.misconceptions,
-        count=3,
-        seed=_seed_from_id(submission_id),
+    # Every practice template is a parameterised quadratic; suggesting one for
+    # a question SymPy never verified (a proof, a sum, set notation, ...) is
+    # never relevant, whether or not a misconception happened to get tagged.
+    submission.practice = (
+        []
+        if question.verification_tier == "ai_graded"
+        else generate_practice(
+            submission.marks.misconceptions,
+            count=3,
+            seed=_seed_from_id(submission_id),
+        )
     )
     save_submission(submission)
     return submission
@@ -732,6 +739,12 @@ def api_regenerate_practice(submission_id: str, body: RegeneratePractice) -> Sub
         raise HTTPException(
             status_code=400,
             detail=f"unknown question type: {body.question_type}",
+        )
+    question = _question(submission.question_id)
+    if question.verification_tier == "ai_graded":
+        raise HTTPException(
+            status_code=409,
+            detail="Targeted practice is not available for AI-graded questions.",
         )
 
     submission.practice = generate_practice(

@@ -1050,6 +1050,47 @@ def test_a_non_algebraic_model_solution_saves_as_ai_graded_not_rejected():
     assert client.get("/api/questions/authored1").json()["verification_tier"] == "ai_graded"
 
 
+def test_marking_an_ai_graded_question_never_suggests_quadratic_practice(monkeypatch):
+    """Every practice template is a parameterised quadratic. A misconception
+    tag can still get confirmed for non-algebraic content (see classify()'s
+    own self-consistency check on the student's steps), but suggesting a
+    quadratic drill for it is never relevant, so practice must stay empty.
+    """
+    non_algebraic = {**NEW_QUESTION, "model_solution_steps": [
+        "x^2 - 7x + 12 = 0", "then I factorised it somehow", "x = 3, x = 4",
+    ]}
+    assert client.post("/api/questions", json=non_algebraic).status_code == 200
+    _stub_llm(monkeypatch)
+    submission_id = _new_submission("authored1")
+    client.put(
+        f"/api/submissions/{submission_id}/steps",
+        json={"steps": [{"index": 1, "latex": "By pigeonhole, two must share a remainder."}]},
+    )
+    body = client.post(f"/api/submissions/{submission_id}/mark").json()
+    assert body["marks"] is not None
+    # _stub_llm always reports a misconception tag regardless of content -
+    # proving the empty practice list isn't just an accident of no tag matching.
+    assert body["marks"]["misconceptions"] == ["divided_by_variable_lost_root"]
+    assert body["practice"] == []
+
+
+def test_regenerating_practice_for_an_ai_graded_question_is_refused(monkeypatch):
+    non_algebraic = {**NEW_QUESTION, "model_solution_steps": [
+        "x^2 - 7x + 12 = 0", "then I factorised it somehow", "x = 3, x = 4",
+    ]}
+    assert client.post("/api/questions", json=non_algebraic).status_code == 200
+    _stub_llm(monkeypatch)
+    submission_id = _new_submission("authored1")
+    client.put(
+        f"/api/submissions/{submission_id}/steps",
+        json={"steps": [{"index": 1, "latex": "By pigeonhole, two must share a remainder."}]},
+    )
+    client.post(f"/api/submissions/{submission_id}/mark")
+    result = client.post(f"/api/submissions/{submission_id}/practice", json={"question_type": "bare", "count": 3})
+    assert result.status_code == 409
+    assert "AI-graded" in result.json()["detail"]
+
+
 def test_adding_a_question_with_an_existing_id_is_rejected():
     assert client.post("/api/questions", json={**NEW_QUESTION, "id": "q1"}).status_code == 409
 
