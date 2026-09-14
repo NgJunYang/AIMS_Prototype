@@ -5,7 +5,7 @@ import { Button } from "./ui/Button";
 import { Input, Label } from "./ui/Field";
 import { StepList } from "./StepList";
 import { api, ApiError } from "../lib/api";
-import type { Criterion, Question, SolutionTranscription } from "../types";
+import type { Criterion, Question, QuestionCheck, SolutionTranscription, VerificationTier } from "../types";
 
 function problemsFrom(err: unknown): string[] {
   if (err instanceof ApiError) {
@@ -47,9 +47,10 @@ export function QuestionEditor({
   );
   const [solutionStatus, setSolutionStatus] = useState<{ ok: boolean | null; message: string } | null>(null);
 
-  const [checkResult, setCheckResult] = useState<{ ok: boolean; problems: string[] } | null>(null);
+  const [checkResult, setCheckResult] = useState<QuestionCheck | null>(null);
   const [saveError, setSaveError] = useState<string[] | null>(null);
   const [saving, setSaving] = useState(false);
+  const [tierOverride, setTierOverride] = useState<VerificationTier | "">(question?.verification_tier_override || "");
 
   useEffect(() => {
     if (!question) {
@@ -149,15 +150,16 @@ export function QuestionEditor({
       solution_image_filename: solutionImageFilename,
       solution_source_page: solutionSourcePage,
       solution_transcription: solutionTranscription,
+      verification_tier_override: tierOverride || null,
     };
   }
 
   async function runCheck(override?: ReturnType<typeof questionFromEditor>) {
     try {
-      const result = await api.validateQuestion(override || questionFromEditor());
-      setCheckResult({ ok: result.ok, problems: result.problems || [] });
+      const result: QuestionCheck = await api.validateQuestion(override || questionFromEditor());
+      setCheckResult(result);
     } catch (err) {
-      setCheckResult({ ok: false, problems: problemsFrom(err) });
+      setCheckResult({ ok: false, problems: problemsFrom(err), verification_tier: "verified", verification_tier_notes: [] });
     }
   }
 
@@ -189,18 +191,18 @@ export function QuestionEditor({
 
       <div className="mb-4 flex flex-wrap gap-4">
         <div>
-          <Label>Id</Label>
-          <Input value={id} disabled={!!editingId} onChange={(e) => setId(e.target.value)} placeholder="q7" className="w-32" />
+          <Label htmlFor="question-id">Id</Label>
+          <Input id="question-id" value={id} disabled={!!editingId} onChange={(e) => setId(e.target.value)} placeholder="q7" className="w-32" />
         </div>
         <div>
-          <Label>Variable</Label>
-          <Input value={variable} maxLength={1} onChange={(e) => setVariable(e.target.value)} className="w-16" />
+          <Label htmlFor="question-variable">Variable</Label>
+          <Input id="question-variable" value={variable} maxLength={1} onChange={(e) => setVariable(e.target.value)} className="w-16" />
         </div>
         <div className="min-w-64 flex-1">
-          <Label>
+          <Label htmlFor="question-prompt">
             Prompt <span className="normal-case font-normal text-text-muted">(use $…$ for maths)</span>
           </Label>
-          <Input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Solve $x^2 - 7x + 12 = 0$." />
+          <Input id="question-prompt" value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="Solve $x^2 - 7x + 12 = 0$." />
         </div>
       </div>
 
@@ -348,7 +350,11 @@ export function QuestionEditor({
       {checkResult && (
         <div className={`mb-4 rounded-lg p-3 text-sm ${checkResult.ok ? "bg-success-soft text-success" : "bg-danger-soft text-danger"}`}>
           {checkResult.ok ? (
-            <p>The model solution verifies against itself — every step preserves the solution set.</p>
+            <p>
+              {checkResult.verification_tier === "ai_graded"
+                ? "This will be AI-graded, not symbolically verified — the model solution isn't a single-variable equation SymPy can check."
+                : "The model solution verifies against itself — every step preserves the solution set."}
+            </p>
           ) : (
             <ul className="list-inside list-disc space-y-1">
               {checkResult.problems.map((p, i) => (
@@ -356,8 +362,26 @@ export function QuestionEditor({
               ))}
             </ul>
           )}
+          {checkResult.verification_tier_notes.map((note, i) => (
+            <p key={i} className="mt-1 text-xs text-text-muted">{note}</p>
+          ))}
         </div>
       )}
+      <div className="mb-4">
+        <Label>Verification tier</Label>
+        <select
+          aria-label="Verification tier override"
+          value={tierOverride}
+          onChange={(e) => setTierOverride(e.target.value as VerificationTier | "")}
+          className="rounded-lg border border-border bg-surface-2 px-2 py-1.5 text-sm"
+        >
+          <option value="">
+            {checkResult ? `Auto (currently: ${checkResult.verification_tier === "ai_graded" ? "AI-graded" : "SymPy-verified"})` : "Auto"}
+          </option>
+          <option value="verified">Verified</option>
+          <option value="ai_graded">AI-graded</option>
+        </select>
+      </div>
       {saveError && (
         <div className="mb-4 rounded-lg bg-danger-soft p-3 text-sm text-danger">
           <ul className="list-inside list-disc space-y-1">
