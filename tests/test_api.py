@@ -1026,6 +1026,30 @@ def test_validate_reports_problems_without_saving_anything():
     assert good["problems"] == []
 
 
+def test_validate_reports_the_verification_tier():
+    good = client.post("/api/questions/validate", json=NEW_QUESTION).json()
+    assert good["verification_tier"] == "verified"
+    assert good["verification_tier_notes"] == []
+
+    non_algebraic = {**NEW_QUESTION, "model_solution_steps": [
+        "x^2 - 7x + 12 = 0", "then I factorised it somehow", "x = 3, x = 4",
+    ]}
+    checked = client.post("/api/questions/validate", json=non_algebraic).json()
+    assert checked["ok"] is True
+    assert checked["verification_tier"] == "ai_graded"
+    assert checked["verification_tier_notes"]
+
+
+def test_a_non_algebraic_model_solution_saves_as_ai_graded_not_rejected():
+    non_algebraic = {**NEW_QUESTION, "model_solution_steps": [
+        "x^2 - 7x + 12 = 0", "then I factorised it somehow", "x = 3, x = 4",
+    ]}
+    created = client.post("/api/questions", json=non_algebraic)
+    assert created.status_code == 200, created.text
+    assert created.json()["verification_tier"] == "ai_graded"
+    assert client.get("/api/questions/authored1").json()["verification_tier"] == "ai_graded"
+
+
 def test_adding_a_question_with_an_existing_id_is_rejected():
     assert client.post("/api/questions", json={**NEW_QUESTION, "id": "q1"}).status_code == 409
 

@@ -15,7 +15,7 @@ from pydantic import BaseModel, Field
 from app import uploads
 from app.assignment_review import is_assignment_tutorial, review_status, student_key, student_submissions
 from app.assignments import parse_roster_csv, validate_assignment
-from app.authoring import default_criteria, validate_question
+from app.authoring import compute_verification_tier, default_criteria, validate_question
 from app.cohort import summarise
 from app.config import ALLOWED_ORIGINS, IMAGES_DIR, SEEDS_DIR, STATIC_DIR
 from app.feedback import write as write_feedback
@@ -32,6 +32,7 @@ from app.models import (
     Step,
     Submission,
     Transcription,
+    VerificationTier,
 )
 from app.practice import QUESTION_TYPES, generate_practice
 from app.store import (
@@ -119,6 +120,8 @@ class PublishReview(BaseModel):
 class QuestionCheck(BaseModel):
     ok: bool
     problems: list[str] = Field(default_factory=list)
+    verification_tier: VerificationTier = "verified"
+    verification_tier_notes: list[str] = Field(default_factory=list)
 
 
 class SolutionTranscription(BaseModel):
@@ -307,9 +310,9 @@ def api_validate_question(question: Question) -> QuestionCheck:
     to it, which is the point: the tool holds the author to the standard it
     holds the student to.
     """
-    return QuestionCheck(
-        ok=not validate_question(question), problems=validate_question(question)
-    )
+    problems = validate_question(question)
+    tier, notes = compute_verification_tier(question)
+    return QuestionCheck(ok=not problems, problems=problems, verification_tier=tier, verification_tier_notes=notes)
 
 
 @app.post("/api/questions")
@@ -321,6 +324,7 @@ def api_create_question(question: Question) -> Question:
     problems = validate_question(question)
     if problems:
         raise HTTPException(status_code=400, detail=problems)
+    question.verification_tier, _ = compute_verification_tier(question)
     save_question(question)
     return question
 
@@ -336,6 +340,7 @@ def api_update_question(question_id: str, question: Question) -> Question:
     problems = validate_question(question)
     if problems:
         raise HTTPException(status_code=400, detail=problems)
+    question.verification_tier, _ = compute_verification_tier(question)
 
     save_question(question)
 
