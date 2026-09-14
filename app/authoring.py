@@ -51,10 +51,11 @@ def default_criteria() -> list[Criterion]:
 
 def validate_question(question: Question) -> list[str]:
     """Everything wrong with this question, in plain English. Empty means sound."""
-    return _field_problems(question) + _mathematical_problems(question)
+    tier, _ = compute_verification_tier(question)
+    return _field_problems(question, tier) + _mathematical_problems(question, tier)
 
 
-def _field_problems(question: Question) -> list[str]:
+def _field_problems(question: Question, tier: VerificationTier) -> list[str]:
     problems: list[str] = []
 
     if not _ID_PATTERN.match(question.id or ""):
@@ -64,8 +65,28 @@ def _field_problems(question: Question) -> list[str]:
         )
     if not (question.prompt or "").strip():
         problems.append("The prompt cannot be empty.")
-    if len(question.variable or "") != 1 or not question.variable.isalpha():
-        problems.append("The variable must be a single letter, such as x.")
+    # Unconditional regardless of tier: a solution with no real content is
+    # never markable, algebraic or not - an ai_graded tier over blank steps
+    # would otherwise silently save a question with nothing to grade against.
+    if question.model_solution_steps and not any(
+        (step or "").strip() for step in question.model_solution_steps
+    ):
+        problems.append("A model solution cannot be made up of blank lines.")
+
+    # The variable-format and step-count rules only mean anything for content
+    # SymPy is actually going to solve. A tier of ai_graded already means
+    # every step failed to parse under the declared variable - which is
+    # exactly what an invalid/mismatched variable or a too-short algebraic
+    # answer would also cause - so re-reporting either as a separate field
+    # error would just be noise on top of the tier notes already shown.
+    if tier != "ai_graded":
+        if len(question.variable or "") != 1 or not question.variable.isalpha():
+            problems.append("The variable must be a single letter, such as x.")
+        if len(question.model_solution_steps) < 2:
+            problems.append(
+                "A model solution needs at least two steps: one line is a statement, "
+                "not working a student can be marked against."
+            )
 
     if not question.criteria:
         problems.append("A rubric needs at least one criterion.")
@@ -79,12 +100,6 @@ def _field_problems(question: Question) -> list[str]:
         if sum(c.max for c in question.criteria) < 1:
             problems.append("The rubric must be worth at least one mark in total.")
 
-    if len(question.model_solution_steps) < 2:
-        problems.append(
-            "A model solution needs at least two steps: one line is a statement, "
-            "not working a student can be marked against."
-        )
-
     return problems
 
 
@@ -93,13 +108,17 @@ def compute_verification_tier(question: Question) -> tuple[VerificationTier, lis
 
     Mirrors the per-step parse check `_mathematical_problems` runs, but a
     step that can't be read as mathematics in the declared variable - a
-    proof, a sum, set notation, or simply the wrong variable - downgrades
-    the tier instead of failing validation. Only a self-contradiction
-    *within* content that does parse remains a hard block; that stays in
-    `_mathematical_problems`, unchanged.
+    proof, a sum, set notation, or simply an invalid/mismatched variable -
+    downgrades the tier instead of failing validation. Only a
+    self-contradiction *within* content that does parse remains a hard
+    block; that stays in `_mathematical_problems`, unchanged.
+
+    Runs on however many steps exist, including zero or one: a short answer
+    that DOES parse (e.g. a bare "x = 3, x = 4") still tiers verified, and
+    still hits the separate "needs at least two steps" field check; a short
+    answer that DOESN'T parse (e.g. a one-sentence proof) tiers ai_graded,
+    exempting it from that same field check instead.
     """
-    if len(question.model_solution_steps) < 2:
-        return "verified", []
     notes = [
         f"Step {index} could not be read as mathematics in "
         f"'{question.variable}': {latex!r}"
@@ -109,18 +128,16 @@ def compute_verification_tier(question: Question) -> tuple[VerificationTier, lis
     return ("ai_graded", notes) if notes else ("verified", [])
 
 
-def _mathematical_problems(question: Question) -> list[str]:
+def _mathematical_problems(question: Question, tier: VerificationTier) -> list[str]:
     """Run the lecturer's own model solution through the student verifier.
 
     Only runs the self-consistency check when every step parses as an
     equation in the declared variable. A question that can't be read that
-    way is tiered by compute_verification_tier instead of being refused.
+    way is tiered ai_graded by compute_verification_tier instead of being
+    refused; a verified question with fewer than two steps has nothing to
+    compare, and is refused separately by _field_problems instead.
     """
-    if len(question.model_solution_steps) < 2:
-        return []  # already reported; verifying one line says nothing useful
-
-    tier, _ = compute_verification_tier(question)
-    if tier == "ai_graded":
+    if tier == "ai_graded" or len(question.model_solution_steps) < 2:
         return []
 
     problems: list[str] = []

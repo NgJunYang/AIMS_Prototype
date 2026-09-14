@@ -82,6 +82,21 @@ def test_a_single_step_solution_is_rejected():
     assert any("at least two" in p.lower() for p in problems)
 
 
+def test_a_solution_with_no_steps_is_rejected():
+    """Tiering can't excuse having nothing to mark against at all."""
+    problems = validate_question(_question(model_solution_steps=[]))
+    assert any("at least two" in p.lower() for p in problems)
+
+
+def test_a_solution_of_only_blank_lines_is_rejected_regardless_of_tier():
+    """A blank line never parses, so it would otherwise tier ai_graded and
+    slip past the (tier-conditional) step-count check with nothing to mark
+    against - this check is unconditional precisely to close that gap.
+    """
+    problems = validate_question(_question(model_solution_steps=["", "   "]))
+    assert any("blank" in p.lower() for p in problems)
+
+
 # ---------- ordinary field validation ----------
 
 
@@ -121,9 +136,27 @@ def test_an_empty_id_is_rejected():
     assert any("id" in p.lower() for p in validate_question(_question(id="")))
 
 
-def test_a_multi_character_variable_is_rejected():
-    problems = validate_question(_question(variable="xy"))
-    assert any("variable" in p.lower() for p in problems)
+def test_a_multi_character_variable_makes_otherwise_sound_algebra_ai_graded():
+    """'xy' doesn't match any real free symbol in x-based content, so every
+    step fails to parse under it - the same outcome, and the same tiering
+    treatment, as declaring the wrong single-letter variable.
+    """
+    question = _question(variable="xy")
+    assert validate_question(question) == []
+    tier, notes = compute_verification_tier(question)
+    assert tier == "ai_graded"
+    assert notes
+
+
+def test_a_single_step_proof_that_does_not_parse_is_ai_graded_not_rejected():
+    """The same short-answer shape, but content SymPy can't read at all -
+    a one-line proof - is tiered instead of blocked on step count.
+    """
+    question = _question(model_solution_steps=["By pigeonhole, two must share a remainder."])
+    assert validate_question(question) == []
+    tier, notes = compute_verification_tier(question)
+    assert tier == "ai_graded"
+    assert notes
 
 
 def test_a_solution_in_a_different_variable_from_the_declared_one_is_ai_graded():
