@@ -537,3 +537,42 @@ def test_marking_requires_confirmed_segmentation(monkeypatch):
     draft = student_import(monkeypatch, setup)
     assert client.post(f"/api/tutorial-imports/{draft['id']}/mark").status_code == 409
     assert store.list_submissions() == []
+
+
+def test_ca_submissions_imported_via_whole_pdf_use_individual_publication(monkeypatch):
+    """A CA/exam assignment's whole-PDF-imported submissions must reach the
+    channel the rest of the app expects (test, not tutorial), or they can
+    never be published through either the individual or group publish path.
+    """
+    assert client.post("/api/assignments", json={"id": "g2", "title": "Graded CA 2", "kind": "ca"}).status_code == 200
+    response(monkeypatch, {"title": "Graded CA 2", "questions": [
+        {"label": f"Q{i + 1}", "prompt": f"Solve ${equation}$.", "source_pages": [1 if i < 3 else 2]}
+        for i, equation in enumerate(EQUATIONS)]})
+    draft = upload("/api/assignments/g2/imports/questions", "01").json()
+    draft = confirm_questions(draft)
+    response(monkeypatch, {"solutions": working_rows(draft)})
+    draft = upload(f"/api/tutorial-imports/{draft['id']}/solutions", "02", {"revision": draft["revision"]}).json()
+    result = confirm_solutions(draft)
+    assert result.status_code == 200, result.text
+    setup = result.json()
+
+    response(monkeypatch, student_payload(setup))
+    draft = upload("/api/assignments/g2/imports/student", "03").json()
+    for answer in draft["answers"]:
+        answer["confirmed"] = True
+    answered = client.post(f"/api/tutorial-imports/{draft['id']}/confirm-answers", json={
+        "revision": draft["revision"], "identity": draft["identity"], "answers": draft["answers"]})
+    assert answered.status_code == 200, answered.text
+    submission_ids = answered.json()["submission_ids"]
+    assert all(store.load_submission(sid).channel == "test" for sid in submission_ids)
+
+    _stub_llm(monkeypatch)
+    mark_result = client.post(f"/api/tutorial-imports/{draft['id']}/mark")
+    assert mark_result.status_code == 200 and mark_result.json()["complete"]
+    for sid in submission_ids:
+        assert client.post(f"/api/submissions/{sid}/review", json={
+            "identity": {"name": "Alex Tan", "student_id": "2500123"},
+            "feedback": {"what_went_well": "Good", "what_went_wrong": "Check roots", "how_to_improve": "Factor carefully"},
+        }).status_code == 200
+        assert client.post(f"/api/submissions/{sid}/publish").status_code == 200
+        assert store.load_submission(sid).published is True

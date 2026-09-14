@@ -247,7 +247,8 @@ def create_router(mark_submission) -> APIRouter:
     @store.submission_transaction
     def confirm_answers(import_id: str, body: ConfirmAnswers) -> TutorialImport:
         draft = _draft(import_id, "answers", body.revision)
-        questions = _questions(_assignment(draft.assignment_id))
+        assignment = _assignment(draft.assignment_id)
+        questions = _questions(assignment)
         if ingestion.question_fingerprint(questions) != draft.question_fingerprint:
             raise HTTPException(409, "Assignment questions changed after extraction. Re-import against the current setup.")
         _confirmed_mappings(body.answers, [q.id for q in questions], draft.page_count)
@@ -272,7 +273,7 @@ def create_router(mark_submission) -> APIRouter:
                           edited_by_human=raw is None or i > len(raw.steps) or raw.steps[i - 1].latex != s.latex)
                      for i, s in enumerate(answer.steps, start=1)]
             submissions.append(Submission(id=uuid.uuid4().hex[:12], question_id=question.id,
-                assignment_id=draft.assignment_id, channel="tutorial", student_pseudonym=name, student_id=student_id,
+                assignment_id=draft.assignment_id, channel=assignment.channel, student_pseudonym=name, student_id=student_id,
                 extracted_identity=draft.identity, transcription=Transcription(steps=raw.steps if raw else [], notes=answer.notes),
                 confirmed_steps=steps, source_import_id=draft.id, source_pages=answer.source_pages,
                 source_page=next(iter(answer.source_pages), None), source_page_count=draft.page_count))
