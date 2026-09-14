@@ -1,5 +1,7 @@
 export type Confidence = "high" | "low";
 
+export type VerificationTier = "verified" | "ai_graded";
+
 export interface Criterion {
   id: string;
   max: number;
@@ -31,6 +33,8 @@ export interface Question {
   solution_image_filename?: string | null;
   solution_source_page?: number | null;
   solution_transcription?: SolutionTranscription | null;
+  verification_tier?: VerificationTier;
+  verification_tier_override?: VerificationTier | null;
 }
 
 export interface StepVerification {
@@ -165,6 +169,13 @@ export interface ApiErrorLike {
   body?: { detail?: string | string[]; hint?: string; error?: string };
 }
 
+export interface QuestionCheck {
+  ok: boolean;
+  problems: string[];
+  verification_tier: VerificationTier;
+  verification_tier_notes: string[];
+}
+
 export interface ImportQuestion {
   question_id: string | null;
   label: string;
@@ -175,6 +186,8 @@ export interface ImportQuestion {
   confidence: "high" | "low";
   notes: string;
   problems: string[];
+  verification_tier?: VerificationTier;
+  verification_tier_notes?: string[];
 }
 
 export interface ImportWorking {
