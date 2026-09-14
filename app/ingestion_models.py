@@ -1,7 +1,7 @@
 """Import drafts are deliberately separate from validated, markable Questions."""
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
-from app.models import Criterion, IdentityExtraction, Step, Transcription
+from app.models import Criterion, IdentityExtraction, Step, Transcription, VerificationTier
 
 
 class QuestionDraft(BaseModel):
@@ -19,6 +19,10 @@ class QuestionDraft(BaseModel):
     solution_source_pages: list[int] = Field(default_factory=list, max_length=20)
     solution_transcription: Transcription | None = None
     problems: list[str] = Field(default_factory=list)
+    # Live-preview tiering shown during whole-PDF import, before any Question
+    # is actually saved. See app/authoring.py::compute_verification_tier.
+    verification_tier: VerificationTier = "verified"
+    verification_tier_notes: list[str] = Field(default_factory=list)
 
 
 class MappedWorking(BaseModel):

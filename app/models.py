@@ -11,6 +11,11 @@ Divergence = Literal[
     "unparseable",       # this line could not be turned into mathematics
 ]
 
+VerificationTier = Literal[
+    "verified",    # every model-solution step parsed and the chain self-checks with SymPy
+    "ai_graded",   # at least one step falls outside what the symbolic verifier can check
+]
+
 
 # ---------- Assignment definition (seed data) ----------
 
@@ -64,6 +69,13 @@ class Question(BaseModel):
     variable: str = "x"
     topic_tag: str = "quadratics"
     criteria: list[Criterion]
+    # Whether the model solution is SymPy-verified or falls outside what the
+    # symbolic verifier can check (a proof, a sum, set notation, ...), plus an
+    # instructor's explicit override of that computed value. The computed
+    # value is never overwritten by the override - see compute_verification_tier
+    # in app/authoring.py, which is the only place that sets verification_tier.
+    verification_tier: VerificationTier = "verified"
+    verification_tier_override: VerificationTier | None = None
 
     # Provenance: a question's model solution originates from a photograph of
     # the lecturer's own handwritten working. All optional with defaults, so the

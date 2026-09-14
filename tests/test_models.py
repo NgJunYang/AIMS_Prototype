@@ -75,3 +75,11 @@ def test_question_round_trips():
         criteria=[Criterion(id="C1", max=2, description="Rearranged to standard form")],
     )
     assert Question.model_validate(question.model_dump()) == question
+
+
+def test_old_question_json_defaults_to_verified_tier_with_no_override():
+    question = Question.model_validate_json(
+        '{"id":"q1","prompt":"Solve $x=1$.","model_solution_steps":["x=1","x=1"],"criteria":[]}'
+    )
+    assert question.verification_tier == "verified"
+    assert question.verification_tier_override is None
