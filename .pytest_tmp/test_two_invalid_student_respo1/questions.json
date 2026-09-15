@@ -1,0 +1,270 @@
+{
+  "questions": {
+    "t5-8e3a203c": {
+      "id": "t5-8e3a203c",
+      "label": "Q1",
+      "source_import_id": "8213e3113f05",
+      "source_pages": [
+        1
+      ],
+      "solution_source_pages": [
+        1
+      ],
+      "prompt": "Solve $x + 7 = 19$.",
+      "model_solution_steps": [
+        "x + 7 = 19",
+        "x = 19 - 7",
+        "x = 12"
+      ],
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "verification_tier": "verified",
+      "verification_tier_override": null,
+      "solution_image_filename": null,
+      "solution_source_page": 1,
+      "solution_transcription": {
+        "steps": [
+          {
+            "index": 1,
+            "latex": "x + 7 = 19",
+            "confidence": "high",
+            "edited_by_human": false
+          },
+          {
+            "index": 2,
+            "latex": "x = 19 - 7",
+            "confidence": "high",
+            "edited_by_human": false
+          },
+          {
+            "index": 3,
+            "latex": "x = 12",
+            "confidence": "high",
+            "edited_by_human": false
+          }
+        ],
+        "notes": ""
+      }
+    },
+    "t5-79a0122f": {
+      "id": "t5-79a0122f",
+      "label": "Q2",
+      "source_import_id": "8213e3113f05",
+      "source_pages": [
+        1
+      ],
+      "solution_source_pages": [
+        1
+      ],
+      "prompt": "Solve $x^2 - 5x + 6 = 0$.",
+      "model_solution_steps": [
+        "x^2 - 5x + 6 = 0",
+        "(x - 2)(x - 3) = 0",
+        "x = 2, x = 3"
+      ],
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "verification_tier": "verified",
+      "verification_tier_override": null,
+      "solution_image_filename": null,
+      "solution_source_page": 1,
+      "solution_transcription": {
+        "steps": [
+          {
+            "index": 1,
+            "latex": "x^2 - 5x + 6 = 0",
+            "confidence": "high",
+            "edited_by_human": false
+          },
+          {
+            "index": 2,
+            "latex": "(x - 2)(x - 3) = 0",
+            "confidence": "high",
+            "edited_by_human": false
+          },
+          {
+            "index": 3,
+            "latex": "x = 2, x = 3",
+            "confidence": "high",
+            "edited_by_human": false
+          }
+        ],
+        "notes": ""
+      }
+    },
+    "t5-ad41e55e": {
+      "id": "t5-ad41e55e",
+      "label": "Q3",
+      "source_import_id": "8213e3113f05",
+      "source_pages": [
+        1
+      ],
+      "solution_source_pages": [
+        2
+      ],
+      "prompt": "Solve $2x^2 - 8x = 0$.",
+      "model_solution_steps": [
+        "2x^2 - 8x = 0",
+        "2x(x - 4) = 0",
+        "x = 0, x = 4"
+      ],
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "verification_tier": "verified",
+      "verification_tier_override": null,
+      "solution_image_filename": null,
+      "solution_source_page": 2,
+      "solution_transcription": {
+        "steps": [
+          {
+            "index": 1,
+            "latex": "2x^2 - 8x = 0",
+            "confidence": "high",
+            "edited_by_human": false
+          },
+          {
+            "index": 2,
+            "latex": "2x(x - 4) = 0",
+            "confidence": "high",
+            "edited_by_human": false
+          },
+          {
+            "index": 3,
+            "latex": "x = 0, x = 4",
+            "confidence": "high",
+            "edited_by_human": false
+          }
+        ],
+        "notes": ""
+      }
+    },
+    "t5-bc55648e": {
+      "id": "t5-bc55648e",
+      "label": "Q4",
+      "source_import_id": "8213e3113f05",
+      "source_pages": [
+        2
+      ],
+      "solution_source_pages": [
+        2
+      ],
+      "prompt": "Solve $x^2 = 49$.",
+      "model_solution_steps": [
+        "x^2 = 49",
+        "x = \\pm\\sqrt{49}",
+        "x = 7, x = -7"
+      ],
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "verification_tier": "verified",
+      "verification_tier_override": null,
+      "solution_image_filename": null,
+      "solution_source_page": 2,
+      "solution_transcription": {
+        "steps": [
+          {
+            "index": 1,
+            "latex": "x^2 = 49",
+            "confidence": "high",
+            "edited_by_human": false
+          },
+          {
+            "index": 2,
+            "latex": "x = \\pm\\sqrt{49}",
+            "confidence": "high",
+            "edited_by_human": false
+          },
+          {
+            "index": 3,
+            "latex": "x = 7, x = -7",
+            "confidence": "high",
+            "edited_by_human": false
+          }
+        ],
+        "notes": ""
+      }
+    },
+    "t5-7e71bcd3": {
+      "id": "t5-7e71bcd3",
+      "label": "Q5",
+      "source_import_id": "8213e3113f05",
+      "source_pages": [
+        2
+      ],
+      "solution_source_pages": [
+        3
+      ],
+      "prompt": "Solve $x^2 + x - 12 = 0$.",
+      "model_solution_steps": [
+        "x^2 + x - 12 = 0",
+        "(x + 4)(x - 3) = 0",
+        "x = -4, x = 3"
+      ],
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "verification_tier": "verified",
+      "verification_tier_override": null,
+      "solution_image_filename": null,
+      "solution_source_page": 3,
+      "solution_transcription": {
+        "steps": [
+          {
+            "index": 1,
+            "latex": "x^2 + x - 12 = 0",
+            "confidence": "high",
+            "edited_by_human": false
+          },
+          {
+            "index": 2,
+            "latex": "(x + 4)(x - 3) = 0",
+            "confidence": "high",
+            "edited_by_human": false
+          },
+          {
+            "index": 3,
+            "latex": "x = -4, x = 3",
+            "confidence": "high",
+            "edited_by_human": false
+          }
+        ],
+        "notes": ""
+      }
+    }
+  },
+  "deleted": []
+}

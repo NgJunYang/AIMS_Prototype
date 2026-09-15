@@ -4,6 +4,17 @@ from pydantic import BaseModel, ConfigDict, Field
 from app.models import Criterion, IdentityExtraction, Step, Transcription, VerificationTier
 
 
+class ExtractedQuestion(BaseModel):
+    """Only fields that can be observed on a question-paper page."""
+
+    model_config = ConfigDict(extra="forbid")
+    label: str = Field(default="", max_length=100)
+    prompt: str = Field(default="", max_length=12000)
+    source_pages: list[int] = Field(default_factory=list, max_length=20)
+    confidence: Literal["high", "low"] = "high"
+    notes: str = ""
+
+
 class QuestionDraft(BaseModel):
     model_config = ConfigDict(extra="forbid")
     label: str = Field(default="", max_length=100)
@@ -42,8 +53,9 @@ class MappedWorking(BaseModel):
 
 
 class QuestionDetection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     title: str = ""
-    questions: list[QuestionDraft] = Field(max_length=100)
+    questions: list[ExtractedQuestion] = Field(max_length=100)
     warnings: list[str] = Field(default_factory=list)
 
 

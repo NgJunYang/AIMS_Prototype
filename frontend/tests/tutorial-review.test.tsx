@@ -32,7 +32,7 @@ function Resume() {
   return <button onClick={() => wb.resumeSubmission("s4")}>Load saved question</button>;
 }
 
-async function open(reviewed = 3, settings?: FeedbackSettings) {
+async function open(reviewed = 3, settings?: FeedbackSettings, onOpenAssignments?: () => void) {
   records = [1, 2, 3, 4, 5].map((n) => ({
     id: `s${n}`, question_id: `Q${n}`, assignment_id: "tutorial5", channel: "tutorial",
     student_pseudonym: "Student A", student_id: "2500001", published: false,
@@ -81,7 +81,7 @@ async function open(reviewed = 3, settings?: FeedbackSettings) {
     sub.feedback = { ...feedback, references: [] };
     return clone(sub);
   });
-  render(<WorkbenchProvider><Resume /><Confirm /></WorkbenchProvider>);
+  render(<WorkbenchProvider><Resume /><Confirm onOpenAssignments={onOpenAssignments} /></WorkbenchProvider>);
   // Flush the async Workbench resume and its progress effect before asserting.
   await act(async () => { fireEvent.click(screen.getByText("Load saved question")); });
   await screen.findByText(`${reviewed} / 5 questions reviewed`);
@@ -217,6 +217,36 @@ test("progress opens another question through Workbench", async () => {
   fireEvent.click(screen.getByRole("button", { name: "✓ Q1" }));
   await screen.findByText("Q1 — Instructor Review");
   expect(api.getSubmission).toHaveBeenCalledWith("s1");
+});
+
+test("next-question navigation opens an unmarked imported submission", async () => {
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "Next question Q5" }));
+  await screen.findByText(/Q5 .* Instructor Review/);
+  expect(api.getSubmission).toHaveBeenCalledWith("s5");
+  expect(screen.getByText("Mark this question and generate feedback before reviewing.")).toBeTruthy();
+});
+
+test("reviewing a question automatically opens the next unreviewed question", async () => {
+  await open();
+  fireEvent.click(screen.getByRole("button", { name: "Mark Question as Reviewed" }));
+  await screen.findByText(/Q5 .* Instructor Review/);
+  expect(api.getSubmission).toHaveBeenCalledWith("s5");
+});
+
+test("an incomplete single-question upload explains how to resume the whole tutorial", async () => {
+  const openAssignments = vi.fn();
+  await open(3, undefined, openAssignments);
+  const incomplete = progress();
+  incomplete.questions[3] = { ...incomplete.questions[3], submission_id: null, problems: ["multiple submissions"] };
+  incomplete.questions[4] = { ...incomplete.questions[4], submission_id: null, problems: ["missing submission"] };
+  vi.mocked(api.assignmentReviewStatus).mockResolvedValue(incomplete);
+  fireEvent.click(screen.getByRole("button", { name: "Refresh tutorial progress" }));
+  await screen.findByText("Duplicate submissions");
+  expect(screen.getByText("Missing submission")).toBeTruthy();
+  expect(screen.getByText(/does not have one saved submission for every question/)).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: "Open whole tutorial PDF import" }));
+  expect(openAssignments).toHaveBeenCalledOnce();
 });
 
 test("progress failure disables publication and leaves a retry", async () => {

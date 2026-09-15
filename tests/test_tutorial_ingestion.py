@@ -6,7 +6,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import ingestion_api, main, store, tutorial_ingestion as ingestion, uploads
-from app.ingestion_models import AnswerDetection, MappedWorking, QuestionDraft
+from app.ingestion_models import (
+    AnswerDetection, ExtractedQuestion, MappedWorking, QuestionDetection, QuestionDraft,
+)
 from app.models import IdentityExtraction, Question
 from tests.test_api import isolate_disk_writes, _stub_llm
 from tests.test_uploads import _pdf_bytes
@@ -120,8 +122,6 @@ def student_payload(setup, rows=None):
 
 
 def confirm_answers(draft):
-    for answer in draft["answers"]:
-        answer["confirmed"] = True
     return client.post(f"/api/tutorial-imports/{draft['id']}/confirm-answers", json={
         "revision": draft["revision"], "identity": draft["identity"], "answers": draft["answers"]})
 
@@ -191,8 +191,133 @@ def test_live_student_schema_validates_and_fixture_preserves_q1_to_q5(monkeypatc
     assert answers["Q5"]["steps"][1]["latex"] == "(x + 3)(x - 4) = 0"
     assert answers["Q5"]["steps"][-1]["latex"] == "x = -3, x = 4"
     assert len(calls) == 1 and len(calls[0]["images_b64"]) == 2
+    assert calls[0]["cache_contract"] == ingestion.STUDENT_SUBMISSION_EXTRACTION_CONTRACT
     assert "model_solution_steps" not in calls[0]["prompt"]
     assert "rubric" not in calls[0]["prompt"].split("Confirmed question context", 1)[-1].casefold()
+
+
+def test_legacy_question_paper_uses_minimal_extraction_contract_and_keeps_simple_labels(monkeypatch):
+    payload = {"title": "Tutorial 5", "questions": [
+        {"label": f"Q{i + 1}", "prompt": f"Solve ${equation}$.", "source_pages": [1 if i < 3 else 2]}
+        for i, equation in enumerate(EQUATIONS)
+    ]}
+    calls = response(monkeypatch, payload)
+
+    title, questions, warnings = ingestion.extract_tutorial_questions([b"page 1", b"page 2"])
+
+    assert title == "Tutorial 5" and warnings == []
+    assert [question.label for question in questions] == [f"Q{i}" for i in range(1, 6)]
+    assert all(isinstance(question, QuestionDraft) for question in questions)
+    assert all(question.verification_tier == "verified" for question in questions)
+    assert all(question.verification_tier_notes == [] for question in questions)
+    assert all(question.model_solution_steps == [] and question.criteria == [] for question in questions)
+    assert calls[0]["cache_contract"] == ingestion.QUESTIONS_EXTRACTION_CONTRACT
+
+    schema_text = str(calls[0]["schema"])
+    assert calls[0]["schema"] == QuestionDetection.model_json_schema()
+    for application_field in (
+        "question_id", "variable", "topic_tag", "model_solution_steps", "criteria",
+        "solution_source_pages", "solution_transcription", "problems", "verification_tier",
+        "verification_tier_notes",
+    ):
+        assert application_field not in schema_text
+
+
+def test_professor_question_paper_prompt_ignores_non_questions_and_splits_subquestions(monkeypatch):
+    payload = {"title": "Discrete Mathematics", "questions": [
+        {"label": "Question 1 (a)", "prompt": "Define $A$.", "source_pages": [3]},
+        {"label": "Part (b)", "prompt": "Using the same $A$, prove $P$.", "source_pages": [3]},
+        {"label": "Part (c)", "prompt": "Using the same $A$, find $|A|$.", "source_pages": [4]},
+        {"label": "Question 2", "prompt": "Evaluate the proposition.", "source_pages": [5]},
+        {"label": "Question 3(a)", "prompt": "Draw the graph.", "source_pages": [6]},
+        {"label": "Question 3(b)", "prompt": "State whether it is connected.", "source_pages": [6]},
+        {"label": "Question 4(a)", "prompt": "Give a recurrence.", "source_pages": [7]},
+        {"label": "Question 4(b)", "prompt": "Solve the recurrence.", "source_pages": [8]},
+    ]}
+    calls = response(monkeypatch, payload)
+
+    title, questions, warnings = ingestion.extract_tutorial_questions([b"page"] * 9)
+
+    assert title == "Discrete Mathematics" and warnings == []
+    assert [question.label for question in questions] == [
+        "Q1(a)", "Q1(b)", "Q1(c)", "Q2", "Q3(a)", "Q3(b)", "Q4(a)", "Q4(b)",
+    ]
+    assert "Q1" not in [question.label for question in questions]
+    assert all(1 not in question.source_pages and 2 not in question.source_pages for question in questions)
+    assert all(9 not in question.source_pages for question in questions)
+
+    prompt = calls[0]["prompt"].casefold()
+    for instruction in (
+        "cover pages", "blank pages", "headers", "footers", "administrative instructions",
+        "formula or reference sheets", "do not invent missing questions", "subquestion",
+        "duplicate parent entry", "simple standalone",
+    ):
+        assert instruction in prompt
+
+
+def test_professor_marking_guide_maps_workings_and_rubric_before_ai_tiering(monkeypatch):
+    question = QuestionDraft(
+        question_id="dm-q1a", label="Q1(a)", prompt="Prove the statement by induction.", source_pages=[3],
+    )
+    payload = {"solutions": [{
+        "label": "Question 1(a)", "question_id": "dm-q1a", "source_pages": [2, 3],
+        "steps": [
+            {"index": 1, "latex": r"P(1)\text{ is true}"},
+            {"index": 2, "latex": r"P(k)\Rightarrow P(k+1)"},
+        ],
+        "criteria": [
+            {"id": "C1", "max": 1, "description": "Establishes the base case"},
+            {"id": "C2", "max": 3, "description": "Completes the inductive step"},
+        ],
+    }]}
+    response(monkeypatch, payload)
+
+    solutions, warnings = ingestion.extract_model_solutions([b"page 1", b"page 2", b"page 3"], [question])
+    problems, tier, tier_notes = ingestion.solution_review(question, solutions[0])
+
+    assert warnings == [] and solutions[0].question_id == "dm-q1a"
+    assert [criterion.max for criterion in solutions[0].criteria] == [1, 3]
+    assert problems == []
+    assert tier == "ai_graded" and tier_notes
+
+
+def test_extracted_question_rejects_application_only_fields():
+    with pytest.raises(ValueError):
+        ExtractedQuestion.model_validate({
+            "label": "Q1", "prompt": "Answer this.", "source_pages": [1],
+            "verification_tier": "ai_graded",
+        })
+
+
+def test_first_malformed_question_response_retries_with_correction(monkeypatch):
+    valid = {"title": "Tutorial 5", "questions": [
+        {"label": "Q1", "prompt": "Solve $x=1$.", "source_pages": [1]},
+    ]}
+    calls = response_sequence(monkeypatch, {}, valid)
+
+    _, questions, _ = ingestion.extract_tutorial_questions([b"page"])
+
+    assert [question.label for question in questions] == ["Q1"]
+    assert len(calls) == 2
+    assert "correction after invalid structured output" not in calls[0]["prompt"].casefold()
+    assert "correction after invalid structured output" in calls[1]["prompt"].casefold()
+
+
+def test_first_malformed_solution_response_retries_with_correction(monkeypatch):
+    question = QuestionDraft(question_id="q1", label="Q1", prompt="Solve $x=1$.", source_pages=[1])
+    valid = {"solutions": [{
+        "label": "Q1", "question_id": "q1", "source_pages": [1],
+        "steps": [{"index": 1, "latex": "x = 1"}],
+        "criteria": [{"id": "C1", "max": 1, "description": "Correct answer"}],
+    }]}
+    calls = response_sequence(monkeypatch, {}, valid)
+
+    solutions, _ = ingestion.extract_model_solutions([b"page"], [question])
+
+    assert len(solutions) == 1 and solutions[0].question_id == "q1"
+    assert len(calls) == 2
+    assert calls[0]["cache_contract"] == ingestion.SOLUTIONS_EXTRACTION_CONTRACT
+    assert "correction after invalid structured output" in calls[1]["prompt"].casefold()
 
 
 def test_first_malformed_student_response_retries_once_and_then_succeeds(monkeypatch):
@@ -342,6 +467,15 @@ def test_missing_answer_is_a_confirmed_blank_submission(monkeypatch):
     assert client.post(f"/api/submissions/{blank.id}/publish-assignment").status_code == 409
 
 
+def test_confirm_answers_is_the_single_student_mapping_confirmation(monkeypatch):
+    setup = setup_tutorial(monkeypatch)
+    draft = student_import(monkeypatch, setup)
+    assert all(not answer["confirmed"] for answer in draft["answers"])
+    result = confirm_answers(draft)
+    assert result.status_code == 200, result.text
+    assert all(answer["confirmed"] for answer in result.json()["answers"])
+
+
 def test_duplicate_import_never_overwrites_reviewed_work(monkeypatch):
     setup = setup_tutorial(monkeypatch)
     first = student_import(monkeypatch, setup)
@@ -353,6 +487,36 @@ def test_duplicate_import_never_overwrites_reviewed_work(monkeypatch):
     result = confirm_answers(duplicate)
     assert result.status_code == 409 and "already exist" in result.text
     assert store.list_submissions() == existing
+
+
+def test_bulk_import_isolated_from_legacy_single_question_work(monkeypatch):
+    setup = setup_tutorial(monkeypatch)
+    first_question = setup["questions"][0]["question_id"]
+    legacy = client.post("/api/submissions", json={
+        "question_id": first_question, "assignment_id": "t5", "channel": "tutorial",
+        "student_pseudonym": "Alex Tan",
+    })
+    assert legacy.status_code == 200
+    legacy_id = legacy.json()["id"]
+    assert client.put(f"/api/submissions/{legacy_id}/identity", json={
+        "name": "Alex Tan", "student_id": "2500123",
+    }).status_code == 200
+
+    draft = student_import(monkeypatch, setup)
+    created = confirm_answers(draft)
+    assert created.status_code == 200, created.text
+    imported_ids = created.json()["submission_ids"]
+    imported_status = client.get(
+        f"/api/submissions/{imported_ids[0]}/assignment-review-status"
+    ).json()
+    assert [row["submission_id"] for row in imported_status["questions"]] == imported_ids
+    assert all("multiple submissions" not in row["problems"] for row in imported_status["questions"])
+
+    legacy_status = client.get(
+        f"/api/submissions/{legacy_id}/assignment-review-status"
+    ).json()
+    assert legacy_status["questions"][0]["submission_id"] == legacy_id
+    assert all(row["submission_id"] is None for row in legacy_status["questions"][1:])
 
 
 def test_instructor_corrects_identity_mapping_and_transcription_before_creation(monkeypatch):
@@ -456,9 +620,22 @@ def test_partial_malformed_student_answer_keeps_valid_siblings_and_safe_fields(m
 @pytest.mark.parametrize("payload", [{}, {"questions": "prose"}, {"questions": [None] * 101}])
 def test_malformed_root_output_returns_useful_error(monkeypatch, payload):
     client.post("/api/assignments", json={"id": "t5", "title": "Tutorial 5"})
-    response(monkeypatch, payload)
+    calls = response(monkeypatch, payload)
     assert upload("/api/assignments/t5/imports/questions", "01").status_code == 502
+    assert len(calls) == 2
     assert store.list_imports("t5") == []
+
+
+def test_two_invalid_solution_responses_do_not_mutate_or_partially_save_the_draft(monkeypatch):
+    draft = confirm_questions(question_import(monkeypatch))
+    before = store.load_import(draft["id"]).model_dump()
+    calls = response_sequence(monkeypatch, {}, {})
+
+    result = upload(f"/api/tutorial-imports/{draft['id']}/solutions", "02", {"revision": draft["revision"]})
+
+    assert result.status_code == 502
+    assert len(calls) == 2
+    assert store.load_import(draft["id"]).model_dump() == before
 
 
 @pytest.mark.parametrize("raw", [b"not PDF", b"%PDF-invalid", b"", b"x" * (uploads.MAX_DOCUMENT_BYTES + 1)], ids=["not-pdf", "corrupt", "empty", "oversized"])
@@ -558,8 +735,6 @@ def test_ca_submissions_imported_via_whole_pdf_use_individual_publication(monkey
 
     response(monkeypatch, student_payload(setup))
     draft = upload("/api/assignments/g2/imports/student", "03").json()
-    for answer in draft["answers"]:
-        answer["confirmed"] = True
     answered = client.post(f"/api/tutorial-imports/{draft['id']}/confirm-answers", json={
         "revision": draft["revision"], "identity": draft["identity"], "answers": draft["answers"]})
     assert answered.status_code == 200, answered.text

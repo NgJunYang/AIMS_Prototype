@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "criterion_id": "c1",
+      "proposed": 1,
+      "evidence_step": 2,
+      "justification": "At Step 2 the student identifies 2x as the common factor but divides it out rather than factorising it; the common factor is correctly spotted, so partial credit only."
+    },
+    {
+      "criterion_id": "c2",
+      "proposed": 0,
+      "evidence_step": 2,
+      "justification": "Step 2 divides both sides by 2x, eliminating the x factor entirely; the CAS confirms the root x = 0 is lost by Step 4."
+    },
+    {
+      "criterion_id": "c3",
+      "proposed": 1,
+      "evidence_step": 4,
+      "justification": "Step 4 gives x = 4 correctly, but x = 0 is missing (CAS: lost=['0']), and Step 5 did not parse so the final answer is judged on the written evidence alone, which shows only one root."
+    }
+  ],
+  "misconceptions": [
+    "divided_by_variable_lost_root"
+  ]
+}

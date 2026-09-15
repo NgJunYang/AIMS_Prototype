@@ -1,0 +1,15 @@
+{
+  "id": "tutorial5",
+  "title": "Tutorial 5",
+  "kind": "tutorial",
+  "question_ids": [
+    "q1"
+  ],
+  "roster": [],
+  "feedback_settings": {
+    "variation": "balanced",
+    "custom_instructions": "",
+    "reveal_full_solution": true
+  },
+  "created_at": ""
+}

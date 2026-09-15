@@ -1,0 +1,64 @@
+{
+  "steps": [
+    {
+      "latex": "Q1",
+      "confidence": "high"
+    },
+    {
+      "latex": "x + 7 = 19",
+      "confidence": "high"
+    },
+    {
+      "latex": "x = 19 - 7",
+      "confidence": "high"
+    },
+    {
+      "latex": "x = 12",
+      "confidence": "high"
+    },
+    {
+      "latex": "Q2",
+      "confidence": "high"
+    },
+    {
+      "latex": "x^2 - 5x + 6 = 0",
+      "confidence": "high"
+    },
+    {
+      "latex": "(x - 2)(x - 3) = 0",
+      "confidence": "high"
+    },
+    {
+      "latex": "x = 2 \\text{ or } x = 3",
+      "confidence": "high"
+    },
+    {
+      "latex": "Q3",
+      "confidence": "high"
+    },
+    {
+      "latex": "2x^2 - 8x = 0",
+      "confidence": "high"
+    },
+    {
+      "latex": "\\text{divide both sides by } 2x",
+      "confidence": "high"
+    },
+    {
+      "latex": "x - 4 = 0",
+      "confidence": "high"
+    },
+    {
+      "latex": "x = 4",
+      "confidence": "high"
+    },
+    {
+      "latex": "(\\text{I think this is the only answer.})",
+      "confidence": "high"
+    }
+  ],
+  "notes": "Page header includes typed fields: Student Name - Alex Tan, Student ID - 2500123, Assignment - Tutorial 5. No crossed-out or illegible text observed in the handwritten work. Q3 division by 2x loses the x=0 solution, but this is transcribed as written without correction.",
+  "student_name": "Alex Tan",
+  "student_id": "2500123",
+  "identity_confidence": "high"
+}

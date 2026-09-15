@@ -1,0 +1,23 @@
+{
+  "criteria": [
+    {
+      "criterion_id": "Q1-C1",
+      "proposed": 1,
+      "justification": "Step 2 subtracts 7 from both sides, showing the correct inverse operation for +7.",
+      "evidence_step": 2
+    },
+    {
+      "criterion_id": "Q1-C2",
+      "proposed": 1,
+      "justification": "Step 2 gives x = 19 - 7, verified equivalent to Step 1, so the rearrangement is correct.",
+      "evidence_step": 2
+    },
+    {
+      "criterion_id": "Q1-C3",
+      "proposed": 2,
+      "justification": "Step 3 states x = 12, which matches the expected solution ['12'].",
+      "evidence_step": 3
+    }
+  ],
+  "misconceptions": []
+}

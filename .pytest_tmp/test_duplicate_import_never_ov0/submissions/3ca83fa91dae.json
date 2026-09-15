@@ -1,0 +1,72 @@
+{
+  "id": "3ca83fa91dae",
+  "source_import_id": "b3b40c899e80",
+  "source_pages": [
+    1
+  ],
+  "question_id": "t5-f44c9791",
+  "image_filename": null,
+  "source_page": 1,
+  "source_page_count": 2,
+  "transcription": {
+    "steps": [
+      {
+        "index": 1,
+        "latex": "x^2 - 5x + 6 = 0",
+        "confidence": "high",
+        "edited_by_human": false
+      },
+      {
+        "index": 2,
+        "latex": "(x - 2)(x - 3) = 0",
+        "confidence": "high",
+        "edited_by_human": false
+      },
+      {
+        "index": 3,
+        "latex": "x = 2, x = 3",
+        "confidence": "high",
+        "edited_by_human": false
+      }
+    ],
+    "notes": ""
+  },
+  "confirmed_steps": [
+    {
+      "index": 1,
+      "latex": "x^2 - 5x + 6 = 0",
+      "confidence": "high",
+      "edited_by_human": false
+    },
+    {
+      "index": 2,
+      "latex": "(x - 2)(x - 3) = 0",
+      "confidence": "high",
+      "edited_by_human": false
+    },
+    {
+      "index": 3,
+      "latex": "x = 2, x = 3",
+      "confidence": "high",
+      "edited_by_human": false
+    }
+  ],
+  "verification": null,
+  "marks": null,
+  "manual_score_overrides": {},
+  "feedback": null,
+  "feedback_settings_used": null,
+  "practice": [],
+  "student_pseudonym": "Alex Tan",
+  "student_id": "2500123",
+  "extracted_identity": {
+    "name": "Alex Tan",
+    "student_id": "2500123",
+    "confidence": "high"
+  },
+  "channel": "tutorial",
+  "reviewed": false,
+  "review_invalidated": false,
+  "published": false,
+  "assignment_id": "t5"
+}

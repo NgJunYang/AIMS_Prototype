@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "criterion_id": "Q4-C1",
+      "proposed": 1,
+      "justification": "Step 2 states 'square root both sides', which is the correct method but shows no \\pm; Step 3 gives only x = 7, losing the root -7, so only partial credit for the method.",
+      "evidence_step": 2
+    },
+    {
+      "criterion_id": "Q4-C2",
+      "proposed": 1,
+      "justification": "Step 3 correctly states x = 7, one of the two verified solutions.",
+      "evidence_step": 3
+    },
+    {
+      "criterion_id": "Q4-C3",
+      "proposed": 0,
+      "justification": "Step 3 gives only x = 7; the root x = -7 never appears anywhere in the working.",
+      "evidence_step": 3
+    }
+  ],
+  "misconceptions": [
+    "dropped_plus_minus"
+  ]
+}

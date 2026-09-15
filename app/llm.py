@@ -87,21 +87,32 @@ def complete_json(
     *,
     images_b64: list[str] | None = None,
     response_validator: ResponseValidator | None = None,
+    cache_contract: str | None = None,
 ) -> dict[str, Any]:
     """Call Claude and return a JSON object matching `schema`.
 
     Uses a forced tool call so the response is structured JSON rather than
     prose that has to be parsed. No `temperature` is set: the model family
     used here rejects that parameter outright (400 invalid_request_error)
-    rather than ignoring it, so passing one at all breaks every call.
+    rather than ignoring it, so passing one at all breaks every call. Document
+    callers can name a versioned cache contract to decouple cache identity from
+    generated application schemas.
     """
     if image_b64 and images_b64:
         raise ValueError("Use either one image or a document's pages, not both.")
-    # Preserve every existing single-image cache key. Document imports include
-    # ordered pages and the schema, so neither page order nor schema can collide.
+    # Preserve every existing single-image cache key. A versioned document
+    # extraction contract deliberately replaces the generated Pydantic schema
+    # in the key: unrelated application-model fields must not invalidate OCR
+    # caches. Callers must bump the contract when the extraction shape changes.
+    document_identity = {"pages": images_b64, "media_type": image_media_type}
+    if cache_contract is None:
+        # Backwards-compatible behavior for document callers that have not
+        # declared a stable extraction contract.
+        document_identity["schema"] = schema
+    else:
+        document_identity["contract"] = cache_contract
     key = cache_key(model, prompt, image_b64) if images_b64 is None else cache_key(
-        model, prompt, json.dumps({"pages": images_b64, "schema": schema,
-                                  "media_type": image_media_type}, sort_keys=True)
+        model, prompt, json.dumps(document_identity, sort_keys=True)
     )
 
     cached = read_cache(key)

@@ -1,0 +1,9 @@
+{
+  "what_went_well": "You picked the right method straight away: recognising in Step 2 that you should square root both sides is exactly the correct route for an equation of the form x squared = 49, and that earned you credit for method. You then carried it out accurately to get x = 7 in Step 3, which is one of the two correct solutions and scored the mark for it. Your working is also clearly laid out line by line, which makes it easy to see what you did.",
+  "what_went_wrong": "The problem is in Step 2 and Step 3: when you square rooted both sides you did not write the plus-or-minus sign, so only x = 7 came out and x = -7 never appears anywhere in your working. This matters because the square-root symbol by itself means only the positive root, while the equation x squared = 49 is satisfied by both a positive and a negative value, so taking just the positive root throws away half the answer. That cost you the mark for x = -7 and part of the method mark, leaving you on 2 out of 4.",
+  "how_to_improve": "Whenever you square root both sides of an equation, write the plus-or-minus sign into the line itself \u2014 for example write x = plus or minus the square root of 49 \u2014 before you evaluate anything, so both signs are already on the page. Then finish by listing your solutions separately, as x = 7 or x = -7, rather than stopping at a single value. Re-read Notes \u00a73 and redo this question from Step 2 using that layout.",
+  "references": [
+    "Notes \u00a73 \u2014 square roots and the plus-or-minus sign",
+    "Notes \u00a70 \u2014 how your work is marked"
+  ]
+}

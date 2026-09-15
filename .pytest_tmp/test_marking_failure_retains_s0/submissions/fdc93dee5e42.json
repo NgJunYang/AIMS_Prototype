@@ -1,0 +1,198 @@
+{
+  "id": "fdc93dee5e42",
+  "source_import_id": "47218f4a4f57",
+  "source_pages": [
+    2
+  ],
+  "question_id": "t5-7d65505f",
+  "image_filename": null,
+  "source_page": 2,
+  "source_page_count": 2,
+  "transcription": {
+    "steps": [
+      {
+        "index": 1,
+        "latex": "x^2 + x - 12 = 0",
+        "confidence": "high",
+        "edited_by_human": false
+      },
+      {
+        "index": 2,
+        "latex": "(x + 3)(x - 4) = 0",
+        "confidence": "high",
+        "edited_by_human": false
+      },
+      {
+        "index": 3,
+        "latex": "x = -3, x = 4",
+        "confidence": "high",
+        "edited_by_human": false
+      }
+    ],
+    "notes": ""
+  },
+  "confirmed_steps": [
+    {
+      "index": 1,
+      "latex": "x^2 + x - 12 = 0",
+      "confidence": "high",
+      "edited_by_human": false
+    },
+    {
+      "index": 2,
+      "latex": "(x + 3)(x - 4) = 0",
+      "confidence": "high",
+      "edited_by_human": false
+    },
+    {
+      "index": 3,
+      "latex": "x = -3, x = 4",
+      "confidence": "high",
+      "edited_by_human": false
+    }
+  ],
+  "verification": {
+    "steps": [
+      {
+        "index": 1,
+        "parsed": true,
+        "solutions": [
+          "-4",
+          "3"
+        ],
+        "equivalent_to_previous": null,
+        "divergence": null,
+        "lost_roots": [],
+        "gained_roots": [],
+        "note": ""
+      },
+      {
+        "index": 2,
+        "parsed": true,
+        "solutions": [
+          "-3",
+          "4"
+        ],
+        "equivalent_to_previous": false,
+        "divergence": "different_roots",
+        "lost_roots": [
+          "-4",
+          "3"
+        ],
+        "gained_roots": [
+          "-3",
+          "4"
+        ],
+        "note": ""
+      },
+      {
+        "index": 3,
+        "parsed": true,
+        "solutions": [
+          "-3",
+          "4"
+        ],
+        "equivalent_to_previous": true,
+        "divergence": null,
+        "lost_roots": [],
+        "gained_roots": [],
+        "note": ""
+      }
+    ],
+    "final_answer_correct": false,
+    "final_answer_verified": true,
+    "model_solutions": [
+      "-4",
+      "3"
+    ],
+    "candidate_misconceptions": [
+      "sign_error"
+    ],
+    "first_divergence_index": 2,
+    "all_steps_parsed": true
+  },
+  "marks": {
+    "criteria": [
+      {
+        "criterion_id": "C1",
+        "proposed": 0,
+        "suggested": 0,
+        "max": 4,
+        "justification": "stub",
+        "evidence_step": 1,
+        "overridden": false
+      }
+    ],
+    "misconceptions": [
+      "divided_by_variable_lost_root"
+    ],
+    "warnings": [],
+    "total_proposed": 0,
+    "total_max": 4
+  },
+  "manual_score_overrides": {},
+  "feedback": {
+    "what_went_well": "a",
+    "what_went_wrong": "b",
+    "how_to_improve": "c",
+    "references": []
+  },
+  "feedback_settings_used": {
+    "variation": "balanced",
+    "custom_instructions": "",
+    "reveal_full_solution": true
+  },
+  "practice": [
+    {
+      "prompt_latex": "Solve $2x^2 = 2x$.",
+      "answer_latex": "x = 0, \\; x = 1",
+      "misconception_tag": "divided_by_variable_lost_root",
+      "template_id": "quad_zero_root",
+      "question_type": "bare",
+      "framing_id": "bare",
+      "admissible_roots": [
+        "0",
+        "1"
+      ],
+      "rejected_note": ""
+    },
+    {
+      "prompt_latex": "Solve $4x^2 = 7x$.",
+      "answer_latex": "x = 0, \\; x = \\frac{7}{4}",
+      "misconception_tag": "divided_by_variable_lost_root",
+      "template_id": "quad_zero_root",
+      "question_type": "bare",
+      "framing_id": "bare",
+      "admissible_roots": [
+        "0",
+        "7/4"
+      ],
+      "rejected_note": ""
+    },
+    {
+      "prompt_latex": "Solve $4x^2 = 5x$.",
+      "answer_latex": "x = 0, \\; x = \\frac{5}{4}",
+      "misconception_tag": "divided_by_variable_lost_root",
+      "template_id": "quad_zero_root",
+      "question_type": "bare",
+      "framing_id": "bare",
+      "admissible_roots": [
+        "0",
+        "5/4"
+      ],
+      "rejected_note": ""
+    }
+  ],
+  "student_pseudonym": "Alex Tan",
+  "student_id": "2500123",
+  "extracted_identity": {
+    "name": "Alex Tan",
+    "student_id": "2500123",
+    "confidence": "high"
+  },
+  "channel": "tutorial",
+  "reviewed": false,
+  "review_invalidated": false,
+  "published": false,
+  "assignment_id": "t5"
+}

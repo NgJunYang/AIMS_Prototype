@@ -1,0 +1,32 @@
+{
+  "id": "0b75271130c1",
+  "source_import_id": "e7fbe2e44906",
+  "source_pages": [],
+  "question_id": "t5-29d86a2a",
+  "image_filename": null,
+  "source_page": null,
+  "source_page_count": 2,
+  "transcription": {
+    "steps": [],
+    "notes": "No working detected; confirm missing or enter it manually."
+  },
+  "confirmed_steps": [],
+  "verification": null,
+  "marks": null,
+  "manual_score_overrides": {},
+  "feedback": null,
+  "feedback_settings_used": null,
+  "practice": [],
+  "student_pseudonym": "Alex Tan",
+  "student_id": "2500123",
+  "extracted_identity": {
+    "name": "Alex Tan",
+    "student_id": "2500123",
+    "confidence": "high"
+  },
+  "channel": "tutorial",
+  "reviewed": false,
+  "review_invalidated": false,
+  "published": false,
+  "assignment_id": "t5"
+}

@@ -1,0 +1,25 @@
+{
+  "criteria": [
+    {
+      "criterion_id": "c1",
+      "proposed": 1,
+      "justification": "Step 3 shows the student subtracting 7 from both sides (x = 19 - 7), which is the correct inverse operation for Q1.",
+      "evidence_step": 3
+    },
+    {
+      "criterion_id": "c2",
+      "proposed": 1,
+      "justification": "Step 3 is verified equivalent to step 2, so the rearrangement is correct.",
+      "evidence_step": 3
+    },
+    {
+      "criterion_id": "c3",
+      "proposed": 2,
+      "justification": "Step 4 states x = 12 and is verified equivalent to the previous step; the CAS confirmed solutions ['12'] here, although the overall final line of the script did not parse.",
+      "evidence_step": 4
+    }
+  ],
+  "misconceptions": [
+    "divided_by_variable_lost_root"
+  ]
+}

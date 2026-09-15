@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, RefreshCw, Send } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, RefreshCw, Send } from "lucide-react";
 import { useWorkbench } from "../state/WorkbenchContext";
 import { api } from "../lib/api";
 import type { AssignmentReviewStatus, Submission } from "../types";
@@ -7,7 +7,7 @@ import { Button } from "./ui/Button";
 import { Badge } from "./ui/Badge";
 import { StudentResultLink } from "./StudentResultLink";
 
-export function TutorialReview({ disabled }: { disabled: boolean }) {
+export function TutorialReview({ disabled, onOpenAssignments }: { disabled: boolean; onOpenAssignments?: () => void }) {
   const wb = useWorkbench();
   const { state } = wb;
   const sub = state.submission!;
@@ -42,11 +42,29 @@ export function TutorialReview({ disabled }: { disabled: boolean }) {
   const invalidated = !!sub.review_invalidated || (!!sub.reviewed && (pending || disabled));
   const busy = state.reviewBusy || state.confirmBusy || state.autoRefreshing;
   const remaining = status ? status.total_questions - status.reviewed_count : 0;
+  const submissionIndex = status?.questions.findIndex((question) => question.submission_id === sub.id) ?? -1;
+  const currentIndex = submissionIndex >= 0
+    ? submissionIndex
+    : status?.questions.findIndex((question) => question.question_id === sub.question_id) ?? -1;
+  const previousQuestion = currentIndex > 0
+    ? status?.questions.slice(0, currentIndex).reverse().find((question) => question.submission_id)
+    : undefined;
+  const nextQuestion = currentIndex >= 0
+    ? status?.questions.slice(currentIndex + 1).find((question) => question.submission_id)
+    : undefined;
+  const nextUnreviewedQuestion = status && currentIndex >= 0
+    ? [...status.questions.slice(currentIndex + 1), ...status.questions.slice(0, currentIndex)]
+      .find((question) => question.submission_id && !question.reviewed)
+    : undefined;
+  const incompleteSubmissionSet = status?.questions.some((question) => !question.submission_id) ?? false;
 
   async function act(action: "review" | "publish" | "unpublish") {
     setError("");
     try {
-      if (action === "review") await wb.saveReview("review");
+      if (action === "review") {
+        const saved = await wb.saveReview("review");
+        if (saved && nextUnreviewedQuestion?.submission_id) await openQuestion(nextUnreviewedQuestion.submission_id);
+      }
       else await wb.publishTutorial(action === "publish");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save tutorial review.");
@@ -80,6 +98,21 @@ export function TutorialReview({ disabled }: { disabled: boolean }) {
       {error && <p role="alert" className="mt-3 text-xs text-danger">{error}</p>}
       <div className="mt-4 border-t border-border pt-3" aria-live="polite">
         {!status ? <p className="text-xs text-text-muted">Loading tutorial progress…</p> : <>
+          {currentIndex >= 0 && <nav aria-label="Tutorial question navigation" className="mb-4 grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+            <Button variant="secondary" className="min-w-0 px-2 py-1 text-xs" disabled={busy || !previousQuestion?.submission_id}
+              onClick={() => previousQuestion?.submission_id && openQuestion(previousQuestion.submission_id)}>
+              <ChevronLeft size={13} /> <span className="truncate">Previous question{previousQuestion ? ` ${questionLabel(previousQuestion.question_id)}` : ""}</span>
+            </Button>
+            <span className="font-mono text-[11px] text-text-muted">{currentIndex + 1} / {status.total_questions}</span>
+            <Button variant="secondary" className="min-w-0 px-2 py-1 text-xs" disabled={busy || !nextQuestion?.submission_id}
+              onClick={() => nextQuestion?.submission_id && openQuestion(nextQuestion.submission_id)}>
+              <span className="truncate">Next question{nextQuestion ? ` ${questionLabel(nextQuestion.question_id)}` : ""}</span> <ChevronRight size={13} />
+            </Button>
+          </nav>}
+          {incompleteSubmissionSet && <div role="alert" className="mb-4 rounded-md border border-warning/30 bg-warning-soft/50 p-3 text-xs text-text-muted">
+            <p>This tutorial does not have one saved submission for every question. A complete multi-question PDF must be uploaded from the assignment importer before review can continue.</p>
+            {onOpenAssignments && <Button variant="secondary" className="mt-2" onClick={onOpenAssignments}>Open whole tutorial PDF import</Button>}
+          </div>}
           <h4 className="text-sm font-semibold">{status.assignment_title}</h4>
           <p className="mt-1 text-xs text-text-muted">{status.student_pseudonym}{status.student_id ? ` · ${status.student_id}` : ""}</p>
           <p className="my-3 text-sm font-medium">{status.reviewed_count} / {status.total_questions} questions reviewed</p>
@@ -87,6 +120,7 @@ export function TutorialReview({ disabled }: { disabled: boolean }) {
             {status.questions.map((question) => {
               const changedHere = question.submission_id === sub.id && (pending || disabled);
               const label = !question.submission_id && question.problems.some((p) => p.includes("multiple")) ? "Duplicate submissions" :
+                !question.submission_id && question.problems.some((p) => p.includes("missing")) ? "Missing submission" :
                 !question.marked ? "Not marked" : !question.has_feedback ? "Missing feedback" :
                   question.reviewed && !changedHere ? "Reviewed" : "Review required";
               return <li key={question.question_id} className="flex items-center justify-between gap-2 text-xs">

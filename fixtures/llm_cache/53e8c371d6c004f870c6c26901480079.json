@@ -1,0 +1,10 @@
+{
+  "what_went_well": "You spotted straight away that 2x is common to both terms, which is exactly the right structure to notice in this equation, and that earned you partial credit on the factorising criterion. Your algebra after Step 2 is clean and accurate: x - 4 = 0 leads correctly to x = 4, so one of the two roots is right. You also showed your steps clearly enough that your method could be followed and given credit.",
+  "what_went_wrong": "At Step 2 you divided both sides by 2x instead of taking 2x out as a factor. Dividing by x is only valid when x is not zero, so that step quietly assumes x is not zero and throws away the solution x = 0 \u2014 which is why Step 4 gives only x = 4 and Step 5 concludes it is the only answer. Dividing by a constant like 2 is safe, but dividing by an expression containing the unknown is not, and that is the difference that cost you the marks here.",
+  "how_to_improve": "When one side of an equation is already 0, factorise instead of dividing: write 2x^2 - 8x = 0 as 2x(x - 4) = 0, then set each factor equal to zero in turn to get x = 0 or x = 4. Make it a habit that whenever you are about to divide both sides by something, check whether that something contains the unknown; if it does, factorise instead. Then count your roots at the end and check that a quadratic has given you both of them.",
+  "references": [
+    "Notes \u00a72 \u2014 the zero-product principle",
+    "Notes \u00a74 \u2014 reversible and irreversible operations",
+    "Notes \u00a71 \u2014 factorising quadratics"
+  ]
+}

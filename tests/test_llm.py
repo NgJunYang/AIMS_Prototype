@@ -61,6 +61,43 @@ def test_document_pages_use_one_call_and_ordered_schema_aware_cache(tmp_path, mo
     assert len(calls) == 3
 
 
+def test_versioned_document_contract_is_independent_of_application_schema(tmp_path, monkeypatch):
+    monkeypatch.setattr(llm, "LLM_CACHE_DIR", tmp_path)
+    monkeypatch.setattr(llm, "DEMO_MODE", "live")
+    calls = []
+    payload = {"questions": []}
+    def create(**kwargs):
+        calls.append(kwargs)
+        return SimpleNamespace(
+            stop_reason="tool_use",
+            content=[SimpleNamespace(type="tool_use", input=payload)],
+        )
+    monkeypatch.setattr(llm, "Anthropic", lambda **kw: SimpleNamespace(messages=SimpleNamespace(create=create)))
+    extraction_schema = {
+        "type": "object", "properties": {"questions": {"type": "array"}}, "required": ["questions"],
+    }
+    unrelated_application_change = {
+        **extraction_schema,
+        "$defs": {"QuestionDraft": {"properties": {"publication_status": {"type": "string"}}}},
+    }
+
+    assert llm.complete_json(
+        "model", "document", extraction_schema, images_b64=["page"],
+        cache_contract="questions-extraction-v1",
+    ) == payload
+    assert llm.complete_json(
+        "model", "document", unrelated_application_change, images_b64=["page"],
+        cache_contract="questions-extraction-v1",
+    ) == payload
+    assert len(calls) == 1
+
+    llm.complete_json(
+        "model", "document", extraction_schema, images_b64=["page"],
+        cache_contract="questions-extraction-v2",
+    )
+    assert len(calls) == 2
+
+
 @pytest.mark.parametrize("reason,payload", [("max_tokens", {"questions": []}), ("tool_use", {"questions": "invalid"})])
 def test_truncated_or_malformed_documents_are_not_cached(tmp_path, monkeypatch, reason, payload):
     monkeypatch.setattr(llm, "LLM_CACHE_DIR", tmp_path)

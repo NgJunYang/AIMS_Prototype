@@ -1,0 +1,316 @@
+{
+  "id": "5a1f7c623e4c",
+  "assignment_id": "t5",
+  "kind": "setup",
+  "stage": "complete",
+  "revision": 3,
+  "filename": "01_Professor_Tutorial_5_Questions.pdf",
+  "page_count": 2,
+  "solution_page_count": 3,
+  "document_hash": "a566700708f4558dee40160eb25b533e470b74a9718bbca0e05783dab3322c4a",
+  "solution_document_hash": "f9d4f82bc305df002c8220f97662fdd7ed4bef4a9ab6f2c5bfdb6ec8828b1cd7",
+  "title": "Tutorial 5",
+  "questions": [
+    {
+      "label": "Q1",
+      "prompt": "Solve $x + 7 = 19$.",
+      "source_pages": [
+        1
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-daed46e8",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q2",
+      "prompt": "Solve $x^2 - 5x + 6 = 0$.",
+      "source_pages": [
+        1
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-68b27cc8",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q3",
+      "prompt": "Solve $2x^2 - 8x = 0$.",
+      "source_pages": [
+        1
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-61555f19",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q4",
+      "prompt": "Solve $x^2 = 49$.",
+      "source_pages": [
+        2
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-a2f3bfc3",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q5",
+      "prompt": "Solve $x^2 + x - 12 = 0$.",
+      "source_pages": [
+        2
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-cd8ee435",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    }
+  ],
+  "solutions": [
+    {
+      "label": "Q1",
+      "block_id": "edd2952509ba",
+      "question_id": "t5-daed46e8",
+      "source_pages": [
+        1
+      ],
+      "confidence": "high",
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x + 7 = 19",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "x = 19 - 7",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 12",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "notes": "",
+      "confirmed": true
+    },
+    {
+      "label": "Q2",
+      "block_id": "b8aa654a81ae",
+      "question_id": "t5-68b27cc8",
+      "source_pages": [
+        1
+      ],
+      "confidence": "high",
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 - 5x + 6 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "(x - 2)(x - 3) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 2, x = 3",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "notes": "",
+      "confirmed": true
+    },
+    {
+      "label": "Q3",
+      "block_id": "148359bfeb80",
+      "question_id": "t5-61555f19",
+      "source_pages": [
+        2
+      ],
+      "confidence": "high",
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "2x^2 - 8x = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "2x(x - 4) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 0, x = 4",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "notes": "",
+      "confirmed": true
+    },
+    {
+      "label": "Q4",
+      "block_id": "ee01697b498a",
+      "question_id": "t5-a2f3bfc3",
+      "source_pages": [
+        2
+      ],
+      "confidence": "high",
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 = 49",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "x = \\pm\\sqrt{49}",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 7, x = -7",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "notes": "",
+      "confirmed": true
+    },
+    {
+      "label": "Q5",
+      "block_id": "e5b76446e875",
+      "question_id": "t5-cd8ee435",
+      "source_pages": [
+        3
+      ],
+      "confidence": "high",
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 + x - 12 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "(x + 4)(x - 3) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = -4, x = 3",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "notes": "",
+      "confirmed": true
+    }
+  ],
+  "answers": [],
+  "identity": {
+    "name": null,
+    "student_id": null,
+    "confidence": "high"
+  },
+  "warnings": [],
+  "submission_ids": [],
+  "question_fingerprint": ""
+}

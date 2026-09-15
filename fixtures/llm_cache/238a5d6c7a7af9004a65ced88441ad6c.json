@@ -1,0 +1,9 @@
+{
+  "what_went_well": "You picked the right inverse operation straight away: since 7 is added to x, subtracting 7 from both sides is exactly what undoes it, and Step 2 shows that clearly as x = 19 - 7. Your rearrangement in Step 2 is correct and equivalent to Step 1, so no solutions were gained or lost along the way. Step 3 then gives x = 12, the correct answer, earning full marks at 4/4.",
+  "what_went_wrong": "There is nothing to correct here \u2014 no step contains an error, and every rubric point was awarded in full. Your three lines run in a clear order: the original equation, the rearrangement, then the value of x. Because the method is written down rather than just the answer, the method marks were secure as well as the answer mark.",
+  "how_to_improve": "To make your work even more airtight, add a one-line check after Step 3: substitute x = 12 back into x + 7 = 19 and confirm the two sides agree. You could also write the operation you are performing next to Step 2, for example \"subtract 7 from both sides\", so a reader can see the reason for the move as well as its result. Keep laying out one operation per line as you did here when you move on to longer equations.",
+  "references": [
+    "Notes \u00a70 \u2014 how your work is marked",
+    "Notes \u00a74 \u2014 reversible and irreversible operations"
+  ]
+}

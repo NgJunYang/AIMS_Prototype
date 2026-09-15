@@ -1,0 +1,77 @@
+{
+  "answers": [
+    {
+      "block_id": "",
+      "question_id": "123-3f8f71fe",
+      "label": "Q1",
+      "status": "not_detected",
+      "confidence": "high",
+      "source_pages": [
+        1
+      ],
+      "steps": [],
+      "notes": "No student working visible on this professor question paper.",
+      "criteria": []
+    },
+    {
+      "block_id": "",
+      "question_id": "123-27655adf",
+      "label": "Q2",
+      "status": "not_detected",
+      "confidence": "high",
+      "source_pages": [
+        1
+      ],
+      "steps": [],
+      "notes": "No student working visible on this professor question paper.",
+      "criteria": []
+    },
+    {
+      "block_id": "",
+      "question_id": "123-aebc1cd5",
+      "label": "Q3",
+      "status": "not_detected",
+      "confidence": "high",
+      "source_pages": [
+        1
+      ],
+      "steps": [],
+      "notes": "No student working visible on this professor question paper.",
+      "criteria": []
+    },
+    {
+      "block_id": "",
+      "question_id": "123-5b39f0d4",
+      "label": "Q4",
+      "status": "not_detected",
+      "confidence": "high",
+      "source_pages": [
+        2
+      ],
+      "steps": [],
+      "notes": "No student working visible on this professor question paper.",
+      "criteria": []
+    },
+    {
+      "block_id": "",
+      "question_id": "123-88ce4630",
+      "label": "Q5",
+      "status": "not_detected",
+      "confidence": "high",
+      "source_pages": [
+        2
+      ],
+      "steps": [],
+      "notes": "No student working visible on this professor question paper.",
+      "criteria": []
+    }
+  ],
+  "identity": {
+    "confidence": "high",
+    "name": null,
+    "student_id": null
+  },
+  "warnings": [
+    "This document is the professor's question paper (questions only, no worked solutions) and contains no visible student answers or identity information."
+  ]
+}

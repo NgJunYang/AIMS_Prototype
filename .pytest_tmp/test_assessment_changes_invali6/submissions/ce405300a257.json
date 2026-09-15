@@ -1,0 +1,46 @@
+{
+  "id": "ce405300a257",
+  "source_import_id": null,
+  "source_pages": [],
+  "question_id": "q1",
+  "image_filename": "ce405300a257.png",
+  "source_page": 1,
+  "source_page_count": 1,
+  "transcription": {
+    "steps": [
+      {
+        "index": 1,
+        "latex": "x = 3",
+        "confidence": "high",
+        "edited_by_human": false
+      }
+    ],
+    "notes": ""
+  },
+  "confirmed_steps": [
+    {
+      "index": 1,
+      "latex": "x = 3",
+      "confidence": "high",
+      "edited_by_human": false
+    }
+  ],
+  "verification": null,
+  "marks": null,
+  "manual_score_overrides": {},
+  "feedback": null,
+  "feedback_settings_used": null,
+  "practice": [],
+  "student_pseudonym": "Student A",
+  "student_id": "2500001",
+  "extracted_identity": {
+    "name": null,
+    "student_id": null,
+    "confidence": "high"
+  },
+  "channel": "tutorial",
+  "reviewed": false,
+  "review_invalidated": true,
+  "published": false,
+  "assignment_id": "tutorial5"
+}

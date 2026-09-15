@@ -1,0 +1,29 @@
+{
+  "criteria": [
+    {
+      "criterion_id": "Q2-C1",
+      "proposed": 1,
+      "justification": "Step 2 shows the student chose factorisation, a valid method for this quadratic.",
+      "evidence_step": 2
+    },
+    {
+      "criterion_id": "Q2-C2",
+      "proposed": 2,
+      "justification": "Step 2 gives (x - 2)(x - 3) = 0, verified equivalent to Step 1 by CAS.",
+      "evidence_step": 2
+    },
+    {
+      "criterion_id": "Q2-C3",
+      "proposed": 1,
+      "justification": "Step 3 sets each factor to zero, moving from the product form in Step 2 to x = 2 or x = 3.",
+      "evidence_step": 3
+    },
+    {
+      "criterion_id": "Q2-C4",
+      "proposed": 2,
+      "justification": "Step 3 states both roots x = 2 and x = 3, matching the verified expected solutions.",
+      "evidence_step": 3
+    }
+  ],
+  "misconceptions": []
+}

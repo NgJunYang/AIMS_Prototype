@@ -105,8 +105,8 @@ function Shell() {
         transition={{ duration: 0.2 }}
       >
         {screen === "landing" && <Landing onStart={(r) => setRole(r)} />}
-        {screen === "setup" && <Setup onSubmissionCreated={() => setScreen("confirm")} />}
-        {screen === "confirm" && <Confirm />}
+        {screen === "setup" && <Setup onSubmissionCreated={() => setScreen("confirm")} onOpenAssignments={() => setScreen("assignments")} />}
+        {screen === "confirm" && <Confirm onOpenAssignments={() => setScreen("assignments")} />}
         {screen === "class" && <Class onResume={() => setScreen("confirm")} />}
         {screen === "student" && <Student />}
         {screen === "assignments" && <Assignments onOpenReview={() => setScreen("confirm")} />}

@@ -1,0 +1,173 @@
+{
+  "id": "s1",
+  "source_import_id": null,
+  "source_pages": [],
+  "question_id": "q2",
+  "image_filename": null,
+  "source_page": null,
+  "source_page_count": null,
+  "transcription": null,
+  "confirmed_steps": [
+    {
+      "index": 1,
+      "latex": "x^2 = 5x",
+      "confidence": "high",
+      "edited_by_human": false
+    },
+    {
+      "index": 2,
+      "latex": "x = 5",
+      "confidence": "high",
+      "edited_by_human": false
+    }
+  ],
+  "verification": {
+    "steps": [
+      {
+        "index": 1,
+        "parsed": true,
+        "solutions": [
+          "0",
+          "5"
+        ],
+        "equivalent_to_previous": null,
+        "divergence": null,
+        "lost_roots": [],
+        "gained_roots": [],
+        "note": ""
+      },
+      {
+        "index": 2,
+        "parsed": true,
+        "solutions": [
+          "5"
+        ],
+        "equivalent_to_previous": false,
+        "divergence": "lost_roots",
+        "lost_roots": [
+          "0"
+        ],
+        "gained_roots": [],
+        "note": ""
+      }
+    ],
+    "final_answer_correct": false,
+    "final_answer_verified": true,
+    "model_solutions": [
+      "0",
+      "5"
+    ],
+    "candidate_misconceptions": [
+      "divided_by_variable_lost_root"
+    ],
+    "first_divergence_index": 2,
+    "all_steps_parsed": true
+  },
+  "marks": {
+    "criteria": [
+      {
+        "criterion_id": "C1",
+        "proposed": 0,
+        "suggested": 0,
+        "max": 2,
+        "justification": "stub",
+        "evidence_step": 1,
+        "overridden": false
+      },
+      {
+        "criterion_id": "C2",
+        "proposed": 0,
+        "suggested": 0,
+        "max": 3,
+        "justification": "stub",
+        "evidence_step": 1,
+        "overridden": false
+      },
+      {
+        "criterion_id": "C3",
+        "proposed": 0,
+        "suggested": 0,
+        "max": 2,
+        "justification": "stub",
+        "evidence_step": 1,
+        "overridden": false
+      },
+      {
+        "criterion_id": "C4",
+        "proposed": 0,
+        "suggested": 0,
+        "max": 1,
+        "justification": "stub",
+        "evidence_step": 1,
+        "overridden": false
+      }
+    ],
+    "misconceptions": [
+      "divided_by_variable_lost_root"
+    ],
+    "warnings": [],
+    "total_proposed": 0,
+    "total_max": 8
+  },
+  "manual_score_overrides": {},
+  "feedback": {
+    "what_went_well": "a",
+    "what_went_wrong": "b",
+    "how_to_improve": "c",
+    "references": []
+  },
+  "feedback_settings_used": {
+    "variation": "balanced",
+    "custom_instructions": "",
+    "reveal_full_solution": true
+  },
+  "practice": [
+    {
+      "prompt_latex": "Solve $x^2 = 3x$.",
+      "answer_latex": "x = 0, \\; x = 3",
+      "misconception_tag": "divided_by_variable_lost_root",
+      "template_id": "quad_zero_root",
+      "question_type": "bare",
+      "framing_id": "bare",
+      "admissible_roots": [
+        "0",
+        "3"
+      ],
+      "rejected_note": ""
+    },
+    {
+      "prompt_latex": "Solve $3x^2 = 5x$.",
+      "answer_latex": "x = 0, \\; x = \\frac{5}{3}",
+      "misconception_tag": "divided_by_variable_lost_root",
+      "template_id": "quad_zero_root",
+      "question_type": "bare",
+      "framing_id": "bare",
+      "admissible_roots": [
+        "0",
+        "5/3"
+      ],
+      "rejected_note": ""
+    },
+    {
+      "prompt_latex": "Solve $3x^2 = 4x$.",
+      "answer_latex": "x = 0, \\; x = \\frac{4}{3}",
+      "misconception_tag": "divided_by_variable_lost_root",
+      "template_id": "quad_zero_root",
+      "question_type": "bare",
+      "framing_id": "bare",
+      "admissible_roots": [
+        "0",
+        "4/3"
+      ],
+      "rejected_note": ""
+    }
+  ],
+  "student_pseudonym": "Alex Tan",
+  "student_id": "2500123",
+  "extracted_identity": null,
+  "channel": "tutorial",
+  "reviewed": true,
+  "review_invalidated": false,
+  "published": true,
+  "assignment_id": "t5"
+}

@@ -1,0 +1,259 @@
+{
+  "solutions": [
+    {
+      "block_id": "Q1",
+      "confidence": "high",
+      "confirmed": false,
+      "criteria": [
+        {
+          "id": "c1",
+          "max": 1,
+          "description": "Identifies the correct inverse operation"
+        },
+        {
+          "id": "c2",
+          "max": 1,
+          "description": "Rearranges correctly"
+        },
+        {
+          "id": "c3",
+          "max": 2,
+          "description": "Obtains x = 12"
+        }
+      ],
+      "label": "Q1",
+      "notes": "",
+      "question_id": "eqeq-b297e5bd",
+      "source_pages": [
+        1
+      ],
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x + 7 = 19",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "x = 19 - 7",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 12",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ]
+    },
+    {
+      "block_id": "Q2",
+      "confidence": "high",
+      "confirmed": false,
+      "criteria": [
+        {
+          "id": "c1",
+          "max": 1,
+          "description": "Chooses a valid solution method"
+        },
+        {
+          "id": "c2",
+          "max": 2,
+          "description": "Factorises correctly"
+        },
+        {
+          "id": "c3",
+          "max": 1,
+          "description": "Applies zero-product property"
+        },
+        {
+          "id": "c4",
+          "max": 2,
+          "description": "Obtains both roots x = 2 and x = 3"
+        }
+      ],
+      "label": "Q2",
+      "notes": "",
+      "question_id": "eqeq-4aebfbc1",
+      "source_pages": [
+        1
+      ],
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 - 5x + 6 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "(x - 2)(x - 3) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 2 \\text{ or } x = 3",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ]
+    },
+    {
+      "block_id": "Q3",
+      "confidence": "high",
+      "confirmed": false,
+      "criteria": [
+        {
+          "id": "c1",
+          "max": 2,
+          "description": "Takes out the common factor correctly"
+        },
+        {
+          "id": "c2",
+          "max": 2,
+          "description": "Retains both factors / does not divide away x"
+        },
+        {
+          "id": "c3",
+          "max": 2,
+          "description": "Obtains both roots x = 0 and x = 4"
+        }
+      ],
+      "label": "Q3",
+      "notes": "",
+      "question_id": "eqeq-9b14e977",
+      "source_pages": [
+        2
+      ],
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "2x^2 - 8x = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "2x(x - 4) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 0 \\text{ or } x = 4",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ]
+    },
+    {
+      "block_id": "Q4",
+      "confidence": "high",
+      "confirmed": false,
+      "criteria": [
+        {
+          "id": "c1",
+          "max": 2,
+          "description": "Recognises both square roots are required"
+        },
+        {
+          "id": "c2",
+          "max": 1,
+          "description": "Obtains x = 7"
+        },
+        {
+          "id": "c3",
+          "max": 1,
+          "description": "Obtains x = -7"
+        }
+      ],
+      "label": "Q4",
+      "notes": "",
+      "question_id": "eqeq-7ef5fdbf",
+      "source_pages": [
+        2
+      ],
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 = 49",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "x = \\pm\\sqrt{49}",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 7 \\text{ or } x = -7",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ]
+    },
+    {
+      "block_id": "Q5",
+      "confidence": "high",
+      "confirmed": false,
+      "criteria": [
+        {
+          "id": "c1",
+          "max": 1,
+          "description": "Chooses a valid solution method"
+        },
+        {
+          "id": "c2",
+          "max": 2,
+          "description": "Factorises correctly"
+        },
+        {
+          "id": "c3",
+          "max": 1,
+          "description": "Applies zero-product property"
+        },
+        {
+          "id": "c4",
+          "max": 2,
+          "description": "Obtains both roots x = -4 and x = 3"
+        }
+      ],
+      "label": "Q5",
+      "notes": "",
+      "question_id": "eqeq-c9950d80",
+      "source_pages": [
+        3
+      ],
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 + x - 12 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "(x + 4)(x - 3) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = -4 \\text{ or } x = 3",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ]
+    }
+  ]
+}

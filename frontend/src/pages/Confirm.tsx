@@ -39,7 +39,7 @@ const panelTone: Record<PanelTone, { bar: string; number: string; icon: string }
   assess: { bar: "bg-danger", number: "text-danger", icon: "bg-danger-soft text-danger" },
 };
 
-export default function Confirm() {
+export default function Confirm({ onOpenAssignments }: { onOpenAssignments?: () => void }) {
   const wb = useWorkbench();
   const { state } = wb;
   const [focusedStep, setFocusedStep] = useState<number | null>(null);
@@ -309,7 +309,7 @@ export default function Confirm() {
             </>
           )}
           {sub?.channel === "tutorial" && sub.assignment_id != null && (
-            <TutorialReview key={sub.id} disabled={suggestionsStale || state.confirmBusy || recordDirty || editingRubric} />
+            <TutorialReview key={sub.id} disabled={suggestionsStale || state.confirmBusy || recordDirty || editingRubric} onOpenAssignments={onOpenAssignments} />
           )}
         </PanelFrame>
       </fieldset>

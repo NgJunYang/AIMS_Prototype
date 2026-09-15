@@ -128,9 +128,8 @@ test("student segmentation saves corrected identity/working before marking and o
   fireEvent.change(screen.getByLabelText("Imported student name"), { target: { value: "Confirmed Alex" } });
   const line = screen.getAllByRole("textbox").find((input) => (input as HTMLInputElement).value === "x = 1")!;
   fireEvent.change(line, { target: { value: "x = 12" } });
-  expect((screen.getByRole("button", { name: "Confirm & Start Marking" }) as HTMLButtonElement).disabled).toBe(true);
-  fireEvent.click(screen.getByLabelText("Confirm block 1"));
-  fireEvent.click(screen.getByLabelText("Confirm block 2"));
+  expect(screen.queryByLabelText("Confirm block 1")).toBeNull();
+  expect((screen.getByRole("button", { name: "Confirm & Start Marking" }) as HTMLButtonElement).disabled).toBe(false);
   await click("Confirm & Start Marking");
   expect(vi.mocked(ingestionApi.confirmAnswers).mock.calls[0][0].identity.name).toBe("Confirmed Alex");
   expect(vi.mocked(ingestionApi.confirmAnswers).mock.calls[0][0].answers[0].steps[0].latex).toBe("x = 12");
@@ -146,19 +145,17 @@ test("completing a non-tutorial (CA/exam) student import never fetches or shows 
   vi.spyOn(api, "assignmentReviewStatus").mockRejectedValue(new Error("This submission is not an assignment-based tutorial."));
   render(<WorkbenchProvider><TutorialImportPanel assignmentId="t5" ready onChanged={onChanged} onOpen={onOpen} groupPublish={false} /></WorkbenchProvider>);
   await upload("Upload Completed Assignment PDF");
-  fireEvent.click(screen.getByLabelText("Confirm block 1")); fireEvent.click(screen.getByLabelText("Confirm block 2"));
   await click("Confirm & Start Marking");
   expect(api.assignmentReviewStatus).not.toHaveBeenCalled();
   expect(screen.queryByRole("alert")).toBeNull();
 });
 
-test("missing student answers are visible and can be confirmed blank", async () => {
+test("missing student answers are visible and preserved as blank without extra confirmation", async () => {
   vi.mocked(ingestionApi.student).mockImplementation(async () => ({ ...remote, kind: "student", stage: "answers", identity: { name: "Alex", student_id: "2500123", confidence: "high" },
     answers: working().map((w, i) => i === 1 ? { ...w, status: "not_detected", steps: [] } : w) }));
   mount(true);
   await upload("Upload Completed Assignment PDF");
   expect(screen.getByText("No answer detected")).toBeTruthy();
-  fireEvent.click(screen.getByLabelText("Confirm block 1")); fireEvent.click(screen.getByLabelText("Confirm block 2"));
   await click("Confirm & Start Marking");
   expect(vi.mocked(ingestionApi.confirmAnswers).mock.calls[0][0].answers[1].steps).toEqual([]);
 });
@@ -167,11 +164,9 @@ test("unmatched or duplicate mappings prevent confirmation until corrected", asy
   mount(true);
   await upload("Upload Completed Assignment PDF");
   fireEvent.change(screen.getByLabelText("Mapping 2"), { target: { value: "qid0" } });
-  fireEvent.click(screen.getByLabelText("Confirm block 1")); fireEvent.click(screen.getByLabelText("Confirm block 2"));
   expect((screen.getByRole("button", { name: "Confirm & Start Marking" }) as HTMLButtonElement).disabled).toBe(true);
   expect(ingestionApi.confirmAnswers).not.toHaveBeenCalled();
   fireEvent.change(screen.getByLabelText("Mapping 2"), { target: { value: "qid1" } });
-  fireEvent.click(screen.getByLabelText("Confirm block 2"));
   expect((screen.getByRole("button", { name: "Confirm & Start Marking" }) as HTMLButtonElement).disabled).toBe(false);
 });
 
@@ -180,7 +175,6 @@ test("conflict errors preserve corrections and do not launch marking", async () 
   mount(true);
   await upload("Upload Completed Assignment PDF");
   fireEvent.change(screen.getByLabelText("Imported student name"), { target: { value: "Corrected name" } });
-  fireEvent.click(screen.getByLabelText("Confirm block 1")); fireEvent.click(screen.getByLabelText("Confirm block 2"));
   await click("Confirm & Start Marking");
   expect(screen.getByRole("alert").textContent).toContain("already exist");
   expect((screen.getByLabelText("Imported student name") as HTMLInputElement).value).toBe("Corrected name");
@@ -191,7 +185,6 @@ test("partial marking errors expose retry without repeating confirmation", async
   vi.mocked(ingestionApi.mark).mockResolvedValue({ complete: false, results: [{ submission_id: "s1", question_id: "qid0", marked: false, error: "Marking unavailable" }] });
   mount(true);
   await upload("Upload Completed Assignment PDF");
-  fireEvent.click(screen.getByLabelText("Confirm block 1")); fireEvent.click(screen.getByLabelText("Confirm block 2"));
   await click("Confirm & Start Marking");
   expect(screen.getByRole("alert").textContent).toContain("Marking unavailable");
   await click("Start / Retry Incomplete Marking");

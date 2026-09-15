@@ -1,0 +1,21 @@
+{
+  "id": "t5",
+  "title": "Tutorial 5",
+  "kind": "tutorial",
+  "question_ids": [
+    "q1",
+    "q2"
+  ],
+  "roster": [
+    {
+      "name": "Alex Tan",
+      "student_id": "2500123"
+    }
+  ],
+  "feedback_settings": {
+    "variation": "focused",
+    "custom_instructions": "Use simple language.",
+    "reveal_full_solution": false
+  },
+  "created_at": ""
+}

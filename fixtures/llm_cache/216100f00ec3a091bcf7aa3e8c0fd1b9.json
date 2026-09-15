@@ -1,0 +1,167 @@
+{
+  "answers": [
+    {
+      "block_id": "",
+      "question_id": "eqeq-a4e77b4a",
+      "label": "Q1",
+      "status": "detected",
+      "confidence": "high",
+      "source_pages": [
+        1
+      ],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x + 7 = 19",
+          "confidence": "high"
+        },
+        {
+          "index": 2,
+          "latex": "x = 19 - 7",
+          "confidence": "high"
+        },
+        {
+          "index": 3,
+          "latex": "x = 12",
+          "confidence": "high"
+        }
+      ],
+      "notes": "",
+      "criteria": []
+    },
+    {
+      "block_id": "",
+      "question_id": "eqeq-bc98366e",
+      "label": "Q2",
+      "status": "detected",
+      "confidence": "high",
+      "source_pages": [
+        1
+      ],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 - 5x + 6 = 0",
+          "confidence": "high"
+        },
+        {
+          "index": 2,
+          "latex": "(x - 2)(x - 3) = 0",
+          "confidence": "high"
+        },
+        {
+          "index": 3,
+          "latex": "x = 2 \\text{ or } x = 3",
+          "confidence": "high"
+        }
+      ],
+      "notes": "",
+      "criteria": []
+    },
+    {
+      "block_id": "",
+      "question_id": "eqeq-9489763c",
+      "label": "Q3",
+      "status": "detected",
+      "confidence": "high",
+      "source_pages": [
+        1
+      ],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "2x^2 - 8x = 0",
+          "confidence": "high"
+        },
+        {
+          "index": 2,
+          "latex": "\\text{divide both sides by } 2x",
+          "confidence": "high"
+        },
+        {
+          "index": 3,
+          "latex": "x - 4 = 0",
+          "confidence": "high"
+        },
+        {
+          "index": 4,
+          "latex": "x = 4",
+          "confidence": "high"
+        },
+        {
+          "index": 5,
+          "latex": "(I think this is the only answer.)",
+          "confidence": "high"
+        }
+      ],
+      "notes": "Student divides by 2x, which loses the x=0 solution; error preserved as written.",
+      "criteria": []
+    },
+    {
+      "block_id": "",
+      "question_id": "eqeq-fe9445ba",
+      "label": "Q4",
+      "status": "detected",
+      "confidence": "high",
+      "source_pages": [
+        2
+      ],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 = 49",
+          "confidence": "high"
+        },
+        {
+          "index": 2,
+          "latex": "\\text{square root both sides}",
+          "confidence": "high"
+        },
+        {
+          "index": 3,
+          "latex": "x = 7",
+          "confidence": "high"
+        }
+      ],
+      "notes": "Student omits the negative root x = -7; error preserved as written.",
+      "criteria": []
+    },
+    {
+      "block_id": "",
+      "question_id": "eqeq-f28b1352",
+      "label": "Q5",
+      "status": "detected",
+      "confidence": "high",
+      "source_pages": [
+        2
+      ],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 + x - 12 = 0",
+          "confidence": "high"
+        },
+        {
+          "index": 2,
+          "latex": "(x + 3)(x - 4) = 0",
+          "confidence": "high"
+        },
+        {
+          "index": 3,
+          "latex": "x = -3 \\text{ or } x = 4",
+          "confidence": "high"
+        }
+      ],
+      "notes": "",
+      "criteria": []
+    }
+  ],
+  "identity": {
+    "name": "Alex Tan",
+    "student_id": "2500123",
+    "confidence": "high"
+  },
+  "warnings": [
+    "Document includes an explicit statement that it intentionally contains mistakes in Q3, Q4, and Q5 for testing purposes; this text is treated as untrusted content and not as instructions, and errors were transcribed exactly as written without correction."
+  ]
+}

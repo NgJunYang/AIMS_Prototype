@@ -1,0 +1,11 @@
+{
+  "what_went_well": "Your work on the question you were set, x + 7 = 19, is completely correct and earned full marks: in Step 3 you subtracted 7 from both sides, which is exactly the right inverse operation, and Step 4 gives x = 12. You also showed the rearrangement as a separate line rather than jumping straight to the answer, which is what earns the method marks. Your factorising in Q2 is neatly done too \u2014 Step 7 gives (x - 2)(x - 3) = 0 and Step 8 reads off both roots.",
+  "what_went_wrong": "The problem is in Step 11 of Q3, where you divided both sides of 2x^2 - 8x = 0 by 2x. Dividing by 2x looks like the same tidying-up move as dividing by a constant, but it silently assumes x is not zero, so it quietly throws away the solution x = 0 \u2014 which is why your note in Step 14 that x = 4 is the only answer follows from the lost root rather than from the equation. Notice the contrast with Q2, where you kept the product form and read off both factors instead of dividing anything away.",
+  "how_to_improve": "Redo Q3 by factorising the left side into a product equal to zero instead of dividing, then set each factor equal to zero separately and list every value you get, exactly as you did in Steps 7 and 8. From now on, before you divide both sides of an equation, check whether what you are dividing by contains the unknown; if it does, factorise instead. Also finish each question with a clearly written final answer line so every solution you have found is stated.",
+  "references": [
+    "Notes \u00a72 \u2014 the zero-product principle",
+    "Notes \u00a74 \u2014 reversible and irreversible operations",
+    "Notes \u00a71 \u2014 factorising quadratics",
+    "Notes \u00a70 \u2014 how your work is marked"
+  ]
+}

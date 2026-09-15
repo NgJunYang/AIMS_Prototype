@@ -125,6 +125,7 @@ export function QuestionEditor({
           solution_image_filename: result.image_filename,
           solution_source_page: result.page,
           solution_transcription: result.transcription,
+          verification_tier_override: tierOverride || null,
         });
       }
     } catch (err) {

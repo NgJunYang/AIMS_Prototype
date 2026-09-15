@@ -1,0 +1,356 @@
+{
+  "id": "c645c135a687",
+  "assignment_id": "t5",
+  "kind": "setup",
+  "stage": "solutions",
+  "revision": 2,
+  "filename": "01_Professor_Tutorial_5_Questions.pdf",
+  "page_count": 2,
+  "solution_page_count": 3,
+  "document_hash": "a566700708f4558dee40160eb25b533e470b74a9718bbca0e05783dab3322c4a",
+  "solution_document_hash": "f9d4f82bc305df002c8220f97662fdd7ed4bef4a9ab6f2c5bfdb6ec8828b1cd7",
+  "title": "Tutorial 5",
+  "questions": [
+    {
+      "label": "Q1",
+      "prompt": "Solve $x + 7 = 19$.",
+      "source_pages": [
+        1
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-496e7e22",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [
+        "A model solution needs at least two steps: one line is a statement, not working a student can be marked against."
+      ],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q2",
+      "prompt": "Solve $x^2 - 5x + 6 = 0$.",
+      "source_pages": [
+        1
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-55a16ce0",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q3",
+      "prompt": "Solve $2x^2 - 8x = 0$.",
+      "source_pages": [
+        1
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-19b37bfb",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q4",
+      "prompt": "Solve $x^2 = 49$.",
+      "source_pages": [
+        2
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-2464746b",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q5",
+      "prompt": "Solve $x^2 + x - 12 = 0$.",
+      "source_pages": [
+        2
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-69921980",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    }
+  ],
+  "solutions": [
+    {
+      "label": "Q1",
+      "block_id": "",
+      "question_id": "t5-496e7e22",
+      "source_pages": [],
+      "confidence": "high",
+      "status": "not_detected",
+      "steps": [],
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 1,
+          "description": "Recognised the equation is in, or rearranged it to, a form suitable for solving"
+        },
+        {
+          "id": "C2",
+          "max": 3,
+          "description": "Applied a valid solution method without losing or gaining solutions"
+        },
+        {
+          "id": "C3",
+          "max": 2,
+          "description": "Carried out the algebra and arithmetic correctly"
+        },
+        {
+          "id": "C4",
+          "max": 1,
+          "description": "Stated all solutions"
+        },
+        {
+          "id": "C5",
+          "max": 1,
+          "description": "Working is clear and logically ordered"
+        }
+      ],
+      "notes": "No working detected; confirm missing or enter it manually. Default rubric draft; professor confirmation required.",
+      "confirmed": false
+    },
+    {
+      "label": "Faint label",
+      "block_id": "0c8b7f6d9c2b",
+      "question_id": "t5-55a16ce0",
+      "source_pages": [
+        1
+      ],
+      "confidence": "low",
+      "status": "uncertain",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 - 5x + 6 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "(x - 2)(x - 3) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 2, x = 3",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "notes": " Context/semantic match; professor must verify the mapping.",
+      "confirmed": false
+    },
+    {
+      "label": "Q3",
+      "block_id": "acaa9c799e87",
+      "question_id": "t5-19b37bfb",
+      "source_pages": [
+        2
+      ],
+      "confidence": "high",
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "2x^2 - 8x = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "2x(x - 4) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 0, x = 4",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "notes": "",
+      "confirmed": false
+    },
+    {
+      "label": "Q4",
+      "block_id": "fa51f9f03818",
+      "question_id": "t5-2464746b",
+      "source_pages": [
+        2
+      ],
+      "confidence": "high",
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 = 49",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "x = \\pm\\sqrt{49}",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 7, x = -7",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "notes": "",
+      "confirmed": false
+    },
+    {
+      "label": "Q5",
+      "block_id": "7a562e2bcd04",
+      "question_id": "t5-69921980",
+      "source_pages": [
+        3
+      ],
+      "confidence": "high",
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 + x - 12 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "(x + 4)(x - 3) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = -4, x = 3",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "notes": "",
+      "confirmed": false
+    },
+    {
+      "label": "Unclear",
+      "block_id": "004dcb2a443c",
+      "question_id": null,
+      "source_pages": [
+        1
+      ],
+      "confidence": "low",
+      "status": "uncertain",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x + 7 = 19",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "x = 19 - 7",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 12",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 4,
+          "description": "Valid working and all roots"
+        }
+      ],
+      "notes": " No confident question mapping.",
+      "confirmed": false
+    }
+  ],
+  "answers": [],
+  "identity": {
+    "name": null,
+    "student_id": null,
+    "confidence": "high"
+  },
+  "warnings": [],
+  "submission_ids": [],
+  "question_fingerprint": ""
+}

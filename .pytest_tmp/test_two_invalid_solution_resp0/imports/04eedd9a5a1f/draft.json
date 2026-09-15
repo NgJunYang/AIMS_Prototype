@@ -1,0 +1,120 @@
+{
+  "id": "04eedd9a5a1f",
+  "assignment_id": "t5",
+  "kind": "setup",
+  "stage": "solutions",
+  "revision": 1,
+  "filename": "01_Professor_Tutorial_5_Questions.pdf",
+  "page_count": 2,
+  "solution_page_count": 0,
+  "document_hash": "a566700708f4558dee40160eb25b533e470b74a9718bbca0e05783dab3322c4a",
+  "solution_document_hash": null,
+  "title": "Tutorial 5",
+  "questions": [
+    {
+      "label": "Q1",
+      "prompt": "Solve $x + 7 = 19$.",
+      "source_pages": [
+        1
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-bf954919",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q2",
+      "prompt": "Solve $x^2 - 5x + 6 = 0$.",
+      "source_pages": [
+        1
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-d4bd37bd",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q3",
+      "prompt": "Solve $2x^2 - 8x = 0$.",
+      "source_pages": [
+        1
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-1359c565",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q4",
+      "prompt": "Solve $x^2 = 49$.",
+      "source_pages": [
+        2
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-f27dd567",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q5",
+      "prompt": "Solve $x^2 + x - 12 = 0$.",
+      "source_pages": [
+        2
+      ],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-b4ea4edb",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    }
+  ],
+  "solutions": [],
+  "answers": [],
+  "identity": {
+    "name": null,
+    "student_id": null,
+    "confidence": "high"
+  },
+  "warnings": [],
+  "submission_ids": [],
+  "question_fingerprint": ""
+}

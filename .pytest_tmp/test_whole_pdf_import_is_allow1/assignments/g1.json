@@ -1,0 +1,13 @@
+{
+  "id": "g1",
+  "title": "Graded CA 1",
+  "kind": "exam",
+  "question_ids": [],
+  "roster": [],
+  "feedback_settings": {
+    "variation": "balanced",
+    "custom_instructions": "",
+    "reveal_full_solution": true
+  },
+  "created_at": "2026-09-15T15:12:20.730390+00:00"
+}

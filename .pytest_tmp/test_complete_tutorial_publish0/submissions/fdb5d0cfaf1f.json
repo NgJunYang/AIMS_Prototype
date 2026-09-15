@@ -1,0 +1,161 @@
+{
+  "id": "fdb5d0cfaf1f",
+  "source_import_id": null,
+  "source_pages": [],
+  "question_id": "q1",
+  "image_filename": null,
+  "source_page": null,
+  "source_page_count": null,
+  "transcription": null,
+  "confirmed_steps": [
+    {
+      "index": 1,
+      "latex": "x = 5",
+      "confidence": "high",
+      "edited_by_human": true
+    }
+  ],
+  "verification": {
+    "steps": [
+      {
+        "index": 1,
+        "parsed": true,
+        "solutions": [
+          "5"
+        ],
+        "equivalent_to_previous": null,
+        "divergence": null,
+        "lost_roots": [],
+        "gained_roots": [],
+        "note": ""
+      }
+    ],
+    "final_answer_correct": false,
+    "final_answer_verified": true,
+    "model_solutions": [
+      "2",
+      "3"
+    ],
+    "candidate_misconceptions": [],
+    "first_divergence_index": null,
+    "all_steps_parsed": true
+  },
+  "marks": {
+    "criteria": [
+      {
+        "criterion_id": "C1",
+        "proposed": 1,
+        "suggested": 0,
+        "max": 1,
+        "justification": "stub",
+        "evidence_step": 1,
+        "overridden": true
+      },
+      {
+        "criterion_id": "C2",
+        "proposed": 0,
+        "suggested": 0,
+        "max": 3,
+        "justification": "stub",
+        "evidence_step": 1,
+        "overridden": false
+      },
+      {
+        "criterion_id": "C3",
+        "proposed": 0,
+        "suggested": 0,
+        "max": 2,
+        "justification": "stub",
+        "evidence_step": 1,
+        "overridden": false
+      },
+      {
+        "criterion_id": "C4",
+        "proposed": 0,
+        "suggested": 0,
+        "max": 1,
+        "justification": "stub",
+        "evidence_step": 1,
+        "overridden": false
+      },
+      {
+        "criterion_id": "C5",
+        "proposed": 0,
+        "suggested": 0,
+        "max": 1,
+        "justification": "stub",
+        "evidence_step": 1,
+        "overridden": false
+      }
+    ],
+    "misconceptions": [
+      "divided_by_variable_lost_root"
+    ],
+    "warnings": [],
+    "total_proposed": 1,
+    "total_max": 8
+  },
+  "manual_score_overrides": {
+    "C1": 1
+  },
+  "feedback": {
+    "what_went_well": "Clear setup",
+    "what_went_wrong": "Lost a root",
+    "how_to_improve": "Factor first",
+    "references": []
+  },
+  "feedback_settings_used": {
+    "variation": "balanced",
+    "custom_instructions": "",
+    "reveal_full_solution": true
+  },
+  "practice": [
+    {
+      "prompt_latex": "Solve $4x^2 = 6x$.",
+      "answer_latex": "x = 0, \\; x = \\frac{3}{2}",
+      "misconception_tag": "divided_by_variable_lost_root",
+      "template_id": "quad_zero_root",
+      "question_type": "bare",
+      "framing_id": "bare",
+      "admissible_roots": [
+        "0",
+        "3/2"
+      ],
+      "rejected_note": ""
+    },
+    {
+      "prompt_latex": "Solve $4x^2 = 4x$.",
+      "answer_latex": "x = 0, \\; x = 1",
+      "misconception_tag": "divided_by_variable_lost_root",
+      "template_id": "quad_zero_root",
+      "question_type": "bare",
+      "framing_id": "bare",
+      "admissible_roots": [
+        "0",
+        "1"
+      ],
+      "rejected_note": ""
+    },
+    {
+      "prompt_latex": "Solve $2x^2 = 6x$.",
+      "answer_latex": "x = 0, \\; x = 3",
+      "misconception_tag": "divided_by_variable_lost_root",
+      "template_id": "quad_zero_root",
+      "question_type": "bare",
+      "framing_id": "bare",
+      "admissible_roots": [
+        "0",
+        "3"
+      ],
+      "rejected_note": ""
+    }
+  ],
+  "student_pseudonym": "Student A",
+  "student_id": "2500001",
+  "extracted_identity": null,
+  "channel": "tutorial",
+  "reviewed": true,
+  "review_invalidated": false,
+  "published": false,
+  "assignment_id": "tutorial5"
+}

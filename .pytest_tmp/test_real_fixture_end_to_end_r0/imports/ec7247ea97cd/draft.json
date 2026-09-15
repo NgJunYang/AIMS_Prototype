@@ -1,0 +1,276 @@
+{
+  "id": "ec7247ea97cd",
+  "assignment_id": "t5",
+  "kind": "student",
+  "stage": "complete",
+  "revision": 1,
+  "filename": "03_Student_Tutorial_5_Worked_Submission.pdf",
+  "page_count": 2,
+  "solution_page_count": 0,
+  "document_hash": "1afe75378299e12889535fb15b3e6593fe072af3fe9df27d05b28f4b11feed87",
+  "solution_document_hash": null,
+  "title": "",
+  "questions": [
+    {
+      "label": "Q1",
+      "prompt": "Solve $x + 7 = 19$.",
+      "source_pages": [],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-ff42c07c",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q2",
+      "prompt": "Solve $x^2 - 5x + 6 = 0$.",
+      "source_pages": [],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-185fe3b3",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q3",
+      "prompt": "Solve $2x^2 - 8x = 0$.",
+      "source_pages": [],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-fbd5b2ca",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q4",
+      "prompt": "Solve $x^2 = 49$.",
+      "source_pages": [],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-a4ccee16",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    },
+    {
+      "label": "Q5",
+      "prompt": "Solve $x^2 + x - 12 = 0$.",
+      "source_pages": [],
+      "confidence": "high",
+      "notes": "",
+      "question_id": "t5-3ceffd38",
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "model_solution_steps": [],
+      "criteria": [],
+      "solution_source_pages": [],
+      "solution_transcription": null,
+      "problems": [],
+      "verification_tier": "verified",
+      "verification_tier_notes": []
+    }
+  ],
+  "solutions": [],
+  "answers": [
+    {
+      "label": "Q1",
+      "block_id": "4120ebc81344",
+      "question_id": "t5-ff42c07c",
+      "source_pages": [
+        1
+      ],
+      "confidence": "high",
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x + 7 = 19",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "x = 19 - 7",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 12",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [],
+      "notes": "",
+      "confirmed": true
+    },
+    {
+      "label": "Q2",
+      "block_id": "e7d8f9387f82",
+      "question_id": "t5-185fe3b3",
+      "source_pages": [
+        1
+      ],
+      "confidence": "high",
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 - 5x + 6 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "(x - 2)(x - 3) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 2, x = 3",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [],
+      "notes": "",
+      "confirmed": true
+    },
+    {
+      "label": "Q3",
+      "block_id": "3a71ce411521",
+      "question_id": "t5-fbd5b2ca",
+      "source_pages": [
+        1
+      ],
+      "confidence": "high",
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "2x^2 - 8x = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "x - 4 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 4",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [],
+      "notes": "",
+      "confirmed": true
+    },
+    {
+      "label": "Q4",
+      "block_id": "25a23c407ebb",
+      "question_id": "t5-a4ccee16",
+      "source_pages": [
+        2
+      ],
+      "confidence": "high",
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 = 49",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "x = 7",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [],
+      "notes": "",
+      "confirmed": true
+    },
+    {
+      "label": "Q5",
+      "block_id": "223c3859ed9b",
+      "question_id": "t5-3ceffd38",
+      "source_pages": [
+        2
+      ],
+      "confidence": "high",
+      "status": "detected",
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 + x - 12 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "(x + 3)(x - 4) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = -3, x = 4",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ],
+      "criteria": [],
+      "notes": "",
+      "confirmed": true
+    }
+  ],
+  "identity": {
+    "name": "Alex Tan",
+    "student_id": "2500123",
+    "confidence": "high"
+  },
+  "warnings": [],
+  "submission_ids": [
+    "d2980f4d446e",
+    "5fbd12bf08ae",
+    "53e455190899",
+    "58e3fe1f87ba",
+    "5e922e35a9a2"
+  ],
+  "question_fingerprint": "9181dbca7381d1992c27c6b4f02b4cad07a90197fa093273e36b08ac0db12f4a"
+}

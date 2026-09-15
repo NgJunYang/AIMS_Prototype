@@ -1,0 +1,9 @@
+{
+  "what_went_well": "You picked factorisation, which is a sensible and valid method for this quadratic, and that earned you the method mark. Your Step 3 is also handled well: you took each bracket from your Step 2 and set it equal to zero, which is exactly the right use of the zero-product principle and earned the mark. The overall shape of your solution \u2014 equation, factorised form, two roots \u2014 is the correct structure to be aiming for.",
+  "what_went_wrong": "The error is in Step 2, where you wrote (x + 3)(x - 4) = 0. The two numbers inside the brackets need to multiply to give -12 and add to give the coefficient of x in the original equation, and the pair you chose does not do this, so your factorised form is not the same equation as Step 1. Because Step 3 was worked correctly from that faulty starting point, the roots you reached, x = -3 and x = 4, are the roots of your brackets rather than of x^2 + x - 12 = 0, so the final answer mark was lost too.",
+  "how_to_improve": "Before moving on from a factorisation, expand your brackets and compare the result term by term with the original equation; if the middle term or the constant does not match, swap the signs of the two numbers and check again. On this question, expanding (x + 3)(x - 4) would have shown you a mismatch with x^2 + x - 12 and given you the chance to fix Step 2 before it carried into your answer. Make this expand-and-compare check a fixed habit on every quadratic you factorise.",
+  "references": [
+    "Notes \u00a71 \u2014 factorising quadratics",
+    "Notes \u00a72 \u2014 the zero-product principle"
+  ]
+}

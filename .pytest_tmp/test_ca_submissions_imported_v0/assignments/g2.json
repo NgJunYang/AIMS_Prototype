@@ -1,0 +1,19 @@
+{
+  "id": "g2",
+  "title": "Graded CA 2",
+  "kind": "ca",
+  "question_ids": [
+    "g2-2ae70008",
+    "g2-c63fd57b",
+    "g2-d968bbe8",
+    "g2-88c4c498",
+    "g2-1b65a3bf"
+  ],
+  "roster": [],
+  "feedback_settings": {
+    "variation": "balanced",
+    "custom_instructions": "",
+    "reveal_full_solution": true
+  },
+  "created_at": "2026-09-15T15:12:42.541426+00:00"
+}

@@ -58,7 +58,8 @@ export function TutorialImportPanel({ assignmentId, ready, groupPublish, onChang
     setDraft(await ingestionApi.get(id));
   }
   const working = draft?.stage === "solutions" ? draft.solutions : draft?.answers || [];
-  const mappingsReady = !!draft && working.length === draft.questions.length && working.every((s) => s.confirmed && s.question_id) &&
+  const mappingsReady = !!draft && working.length === draft.questions.length &&
+    working.every((s) => s.question_id && (draft.stage === "answers" || s.confirmed)) &&
     new Set(working.map((s) => s.question_id)).size === draft.questions.length;
 
   return <section className="mt-5 border-t border-border pt-4" aria-label="Whole assignment PDF import">
@@ -123,7 +124,7 @@ export function TutorialImportPanel({ assignmentId, ready, groupPublish, onChang
         {(draft.stage === "answers" || draft.stage === "solutions" && draft.solution_page_count > 0) && <>
           <h4 className="font-semibold">{draft.stage === "answers" ? "Detected Student Answers" : "Model Solution Matching"}</h4>
           {working.map((item, index) => <div key={item.block_id || index} className="space-y-3 rounded-lg border border-border p-3">
-            <div className="flex items-center justify-between gap-2"><span className="font-mono text-sm">{item.label || "Unlabelled block"}</span><Badge tone={item.confirmed ? "success" : item.status === "detected" ? "neutral" : "warning"}>{item.confirmed ? "Confirmed" : item.status === "not_detected" ? "No answer detected" : item.status === "uncertain" ? "Review required" : "Detected — check mapping"}</Badge></div>
+            <div className="flex items-center justify-between gap-2"><span className="font-mono text-sm">{item.label || "Unlabelled block"}</span><Badge tone={draft.stage === "solutions" && item.confirmed ? "success" : item.status === "detected" ? "neutral" : "warning"}>{draft.stage === "solutions" && item.confirmed ? "Confirmed" : item.status === "not_detected" ? "No answer detected" : item.status === "uncertain" ? "Review recommended" : draft.stage === "answers" ? "Detected" : "Detected — check mapping"}</Badge></div>
             <label className="block text-xs">Matches question
               <select aria-label={`Mapping ${index + 1}`} className="mt-1 w-full rounded border border-border bg-surface p-2" value={item.question_id || ""} onChange={(e) => updateWorking(index, { question_id: e.target.value || null })}>
                 <option value="">Unmatched — choose question</option>{draft.questions.map((q) => <option key={q.question_id} value={q.question_id!}>{q.label}: {q.prompt.slice(0, 90)}</option>)}
@@ -145,7 +146,7 @@ export function TutorialImportPanel({ assignmentId, ready, groupPublish, onChang
             </div>}
             {draft.stage === "answers" && <Button variant="ghost" onClick={() => updateWorking(index, { steps: [], status: "not_detected" })}>Set unanswered (clear working)</Button>}
             <Button variant="ghost" onClick={() => setDraft({ ...draft, [draft.stage === "solutions" ? "solutions" : "answers"]: working.filter((_, i) => i !== index) })}>Delete extra block</Button>
-            <label className="flex items-start gap-2 text-xs"><input aria-label={`Confirm block ${index + 1}`} type="checkbox" checked={item.confirmed} onChange={(e) => updateWorking(index, { confirmed: e.target.checked })} />I checked this mapping, working{draft.stage === "solutions" ? " and rubric" : " (including any missing answer)"} against the source.</label>
+            {draft.stage === "solutions" && <label className="flex items-start gap-2 text-xs"><input aria-label={`Confirm block ${index + 1}`} type="checkbox" checked={item.confirmed} onChange={(e) => updateWorking(index, { confirmed: e.target.checked })} />I checked this mapping, working and rubric against the source.</label>}
           </div>)}
           <Button variant="secondary" onClick={() => setDraft({ ...draft, [draft.stage === "solutions" ? "solutions" : "answers"]: [...working, { block_id: crypto.randomUUID(), label: "Manual block", question_id: null, steps: [], source_pages: [], criteria: [], confidence: "low", status: "not_detected", notes: "Manually added", confirmed: false }] })}>Add missing block</Button>
           <Button className="ml-2" disabled={!mappingsReady} onClick={() => run(draft.stage === "solutions" ? "Validating solutions and rubrics…" : "Creating submissions and marking questions…", async () => {

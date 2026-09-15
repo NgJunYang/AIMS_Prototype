@@ -1,0 +1,9 @@
+{
+  "what_went_well": "You solved this cleanly and earned full marks, 4 out of 4. In Step 2 you subtracted 7 from both sides, which is exactly the right inverse operation for the +7 on the left, and you wrote that step out rather than jumping straight to an answer. Step 3 then gives x = 12, the correct solution.",
+  "what_went_wrong": "There is nothing to correct here: every step follows from the one before, and all three criteria were awarded in full. Step 2 was checked and found equivalent to Step 1, so your rearrangement holds up. Your layout, with one equation per line, made that easy to verify.",
+  "how_to_improve": "To confirm answers like this yourself, substitute your result back into the original equation and check both sides agree: put x = 12 into x + 7 and see that it gives 19. Keep writing the intermediate line, as you did in Step 2, on every question, since method marks are awarded separately from the answer mark. Adding a short note of the operation used, such as \"subtract 7 from both sides\", beside that line will make your reasoning explicit on longer problems.",
+  "references": [
+    "Notes \u00a70 \u2014 how your work is marked",
+    "Notes \u00a74 \u2014 reversible and irreversible operations"
+  ]
+}

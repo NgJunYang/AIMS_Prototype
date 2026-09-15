@@ -1,0 +1,10 @@
+{
+  "what_went_well": "You picked factorisation straight away, which is a sensible method for this quadratic, and you carried it out cleanly: (x - 2)(x - 3) = 0 in Step 2 is a correct factorisation of x^2 - 5x + 6. In Step 3 you set each bracket to zero and read off both roots, x = 2 and x = 3, so nothing was lost along the way. Full marks on all four criteria for a total of 6/6.",
+  "what_went_wrong": "Nothing went wrong here \u2014 there is no step in your working that cost you a mark. The only thing I would flag is presentational: Step 3 jumps from the product form to the two roots without writing down the intermediate lines x - 2 = 0 and x - 3 = 0. The marker could see your reasoning this time, but on a harder question that gap is where method marks go missing.",
+  "how_to_improve": "On your next factorising question, write the two sub-equations x - 2 = 0 and x - 3 = 0 as their own line before stating the roots, so the zero-product step is visible rather than implied. Then expand your brackets back out in the margin and check you recover x^2 - 5x + 6 before you go on. Both habits take a few seconds and protect the method marks when the numbers get uglier.",
+  "references": [
+    "Notes \u00a70 \u2014 how your work is marked",
+    "Notes \u00a71 \u2014 factorising quadratics",
+    "Notes \u00a72 \u2014 the zero-product principle"
+  ]
+}

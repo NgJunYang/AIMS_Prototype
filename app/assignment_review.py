@@ -17,8 +17,18 @@ def student_key(submission: Submission) -> tuple[str, str]:
 def student_submissions(anchor: Submission, submissions: list[Submission]) -> list[Submission]:
     # Never merge a missing-ID script into an identified student by name alone.
     # Two students may share a name; the instructor can confirm the missing ID.
+    # A whole-document import is also one coherent attempt.  Keep it isolated
+    # from older one-question Workbench records (and from later re-imports) so
+    # an accidental/manual duplicate cannot make every imported question
+    # impossible to review.
+    if anchor.source_import_id:
+        return [s for s in submissions
+                if s.assignment_id == anchor.assignment_id
+                and s.source_import_id == anchor.source_import_id]
     return [s for s in submissions
-            if s.assignment_id == anchor.assignment_id and student_key(s) == student_key(anchor)]
+            if s.assignment_id == anchor.assignment_id
+            and s.source_import_id is None
+            and student_key(s) == student_key(anchor)]
 
 
 def review_status(anchor: Submission, assignment: Assignment,

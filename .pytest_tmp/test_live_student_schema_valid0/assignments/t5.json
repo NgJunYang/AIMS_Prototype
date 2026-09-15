@@ -1,0 +1,19 @@
+{
+  "id": "t5",
+  "title": "Tutorial 5",
+  "kind": "tutorial",
+  "question_ids": [
+    "t5-2d00f1c1",
+    "t5-484cd9d6",
+    "t5-f2f402c3",
+    "t5-9e0f9a1e",
+    "t5-b5913fd6"
+  ],
+  "roster": [],
+  "feedback_settings": {
+    "variation": "balanced",
+    "custom_instructions": "",
+    "reveal_full_solution": true
+  },
+  "created_at": "2026-09-15T15:12:14.677949+00:00"
+}

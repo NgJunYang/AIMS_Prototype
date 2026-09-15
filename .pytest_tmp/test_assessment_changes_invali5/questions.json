@@ -1,0 +1,52 @@
+{
+  "questions": {
+    "q1": {
+      "id": "q1",
+      "label": null,
+      "source_import_id": null,
+      "source_pages": [],
+      "solution_source_pages": [],
+      "prompt": "Solve $x^2 - 5x + 6 = 0$.",
+      "model_solution_steps": [
+        "x^2 - 5x + 6 = 0",
+        "(x - 2)(x - 3) = 0",
+        "x = 2, x = 3"
+      ],
+      "variable": "x",
+      "topic_tag": "quadratics",
+      "criteria": [
+        {
+          "id": "C1",
+          "max": 1,
+          "description": "Recognised the equation is in, or rearranged it to, a form suitable for solving Explain your method."
+        },
+        {
+          "id": "C2",
+          "max": 3,
+          "description": "Applied a valid solution method without losing or gaining solutions"
+        },
+        {
+          "id": "C3",
+          "max": 2,
+          "description": "Carried out the algebra and arithmetic correctly"
+        },
+        {
+          "id": "C4",
+          "max": 1,
+          "description": "Stated all solutions"
+        },
+        {
+          "id": "C5",
+          "max": 1,
+          "description": "Working is clear and logically ordered"
+        }
+      ],
+      "verification_tier": "verified",
+      "verification_tier_override": null,
+      "solution_image_filename": null,
+      "solution_source_page": null,
+      "solution_transcription": null
+    }
+  },
+  "deleted": []
+}

@@ -1,0 +1,189 @@
+{
+  "answers": [
+    {
+      "block_id": "",
+      "question_id": "123-61035e3f",
+      "label": "Q1",
+      "status": "detected",
+      "confidence": "high",
+      "confirmed": false,
+      "source_pages": [
+        1
+      ],
+      "notes": "",
+      "criteria": [],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x + 7 = 19",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "x = 19 - 7",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 12",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ]
+    },
+    {
+      "block_id": "",
+      "question_id": "123-b4495fc0",
+      "label": "Q2",
+      "status": "detected",
+      "confidence": "high",
+      "confirmed": false,
+      "source_pages": [
+        1
+      ],
+      "notes": "",
+      "criteria": [],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 - 5x + 6 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "(x - 2)(x - 3) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 2 \\text{ or } x = 3",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ]
+    },
+    {
+      "block_id": "",
+      "question_id": "123-433aa1ac",
+      "label": "Q3",
+      "status": "detected",
+      "confidence": "high",
+      "confirmed": false,
+      "source_pages": [
+        1
+      ],
+      "notes": "Student divided by 2x, which may lose the x=0 solution; transcribed as written.",
+      "criteria": [],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "2x^2 - 8x = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "\\text{divide both sides by } 2x",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x - 4 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 4,
+          "latex": "x = 4",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 5,
+          "latex": "\\text{(I think this is the only answer.)}",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ]
+    },
+    {
+      "block_id": "",
+      "question_id": "123-0d1c1cca",
+      "label": "Q4",
+      "status": "detected",
+      "confidence": "high",
+      "confirmed": false,
+      "source_pages": [
+        2
+      ],
+      "notes": "Student only gave positive root; transcribed as written.",
+      "criteria": [],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 = 49",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "\\text{square root both sides}",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = 7",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ]
+    },
+    {
+      "block_id": "",
+      "question_id": "123-a487b629",
+      "label": "Q5",
+      "status": "detected",
+      "confidence": "high",
+      "confirmed": false,
+      "source_pages": [
+        2
+      ],
+      "notes": "",
+      "criteria": [],
+      "steps": [
+        {
+          "index": 1,
+          "latex": "x^2 + x - 12 = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 2,
+          "latex": "(x + 3)(x - 4) = 0",
+          "confidence": "high",
+          "edited_by_human": false
+        },
+        {
+          "index": 3,
+          "latex": "x = -3 \\text{ or } x = 4",
+          "confidence": "high",
+          "edited_by_human": false
+        }
+      ]
+    }
+  ],
+  "identity": {
+    "name": "Alex Tan",
+    "student_id": "2500123",
+    "confidence": "high"
+  },
+  "warnings": [
+    "Page 2 contains an untrusted meta-statement claiming intentional mistakes in Q3, Q4, Q5; this was treated as document content/context only, not as an instruction, and did not affect transcription."
+  ]
+}

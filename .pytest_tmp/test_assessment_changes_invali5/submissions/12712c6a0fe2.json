@@ -1,0 +1,32 @@
+{
+  "id": "12712c6a0fe2",
+  "source_import_id": null,
+  "source_pages": [],
+  "question_id": "q1",
+  "image_filename": null,
+  "source_page": null,
+  "source_page_count": null,
+  "transcription": null,
+  "confirmed_steps": [
+    {
+      "index": 1,
+      "latex": "x = 5",
+      "confidence": "high",
+      "edited_by_human": true
+    }
+  ],
+  "verification": null,
+  "marks": null,
+  "manual_score_overrides": {},
+  "feedback": null,
+  "feedback_settings_used": null,
+  "practice": [],
+  "student_pseudonym": "Student A",
+  "student_id": "2500001",
+  "extracted_identity": null,
+  "channel": "tutorial",
+  "reviewed": false,
+  "review_invalidated": true,
+  "published": false,
+  "assignment_id": "tutorial5"
+}

@@ -92,10 +92,10 @@ def _labels(questions: list[QuestionDraft]) -> None:
         raise HTTPException(400, "Every question needs non-empty question text.")
 
 
-def _confirmed_mappings(items, question_ids: list[str], page_count: int) -> None:
+def _confirmed_mappings(items, question_ids: list[str], page_count: int, *, require_item_confirmation: bool = True) -> None:
     if Counter(item.question_id for item in items) != Counter(question_ids):
         raise HTTPException(409, "Map exactly one block to every question. Correct unmatched/duplicate blocks, or add missing answers.")
-    if any(not item.confirmed for item in items):
+    if require_item_confirmation and any(not item.confirmed for item in items):
         raise HTTPException(409, "Confirm each mapping and transcription, including missing answers, before continuing.")
     for item in items:
         _pages(item.source_pages, page_count)
@@ -251,7 +251,14 @@ def create_router(mark_submission) -> APIRouter:
         questions = _questions(assignment)
         if ingestion.question_fingerprint(questions) != draft.question_fingerprint:
             raise HTTPException(409, "Assignment questions changed after extraction. Re-import against the current setup.")
-        _confirmed_mappings(body.answers, [q.id for q in questions], draft.page_count)
+        _confirmed_mappings(
+            body.answers, [q.id for q in questions], draft.page_count,
+            require_item_confirmation=False,
+        )
+        # Posting the complete student-answer form is the single confirmation
+        # action. Preserve that audit state without requiring one checkbox per
+        # question in the UI.
+        answers = [answer.model_copy(update={"confirmed": True}) for answer in body.answers]
         name = (body.identity.name or "").strip()
         student_id = (body.identity.student_id or "").strip() or None
         if not name:
@@ -261,13 +268,14 @@ def create_router(mark_submission) -> APIRouter:
         existing = [s for s in store.list_submissions() if s.assignment_id == draft.assignment_id and s.question_id in {q.id for q in questions}]
         # Also flag a missing-ID namesake: don't silently make another set when
         # the old upload simply lacked the ID now supplied by the instructor.
-        conflicts = [s for s in existing if student_key(s) == student_key(anchor) or
-                     ((not s.student_id or not student_id) and " ".join(s.student_pseudonym.split()).casefold() == " ".join(name.split()).casefold())]
+        conflicts = [s for s in existing if s.source_import_id and (
+                     student_key(s) == student_key(anchor) or
+                     ((not s.student_id or not student_id) and " ".join(s.student_pseudonym.split()).casefold() == " ".join(name.split()).casefold()))]
         if conflicts:
-            raise HTTPException(409, "Submissions already exist for this assignment/student: " + ", ".join(s.question_id for s in conflicts) + ". Resume existing work; this import will not replace reviewed or published results.")
+            raise HTTPException(409, "Imported submissions already exist for this assignment/student: " + ", ".join(s.question_id for s in conflicts) + ". Resume existing work; this import will not replace reviewed or published results.")
         submissions = []
         for question in questions:
-            answer = next(a for a in body.answers if a.question_id == question.id)
+            answer = next(a for a in answers if a.question_id == question.id)
             raw = next((a for a in draft.answers if a.block_id and a.block_id == answer.block_id), None)
             steps = [Step(index=i, latex=s.latex, confidence=s.confidence,
                           edited_by_human=raw is None or i > len(raw.steps) or raw.steps[i - 1].latex != s.latex)
@@ -277,7 +285,7 @@ def create_router(mark_submission) -> APIRouter:
                 extracted_identity=draft.identity, transcription=Transcription(steps=raw.steps if raw else [], notes=answer.notes),
                 confirmed_steps=steps, source_import_id=draft.id, source_pages=answer.source_pages,
                 source_page=next(iter(answer.source_pages), None), source_page_count=draft.page_count))
-        draft.answers = body.answers
+        draft.answers = answers
         # Keep extracted identity as the audit record; authoritative identity is on each Submission.
         draft.submission_ids = [s.id for s in submissions]
         draft.stage = "complete"
