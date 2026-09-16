@@ -124,7 +124,7 @@ export default function Confirm({ onOpenAssignments }: { onOpenAssignments?: () 
         </div>
       )}
 
-      <fieldset disabled={state.reviewBusy} className="grid min-w-0 gap-4 xl:grid-cols-[minmax(250px,0.84fr)_minmax(360px,1.08fr)_minmax(340px,1fr)]">
+      <fieldset disabled={state.reviewBusy} className="grid min-w-0 gap-4 lg:grid-cols-[minmax(250px,0.84fr)_minmax(360px,1.08fr)_minmax(340px,1fr)]">
         <PanelFrame index="01" title="Source scan" subtitle="The original evidence" tone="scan" icon={<ScanLine size={17} />}>
           {sub?.source_import_id ? <ImportSourcePages key={sub.id} id={sub.source_import_id}
             pages={sub.source_pages?.length ? sub.source_pages : Array.from({ length: sub.source_page_count || 0 }, (_, i) => i + 1)} /> : <ImagePane
@@ -151,7 +151,7 @@ export default function Confirm({ onOpenAssignments }: { onOpenAssignments?: () 
                 </Badge>
               )}
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 2xl:grid-cols-2">
               <div>
                 <Label htmlFor="script-student-name">Name</Label>
                 <Input id="script-student-name" value={state.localName} onChange={(e) => wb.setLocalName(e.target.value)} placeholder="Student name" />
@@ -328,7 +328,7 @@ function PanelFrame({ index, title, subtitle, tone, icon, children, footer }: {
 }) {
   const colors = panelTone[tone];
   return (
-    <Card className="relative flex min-h-[34rem] flex-col overflow-hidden p-0 shadow-[0_14px_40px_rgba(67,54,38,0.07)] xl:h-[calc(100vh-9rem)]">
+    <Card className="relative flex min-h-[34rem] flex-col overflow-hidden p-0 shadow-[0_14px_40px_rgba(67,54,38,0.07)] lg:h-[calc(100vh-9rem)]">
       <div className={`h-1 w-full shrink-0 ${colors.bar}`} />
       <div className="flex shrink-0 items-center gap-3 border-b border-border bg-surface/95 px-4 py-3 backdrop-blur">
         <span className={`font-mono text-xs font-semibold ${colors.number}`}>{index}</span>
