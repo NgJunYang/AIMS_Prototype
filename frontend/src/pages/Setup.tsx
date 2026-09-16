@@ -42,7 +42,11 @@ export default function Setup({ onSubmissionCreated, onOpenAssignments }: {
 
   const q = state.currentQuestion;
   const activeAssignment = assignments.find((a) => a.id === state.assignmentId) || null;
-  const isMultiQuestionTutorial = activeAssignment?.kind === "tutorial" && activeAssignment.question_ids.length > 1;
+  // Whole-PDF import now handles tutorial, CA and exam assignments alike, so
+  // any multi-question assignment - not just tutorials - should redirect
+  // here instead of letting a multi-question paper get partially transcribed
+  // one page/question at a time in this single-question flow.
+  const isMultiQuestionAssignment = !!activeAssignment && activeAssignment.question_ids.length > 1;
   const visibleQuestions = activeAssignment
     ? state.questions.filter((qq) => activeAssignment.question_ids.includes(qq.id))
     : state.questions;
@@ -60,8 +64,8 @@ export default function Setup({ onSubmissionCreated, onOpenAssignments }: {
   async function handleFile(file: File) {
     if (!state.currentQuestion) return;
     const looksLikePdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
-    if (looksLikePdf && isMultiQuestionTutorial) {
-      setNotice("Use the assignment importer for a complete tutorial PDF. It separates the script into one reviewable submission per question.");
+    if (looksLikePdf && isMultiQuestionAssignment) {
+      setNotice("Use the assignment importer for a complete question paper PDF. It separates the script into one reviewable submission per question.");
       return;
     }
     try {
@@ -190,8 +194,8 @@ export default function Setup({ onSubmissionCreated, onOpenAssignments }: {
       {notice && (
         <div className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-2 text-sm text-accent-hover">
           <p>{notice}</p>
-          {isMultiQuestionTutorial && notice.startsWith("Use the assignment importer") && (
-            <Button className="mt-2" onClick={onOpenAssignments}>Open whole tutorial PDF import</Button>
+          {isMultiQuestionAssignment && notice.startsWith("Use the assignment importer") && (
+            <Button className="mt-2" onClick={onOpenAssignments}>Open whole assignment PDF import</Button>
           )}
         </div>
       )}
@@ -265,7 +269,7 @@ export default function Setup({ onSubmissionCreated, onOpenAssignments }: {
             <input
               ref={fileInputRef}
               type="file"
-              accept={isMultiQuestionTutorial ? "image/*" : "image/*,application/pdf"}
+              accept={isMultiQuestionAssignment ? "image/*" : "image/*,application/pdf"}
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -273,13 +277,13 @@ export default function Setup({ onSubmissionCreated, onOpenAssignments }: {
                 e.target.value = "";
               }}
             />
-            {isMultiQuestionTutorial && (
+            {isMultiQuestionAssignment && (
               <Button onClick={onOpenAssignments} className="justify-start">
-                <Upload size={16} /> Upload complete tutorial PDF
+                <Upload size={16} /> Upload complete assignment PDF
               </Button>
             )}
             <Button variant="secondary" onClick={() => fileInputRef.current?.click()} className="justify-start">
-              <Upload size={16} /> {isMultiQuestionTutorial ? "Upload one-question photo" : "Upload photo or PDF of working"}
+              <Upload size={16} /> {isMultiQuestionAssignment ? "Upload one-question photo" : "Upload photo or PDF of working"}
             </Button>
             <Button variant="secondary" onClick={handleTypeIn} className="justify-start">
               <Keyboard size={16} /> Type it in
